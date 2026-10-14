@@ -2,8 +2,9 @@
 // ARCHIVO: events/messageCreate.js
 // ==========================================
 
-const { Events, MessageFlags } = require('discord.js');
+const { Events } = require('discord.js');
 const { construirMenuPrincipal } = require('../interactions/buttons/navigation');
+const { construirPanelPing } = require('../commands/ping');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -22,27 +23,10 @@ module.exports = {
             .trim()
             .toLowerCase();
 
-        // 1. @Kortex ping
+        // 1. @Kortex ping -> mismo panel que /ping
         if (texto === 'ping') {
-            const sent = await message.reply({ content: 'Calculando latencia...' });
-            const latency = sent.createdTimestamp - message.createdTimestamp;
-
-            return await sent.edit({
-                content: '',
-                flags: MessageFlags.IsComponentsV2,
-                components: [
-                    {
-                        type: 17,
-                        accent_color: 0x5865F2,
-                        components: [
-                            {
-                                type: 10,
-                                content: `🏓 **Pong!**\n\n> ⚡ **Latencia del mensaje:** \`${latency}ms\`\n> 🌐 **WebSocket API:** \`${message.client.ws.ping}ms\``
-                            }
-                        ]
-                    }
-                ]
-            });
+            const latencia = Math.max(0, Date.now() - message.createdTimestamp);
+            return await message.reply(construirPanelPing(message.client, latencia));
         }
 
         // 2. @Kortex help -> Abre la guía

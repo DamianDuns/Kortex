@@ -2,19 +2,20 @@
 // ARCHIVO: interactions/calcHelpers.js
 // ==========================================
 
-const { 
-    ContainerBuilder, 
-    TextDisplayBuilder, 
-    StringSelectMenuBuilder, 
-    StringSelectMenuOptionBuilder, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    MessageFlags 
+const {
+    ContainerBuilder,
+    TextDisplayBuilder,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    ActionRowBuilder,
+    ButtonStyle,
+    MessageFlags
 } = require('discord.js');
+const { COLORES, footer, separador, boton } = require('../utils/ui');
 
 const EMOJI_ROBUX = '<:Robux:1547677277590913114>';
 const estadoCalculadoraUsuario = new Map();
+const OPCIONES_DEFAULT = ['grupo_40'];
 
 const TIERS_ROBLOX = {
     TIER_100: { nombre: 'Tier 100% (Global / EE.UU. / España / Europa)', factor: 1.0, desc: 'Sin descuento regional' },
@@ -23,118 +24,82 @@ const TIERS_ROBLOX = {
     TIER_40:  { nombre: 'Tier 40% (Venezuela / Bolivia / Paraguay / Filipinas)', factor: 0.4, desc: '60% de descuento regional' }
 };
 
-function construirPanelCalculadoraLimpio(opcionesSeleccionadas = ['grupo_40']) {
+/** Devuelve las opciones guardadas del usuario o las de por defecto (las que ve marcadas al abrir el panel). */
+function obtenerSeleccion(userId) {
+    return estadoCalculadoraUsuario.get(userId) ?? [...OPCIONES_DEFAULT];
+}
+
+const fmt = n => Number(n).toLocaleString('es-AR');
+
+function barraProgreso(porcentaje, largo = 10) {
+    const llenos = Math.round((Math.min(100, Math.max(0, porcentaje)) / 100) * largo);
+    return '▰'.repeat(llenos) + '▱'.repeat(largo - llenos);
+}
+
+function construirPanelCalculadoraLimpio(opcionesSeleccionadas = OPCIONES_DEFAULT) {
     const isGrupo = opcionesSeleccionadas.includes('grupo_40');
     const isPlus10 = opcionesSeleccionadas.includes('plus_10');
     const isPlus20 = opcionesSeleccionadas.includes('plus_20');
     const isRegionalRoblox = opcionesSeleccionadas.includes('roblox_regional');
 
-    let estadoTexto = '';
-    estadoTexto += isGrupo ? '• ✅ **Cashback Grupo (40%)** — Activado\n' : '• ⏹️ **Cashback Grupo (40%)** — Desactivado\n';
-    estadoTexto += isPlus10 ? '• ✅ **Roblox Plus (10%)** — Activado\n' : '• ⏹️ **Roblox Plus (10%)** — Desactivado\n';
-    estadoTexto += isPlus20 ? '• ✅ **Roblox Plus 2+ Meses (20%)** — Activado\n' : '• ⏹️ **Roblox Plus 2+ Meses (20%)** — Desactivado\n';
-    estadoTexto += isRegionalRoblox ? '• ✅ **Precio Regional Roblox** — Activado\n' : '• ⏹️ **Precio Regional Roblox** — Desactivado\n';
+    const linea = (activo, texto) => `${activo ? '🟢' : '⚫'} ${activo ? `**${texto}**` : texto}`;
+    const estadoTexto = [
+        linea(isGrupo, 'Cashback de Grupo (40%)'),
+        linea(isPlus10, 'Roblox Plus (10%)'),
+        linea(isPlus20, 'Roblox Plus 2+ meses (20%)'),
+        linea(isRegionalRoblox, 'Precio Regional')
+    ].join('\n');
 
     const selectOptions = new StringSelectMenuBuilder()
         .setCustomId('select_calc_multiselect')
-        .setPlaceholder('Elegí los beneficios a aplicar...')
+        .setPlaceholder('✨ Elegí los beneficios a aplicar...')
         .setMinValues(0)
         .setMaxValues(4)
         .addOptions([
             new StringSelectMenuOptionBuilder()
                 .setLabel('Cashback de Grupo (40%)')
+                .setDescription('Comprás desde tu grupo y recuperás el 40%')
                 .setValue('grupo_40')
                 .setDefault(isGrupo)
                 .setEmoji('👥'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Roblox Plus (10% Descuento)')
+                .setLabel('Roblox Plus (10%)')
+                .setDescription('Descuento de suscriptor')
                 .setValue('plus_10')
                 .setDefault(isPlus10)
                 .setEmoji('⭐'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Roblox Plus 2+ Meses (20% Descuento)')
+                .setLabel('Roblox Plus 2+ meses (20%)')
+                .setDescription('Reemplaza al 10% si elegís ambos')
                 .setValue('plus_20')
                 .setDefault(isPlus20)
                 .setEmoji('🌟'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Precio Regional Roblox')
+                .setLabel('Precio Regional')
+                .setDescription('Te pregunto tu región después de ingresar el precio')
                 .setValue('roblox_regional')
                 .setDefault(isRegionalRoblox)
                 .setEmoji('🌎')
         ]);
 
-    const rowSelect = new ActionRowBuilder().addComponents(selectOptions);
-    const rowActions = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('btn_calc_execute_modal')
-            .setLabel('Calcular Precio')
-            .setEmoji('🧮')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('btn_back_main')
-            .setLabel('Menú Principal')
-            .setEmoji('⬅️')
-            .setStyle(ButtonStyle.Secondary)
-    );
-
     const container = new ContainerBuilder()
+        .setAccentColor(COLORES.calc)
         .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                '## 🧮 Calculadora de Economía\n\n' +
-                'Seleccioná los beneficios que querés aplicar y después presioná **Calcular Precio**.\n\n' +
-                '**Configuración actual:**\n' + estadoTexto
+                '## 🧮 Calculadora de Economía\n' +
+                'Elegí los beneficios en el menú y presioná **Calcular**.'
             )
         )
-        .addActionRowComponents(rowSelect)
-        .addActionRowComponents(rowActions);
-
-    return { 
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
-    };
-}
-
-function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') {
-    let precioAjustadoRobux = basePrice;
-    let detallesTexto = `🏷️ **Precio Base Global:** \`${basePrice.toLocaleString('es-AR')} Robux\`\n`;
-
-    if (seleccionadas.includes('roblox_regional')) {
-        const tierConfig = TIERS_ROBLOX[tierKey] || TIERS_ROBLOX.TIER_100;
-        precioAjustadoRobux = Math.floor(basePrice * tierConfig.factor);
-        detallesTexto += `🌎 **Precio Regional:** \`${precioAjustadoRobux.toLocaleString('es-AR')} Robux\`\n`;
-        detallesTexto += `*(${tierConfig.nombre})*\n`;
-    }
-
-    let totalAhorroRobux = 0;
-
-    if (seleccionadas.includes('grupo_40')) {
-        const cashbackGrupo = Math.floor(precioAjustadoRobux * 0.40);
-        totalAhorroRobux += cashbackGrupo;
-        detallesTexto += `👥 **Cashback Grupo (40%):** \`+${cashbackGrupo.toLocaleString('es-AR')} Robux\`\n`;
-    }
-
-    if (seleccionadas.includes('plus_10')) {
-        const descPlus10 = Math.floor(precioAjustadoRobux * 0.10);
-        totalAhorroRobux += descPlus10;
-        detallesTexto += `⭐ **Roblox Plus (10%):** \`-${descPlus10.toLocaleString('es-AR')} Robux\`\n`;
-    }
-
-    if (seleccionadas.includes('plus_20')) {
-        const descPlus20 = Math.floor(precioAjustadoRobux * 0.20);
-        totalAhorroRobux += descPlus20;
-        detallesTexto += `🌟 **Roblox Plus 2+ Meses (20%):** \`-${descPlus20.toLocaleString('es-AR')} Robux\`\n`;
-    }
-
-    const precioFinalEfectivo = Math.max(0, precioAjustadoRobux - totalAhorroRobux);
-
-    detallesTexto += `\n📊 **Total Ahorro:** \`${totalAhorroRobux.toLocaleString('es-AR')} Robux\`\n` +
-                     `📉 **Precio Final Efectivo:** \`${precioFinalEfectivo.toLocaleString('es-AR')} Robux\``;
-
-    const container = new ContainerBuilder()
+        .addSeparatorComponents(separador())
         .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-                '## 📊 Resultado del Cálculo\n\n' +
-                detallesTexto
+            new TextDisplayBuilder().setContent('### ⚙️ Configuración actual\n' + estadoTexto)
+        )
+        .addSeparatorComponents(separador())
+        .addActionRowComponents(new ActionRowBuilder().addComponents(selectOptions))
+        .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                boton('btn_calc_execute_modal', 'Calcular', '🧮', ButtonStyle.Primary),
+                boton('btn_nav_main_menu', 'Menú Principal', '⬅️')
             )
         );
 
@@ -144,8 +109,66 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
     };
 }
 
+function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') {
+    let precioAjustadoRobux = basePrice;
+    const lineas = [`🏷️ **Precio base:** \`${fmt(basePrice)} R$\``];
+
+    if (seleccionadas.includes('roblox_regional')) {
+        const tierConfig = TIERS_ROBLOX[tierKey] || TIERS_ROBLOX.TIER_100;
+        precioAjustadoRobux = Math.floor(basePrice * tierConfig.factor);
+        lineas.push(`🌎 **Precio regional:** \`${fmt(precioAjustadoRobux)} R$\``);
+        lineas.push(`-# ${tierConfig.nombre} — ${tierConfig.desc}`);
+    }
+
+    let totalAhorroRobux = 0;
+
+    if (seleccionadas.includes('grupo_40')) {
+        const cashbackGrupo = Math.floor(precioAjustadoRobux * 0.40);
+        totalAhorroRobux += cashbackGrupo;
+        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupo)} R$\``);
+    }
+
+    if (seleccionadas.includes('plus_10')) {
+        const descPlus10 = Math.floor(precioAjustadoRobux * 0.10);
+        totalAhorroRobux += descPlus10;
+        lineas.push(`⭐ **Roblox Plus (10%):** \`-${fmt(descPlus10)} R$\``);
+    }
+
+    if (seleccionadas.includes('plus_20')) {
+        const descPlus20 = Math.floor(precioAjustadoRobux * 0.20);
+        totalAhorroRobux += descPlus20;
+        lineas.push(`🌟 **Roblox Plus 2+ meses (20%):** \`-${fmt(descPlus20)} R$\``);
+    }
+
+    const precioFinalEfectivo = Math.max(0, precioAjustadoRobux - totalAhorroRobux);
+    const ahorroTotalVsBase = basePrice - precioFinalEfectivo;
+    const porcentaje = basePrice > 0 ? Math.round((ahorroTotalVsBase / basePrice) * 100) : 0;
+
+    const container = new ContainerBuilder()
+        .setAccentColor(COLORES.exito)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent('## 📊 Resultado del Cálculo'))
+        .addSeparatorComponents(separador())
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas.join('\n')))
+        .addSeparatorComponents(separador())
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### 💰 Precio final efectivo: \`${fmt(precioFinalEfectivo)} R$\`\n` +
+            `Ahorrás **${fmt(ahorroTotalVsBase)} R$** (${porcentaje}%)\n` +
+            `\`${barraProgreso(porcentaje)}\``
+        ))
+        .addSeparatorComponents(separador())
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            footer('Valores estimados • Roblox redondea hacia abajo')
+        ));
+
+    return {
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
+    };
+}
+
 module.exports = {
     estadoCalculadoraUsuario,
+    obtenerSeleccion,
     construirPanelCalculadoraLimpio,
     calcularEmbedResultado,
     TIERS_ROBLOX,

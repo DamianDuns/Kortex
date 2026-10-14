@@ -1,4 +1,4 @@
-const { estadoCalculadoraUsuario, construirPanelCalculadoraLimpio, calcularEmbedResultado } = require('../calcHelpers');
+const { estadoCalculadoraUsuario, obtenerSeleccion, construirPanelCalculadoraLimpio, calcularEmbedResultado } = require('../calcHelpers');
 
 module.exports = {
     customIdPrefix: 'select_calc_',
@@ -19,7 +19,7 @@ module.exports = {
         if (interaction.customId.startsWith('select_calc_region:')) {
             const basePrice = parseInt(interaction.customId.split(':')[1], 10);
             const tierKey = interaction.values[0];
-            const seleccionadas = estadoCalculadoraUsuario.get(interaction.user.id) || [];
+            const seleccionadas = obtenerSeleccion(interaction.user.id);
 
             const resultado = calcularEmbedResultado(basePrice, seleccionadas, tierKey);
             return await interaction.update(resultado);

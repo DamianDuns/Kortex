@@ -6,6 +6,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 require('dotenv').config();
+const logger = require('./utils/logger');
+const routerInteracciones = require('./interactions');
+
+const modoDeploy = process.argv.includes('--deploy') || process.env.DEPLOY_COMMANDS === 'true';
+logger.imprimirBanner(modoDeploy);
 
 // 0. Validación de variables de entorno obligatorias
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'CLIENT_ID', 'SUPABASE_URL'];
@@ -14,8 +19,8 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_KEY) {
     faltantes.push('SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_KEY)');
 }
 if (faltantes.length > 0) {
-    console.error(`[CONFIG ERROR] Faltan variables de entorno: ${faltantes.join(', ')}`);
-    console.error('Creá un archivo .env (podés copiar .env.example) o configuralas en tu hosting.');
+    logger.error('CONFIG', `Faltan variables de entorno obligatorias: ${faltantes.join(', ')}`);
+    logger.warn('Creá un archivo .env (podés copiar .env.example) o configuralas en tu hosting.');
     process.exit(1);
 }
 
@@ -29,6 +34,8 @@ const client = new Client({
 
 client.commands = new Collection();
 const commandsForDeploy = [];
+const nombresComandos = [];
+const nombresEventos = [];
 
 // 1. Carga de comandos
 const commandsPath = path.join(__dirname, 'commands');
@@ -40,6 +47,7 @@ if (fs.existsSync(commandsPath)) {
         if ('data' in command && 'execute' in command) {
             client.commands.set(command.data.name, command);
             commandsForDeploy.push(command.data.toJSON());
+            nombresComandos.push(command.data.name);
         }
     }
 }
@@ -51,6 +59,7 @@ if (fs.existsSync(eventsPath)) {
     for (const file of eventFiles) {
         const filePath = path.join(eventsPath, file);
         const event = require(filePath);
+        nombresEventos.push(event.once ? `${event.name} (once)` : event.name);
         if (event.once) {
             client.once(event.name, (...args) => event.execute(...args));
         } else {
@@ -59,31 +68,46 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// 3. Registro condicional vía parámetro CLI (--deploy)
+// Mostrar resumen estructurado de módulos cargados
+const resumenInteracciones = typeof routerInteracciones.obtenerResumenHandlers === 'function'
+    ? routerInteracciones.obtenerResumenHandlers()
+    : null;
+
+logger.imprimirResumenCarga({
+    comandos: nombresComandos,
+    eventos: nombresEventos,
+    interacciones: resumenInteracciones
+});
+
+// 3. Registro condicional vía parámetro CLI (--deploy) o DEPLOY_COMMANDS=true
 async function registrarComandos() {
     const { DISCORD_TOKEN, CLIENT_ID } = process.env;
     if (!DISCORD_TOKEN || !CLIENT_ID) return;
 
     const rest = new REST().setToken(DISCORD_TOKEN);
+    const inicio = Date.now();
+    const lista = nombresComandos.map(n => `/${n}`).join(', ');
+
     try {
-        console.log(`[DEPLOY] Sincronizando ${commandsForDeploy.length} comando(s) con Discord...`);
+        logger.deploy(`Sincronizando ${commandsForDeploy.length} comando(s) slash con Discord (${lista})...`);
         await rest.put(
             Routes.applicationCommands(CLIENT_ID),
             { body: commandsForDeploy }
         );
-        console.log('[DEPLOY ÉXITO] Sincronización finalizada.');
+        const ms = Date.now() - inicio;
+        logger.ok(`Comandos slash sincronizados globalmente en ${ms}ms.`);
     } catch (error) {
-        console.error('[DEPLOY ERROR]:', error);
+        logger.error('DEPLOY', error);
     }
 }
 
 // 4. Manejadores Anti-Crash
-process.on('unhandledRejection', (reason) => console.error('[ANTI-CRASH] Unhandled Rejection:', reason));
-process.on('uncaughtException', (error) => console.error('[ANTI-CRASH] Uncaught Exception:', error));
+process.on('unhandledRejection', (reason) => logger.error('UNHANDLED REJECTION', reason));
+process.on('uncaughtException', (error) => logger.error('UNCAUGHT EXCEPTION', error));
 
 // 4.1 Apagado limpio (el hosting envía SIGTERM al reiniciar/redeployar)
 async function apagar(signal) {
-    console.log(`[SHUTDOWN] Señal ${signal} recibida. Cerrando conexión con Discord...`);
+    logger.warn(`Señal ${signal} recibida. Cerrando sesión de Discord de forma segura...`);
     try {
         await client.destroy();
     } finally {
@@ -95,13 +119,14 @@ process.once('SIGTERM', () => apagar('SIGTERM'));
 
 // 5. Inicialización
 (async () => {
-    if (process.argv.includes('--deploy')) {
+    if (modoDeploy) {
         await registrarComandos();
     }
     try {
+        logger.info('Autenticando cliente con Discord Gateway...');
         await client.login(process.env.DISCORD_TOKEN);
     } catch (error) {
-        console.error('[LOGIN ERROR] No se pudo iniciar sesión en Discord. ¿El DISCORD_TOKEN es válido?', error.message);
+        logger.error('LOGIN', `No se pudo iniciar sesión en Discord. ¿El DISCORD_TOKEN es válido? (${error.message})`);
         process.exit(1);
     }
 })();

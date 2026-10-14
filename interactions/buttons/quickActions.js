@@ -3,7 +3,7 @@
 // ==========================================
 
 const { construirMenuSniper } = require('./navigation');
-const { construirPanelCalculadoraLimpio } = require('../calcHelpers');
+const { construirPanelCalculadoraLimpio, obtenerSeleccion } = require('../calcHelpers');
 
 module.exports = {
     customIdPrefix: 'btn_quick_',
@@ -17,7 +17,7 @@ module.exports = {
         }
 
         if (interaction.customId === 'btn_quick_calc') {
-            const panelCalc = construirPanelCalculadoraLimpio();
+            const panelCalc = construirPanelCalculadoraLimpio(obtenerSeleccion(interaction.user.id));
             return await interaction.editReply(panelCalc);
         }
     }

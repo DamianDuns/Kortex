@@ -18,7 +18,6 @@ function cargarHandlers(subfolder, mapa) {
         const handler = require(path.join(dirPath, file));
         if (handler.customIdPrefix && handler.execute) {
             mapa.set(handler.customIdPrefix, handler);
-            console.log(`[HANDLER CARGADO] ${subfolder}/${file} -> Prefijo: "${handler.customIdPrefix}"`);
         }
     }
 }
@@ -26,6 +25,15 @@ function cargarHandlers(subfolder, mapa) {
 cargarHandlers('buttons', buttons);
 cargarHandlers('selects', selects);
 cargarHandlers('modals', modals);
+
+function obtenerResumenHandlers() {
+    return {
+        botones: [...buttons.keys()],
+        selects: [...selects.keys()],
+        modales: [...modals.keys()],
+        total: buttons.size + selects.size + modals.size
+    };
+}
 
 async function routerInteracciones(interaction) {
     let mapa = null;
@@ -49,4 +57,5 @@ async function routerInteracciones(interaction) {
     }
 }
 
+routerInteracciones.obtenerResumenHandlers = obtenerResumenHandlers;
 module.exports = routerInteracciones;

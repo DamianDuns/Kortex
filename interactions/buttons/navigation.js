@@ -2,127 +2,231 @@
 // ARCHIVO: interactions/buttons/navigation.js
 // ==========================================
 
-const { 
-    ContainerBuilder, SectionBuilder, TextDisplayBuilder, 
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, 
-    StringSelectMenuBuilder, StringSelectMenuOptionBuilder, MessageFlags 
+const {
+    ContainerBuilder, SectionBuilder, TextDisplayBuilder,
+    ActionRowBuilder, ButtonStyle,
+    StringSelectMenuBuilder, StringSelectMenuOptionBuilder, MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
 const { obtenerMiniaturasBatch } = require('../../utils/roblox');
+const {
+    COLORES, EMOJI_TIPO, NOMBRE_TIPO,
+    footer, separador, boton, formatearPrecio
+} = require('../../utils/ui');
 
+const MAX_WISHLIST_ITEMS = 5;
+
+// ==========================================
+// HUB PRINCIPAL (/roblox y @Kortex)
+// ==========================================
+// eslint-disable-next-line no-unused-vars
 function construirMenuPrincipal(userId) {
-    const container = new ContainerBuilder();
+    const container = new ContainerBuilder().setAccentColor(COLORES.primario);
 
-    // Título de acción directa
-    const header = new TextDisplayBuilder().setContent(
-        '# ⚡ ROBLOX TOOLKIT\n' +
-        'Seleccioná una herramienta o usá los accesos rápidos:'
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        '# ⚡ Roblox Toolkit\n' +
+        'Todo lo que necesitás para la economía de Roblox, en un solo lugar.'
+    ));
+
+    container.addSeparatorComponents(separador(true));
+
+    // Cada herramienta es una sección con su botón a la derecha
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                '### 🎯 Price Sniper\n' +
+                'Monitoreá Catálogo, Limiteds, Gamepasses y Plugins. Te aviso cuando el precio baja.'
+            ))
+            .setButtonAccessory(boton('btn_quick_sniper', 'Añadir', '➕', ButtonStyle.Primary))
     );
-    container.addTextDisplayComponents(header);
-    container.addSeparatorComponents(sep => sep.setDivider(true));
 
-    // Botones de acción rápida: Ver lista directa o ir a calculadoras
-    const rowButtons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('btn_nav_wishlist')
-            .setLabel('Mi Lista de Monitoreo')
-            .setEmoji('📋')
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId('btn_quick_sniper')
-            .setLabel('Añadir Objeto')
-            .setEmoji('🎯')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('btn_quick_calc')
-            .setLabel('Calculadoras')
-            .setEmoji('🧮')
-            .setStyle(ButtonStyle.Secondary)
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                '### 📋 Mi Lista\n' +
+                `Revisá, pausá o editá tus objetos en seguimiento (máx. ${MAX_WISHLIST_ITEMS}).`
+            ))
+            .setButtonAccessory(boton('btn_nav_wishlist', 'Ver lista', '📋', ButtonStyle.Success))
     );
-    container.addActionRowComponents(rowButtons);
 
-    // Selector de herramientas principales
-    const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`select_main_category:${userId}`)
-        .setPlaceholder('🛠️ Elegí una herramienta para ejecutar...')
-        .addOptions([
-            new StringSelectMenuOptionBuilder()
-                .setLabel('Price Sniper (Añadir o Gestionar)')
-                .setDescription('Monitorear precios de Catálogo, Gamepasses, Plugins y Limiteds')
-                .setValue('cat_sniper')
-                .setEmoji('🎯'),
-            new StringSelectMenuOptionBuilder()
-                .setLabel('Calculadoras de Economía')
-                .setDescription('Cashback 40%, Roblox Plus y Precios Regionales')
-                .setValue('cat_calculators')
-                .setEmoji('🧮')
-        ]);
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                '### 🧮 Calculadoras\n' +
+                'Cashback de grupo (40%), Roblox Plus (10% / 20%) y precios regionales.'
+            ))
+            .setButtonAccessory(boton('btn_quick_calc', 'Abrir', '🧮'))
+    );
 
-    const rowSelect = new ActionRowBuilder().addComponents(selectMenu);
+    container.addSeparatorComponents(separador());
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        footer('¿Primera vez? Usá /help para ver la guía completa')
+    ));
 
     return {
-        components: [container, rowSelect],
+        components: [container],
         flags: MessageFlags.IsComponentsV2
     };
 }
 
+// ==========================================
+// PRICE SNIPER: elegir categoría
+// ==========================================
 function construirMenuSniper() {
-    const container = new ContainerBuilder();
+    const container = new ContainerBuilder().setAccentColor(COLORES.sniper);
 
-    const header = new TextDisplayBuilder().setContent(
-        '## 🎯 Price Sniper // Selección de Categoría\n' +
-        'Elegí qué tipo de artículo deseás empezar a monitorear:'
-    );
-    container.addTextDisplayComponents(header);
-    container.addSeparatorComponents(sep => sep.setDivider(true));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        '## 🎯 Price Sniper\n' +
+        'Añadí un objeto en 3 pasos:\n' +
+        '> **1.** Elegí la categoría en el menú de abajo.\n' +
+        '> **2.** Pegá el **ID** o el **enlace** de Roblox.\n' +
+        '> **3.** Definí una meta de precio *(opcional)* y dónde recibir las alertas.'
+    ));
+
+    container.addSeparatorComponents(separador());
 
     const selectTipo = new StringSelectMenuBuilder()
         .setCustomId('select_sniper_type')
-        .setPlaceholder('Elegí la categoría del objeto...')
+        .setPlaceholder('📂 Elegí la categoría del objeto...')
         .addOptions([
             new StringSelectMenuOptionBuilder()
                 .setLabel('Catálogo / UGC / Limiteds')
-                .setDescription('Ropa, accesorios y coleccionables')
+                .setDescription('Ropa, accesorios y coleccionables (Robux)')
                 .setValue('catalog')
-                .setEmoji('👕'),
+                .setEmoji(EMOJI_TIPO.catalog),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Gamepass')
-                .setDescription('Pases de experiencia en Robux')
+                .setDescription('Pases de experiencias (Robux)')
                 .setValue('gamepass')
-                .setEmoji('🎫'),
+                .setEmoji(EMOJI_TIPO.gamepass),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Plugin de Studio')
-                .setDescription('Herramientas con precios en USD')
+                .setDescription('Herramientas del Creator Store (USD)')
                 .setValue('plugin')
-                .setEmoji('🔌'),
+                .setEmoji(EMOJI_TIPO.plugin),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Acceso Pago (Paid Access)')
-                .setDescription('Experiencias de entrada paga')
+                .setDescription('Experiencias con entrada paga')
                 .setValue('paid_access')
-                .setEmoji('🎮')
+                .setEmoji(EMOJI_TIPO.paid_access)
         ]);
 
-    const rowSelect = new ActionRowBuilder().addComponents(selectTipo);
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(selectTipo));
 
-    const rowNav = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('btn_nav_wishlist')
-            .setLabel('Mi Lista')
-            .setEmoji('📋')
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId('btn_nav_main_menu')
-            .setLabel('Volver')
-            .setEmoji('⬅️')
-            .setStyle(ButtonStyle.Secondary)
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            boton('btn_nav_wishlist', 'Mi Lista', '📋', ButtonStyle.Success),
+            boton('btn_nav_main_menu', 'Volver', '⬅️')
+        )
     );
 
-    container.addActionRowComponents(rowNav);
-
     return {
-        components: [container, rowSelect],
+        components: [container],
         flags: MessageFlags.IsComponentsV2
     };
+}
+
+// ==========================================
+// MI LISTA DE MONITOREO
+// ==========================================
+function construirListaVacia() {
+    const container = new ContainerBuilder()
+        .setAccentColor(COLORES.neutro)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            '## 📋 Tu Lista de Monitoreo\n' +
+            'Todavía no estás siguiendo ningún objeto.\n\n' +
+            '> Presioná **Añadir Objeto** y te aviso apenas cambie su precio. 🎯'
+        ))
+        .addSeparatorComponents(separador())
+        .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                boton('btn_quick_sniper', 'Añadir Objeto', '🎯', ButtonStyle.Primary),
+                boton('btn_nav_main_menu', 'Menú Principal', '⬅️')
+            )
+        );
+
+    return { components: [container], flags: MessageFlags.IsComponentsV2 };
+}
+
+function construirLista(items, miniaturas) {
+    const activos = items.filter(i => !i.is_paused).length;
+    const pausados = items.length - activos;
+
+    const container = new ContainerBuilder().setAccentColor(COLORES.lista);
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `## 📋 Tu Lista de Monitoreo  \`${items.length}/${MAX_WISHLIST_ITEMS}\`\n` +
+        `⚡ **${activos}** activo(s)  •  ⏸️ **${pausados}** en pausa`
+    ));
+    container.addSeparatorComponents(separador(true));
+
+    const selectOptions = [];
+
+    items.forEach((item, index) => {
+        const type = (item.item_type || 'catalog').toLowerCase();
+        const esUSD = type === 'plugin';
+        const nombreObj = item.item_name || 'Objeto sin nombre';
+        const tieneMeta = item.target_price !== null && item.target_price !== undefined;
+        const metaAlcanzada = tieneMeta && Number(item.last_price) <= Number(item.target_price);
+
+        const fmtActual = formatearPrecio(item.last_price, esUSD);
+        const fmtMeta = tieneMeta
+            ? `${formatearPrecio(item.target_price, esUSD)}${metaAlcanzada ? '  ✅' : ''}`
+            : 'Sin meta';
+        const estado = item.is_paused ? '⏸️ En pausa' : '⚡ Activo';
+
+        const detalle = new TextDisplayBuilder().setContent(
+            `### ${EMOJI_TIPO[type] || '📦'} ${nombreObj}\n` +
+            `🏷️ **Precio:** \`${fmtActual}\`  •  🎯 **Meta:** \`${fmtMeta}\`\n` +
+            `-# ${estado}  •  ${NOMBRE_TIPO[type] || type}  •  ID ${item.id_objet}`
+        );
+
+        const imgUrl = miniaturas.get(String(item.id_objet));
+        if (imgUrl) {
+            container.addSectionComponents(
+                new SectionBuilder()
+                    .addTextDisplayComponents(detalle)
+                    .setThumbnailAccessory(thumb => thumb.setURL(imgUrl))
+            );
+        } else {
+            container.addTextDisplayComponents(detalle);
+        }
+
+        if (index < items.length - 1) {
+            container.addSeparatorComponents(separador());
+        }
+
+        selectOptions.push(
+            new StringSelectMenuOptionBuilder()
+                .setLabel(`${index + 1}. ${nombreObj}`.substring(0, 100))
+                .setDescription(`${fmtActual}  •  ${item.is_paused ? 'En pausa' : 'Activo'}`.substring(0, 100))
+                .setValue(String(item.id))
+                .setEmoji(item.is_paused ? '⏸️' : (EMOJI_TIPO[type] || '⚡'))
+        );
+    });
+
+    container.addSeparatorComponents(separador(true));
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId('select_manage_item')
+                .setPlaceholder('⚙️ Elegí un objeto para editar meta, pausar o eliminar...')
+                .addOptions(selectOptions)
+        )
+    );
+
+    const botonesNav = [];
+    if (items.length < MAX_WISHLIST_ITEMS) {
+        botonesNav.push(boton('btn_quick_sniper', 'Añadir', '➕', ButtonStyle.Primary));
+    }
+    botonesNav.push(
+        boton('btn_nav_wishlist', 'Actualizar', '🔄'),
+        boton('btn_nav_main_menu', 'Menú Principal', '⬅️')
+    );
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesNav));
+
+    return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 module.exports = {
@@ -136,8 +240,7 @@ module.exports = {
 
             if (action === 'main_menu') {
                 await interaction.deferUpdate();
-                const menu = construirMenuPrincipal(interaction.user.id);
-                return await interaction.editReply(menu);
+                return await interaction.editReply(construirMenuPrincipal(interaction.user.id));
             }
 
             if (action === 'wishlist') {
@@ -146,7 +249,8 @@ module.exports = {
                 const { data: items, error: dbError } = await supabase
                     .from('roblox_wishlist')
                     .select('*')
-                    .eq('user_id', interaction.user.id);
+                    .eq('user_id', interaction.user.id)
+                    .order('id', { ascending: true });
 
                 if (dbError) {
                     return await interaction.followUp({
@@ -156,34 +260,7 @@ module.exports = {
                 }
 
                 if (!items || items.length === 0) {
-                    const containerVacio = new ContainerBuilder()
-                        .addTextDisplayComponents(
-                            new TextDisplayBuilder().setContent(
-                                '## 📋 Tu Lista de Monitoreo\n' +
-                                'Actualmente no tenés objetos en seguimiento.\n\n' +
-                                'Presioná **Añadir Objeto** para comenzar a monitorear precios.'
-                            )
-                        )
-                        .addSeparatorComponents(sep => sep.setDivider(true))
-                        .addActionRowComponents(
-                            new ActionRowBuilder().addComponents(
-                                new ButtonBuilder()
-                                    .setCustomId('btn_quick_sniper')
-                                    .setLabel('Añadir Objeto')
-                                    .setEmoji('🎯')
-                                    .setStyle(ButtonStyle.Primary),
-                                new ButtonBuilder()
-                                    .setCustomId('btn_nav_main_menu')
-                                    .setLabel('Menú Principal')
-                                    .setEmoji('⬅️')
-                                    .setStyle(ButtonStyle.Secondary)
-                            )
-                        );
-
-                    return await interaction.editReply({
-                        components: [containerVacio],
-                        flags: MessageFlags.IsComponentsV2
-                    });
+                    return await interaction.editReply(construirListaVacia());
                 }
 
                 let miniaturas = new Map();
@@ -193,86 +270,11 @@ module.exports = {
                     console.error('[WISHLIST THUMBNAIL ERROR]:', thumbErr.message);
                 }
 
-                const container = new ContainerBuilder();
-
-                const headerText = new TextDisplayBuilder().setContent(
-                    `## 📋 Tu Lista de Monitoreo (${items.length}/5)\n` +
-                    `Seleccioná un artículo en el menú inferior para cambiar su meta, pausarlo o eliminarlo.`
-                );
-                container.addTextDisplayComponents(headerText);
-                container.addSeparatorComponents(sep => sep.setDivider(true));
-
-                const selectOptions = [];
-
-                items.forEach((item, index) => {
-                    const type = (item.item_type || 'catalog').toLowerCase();
-                    const esUSD = type === 'plugin';
-                    
-                    const fmtActual = esUSD 
-                        ? `$${Number(item.last_price || 0).toFixed(2)} USD` 
-                        : `${Number(item.last_price || 0).toLocaleString('es-AR')} Robux`;
-
-                    const fmtMeta = (item.target_price !== null && item.target_price !== undefined)
-                        ? (esUSD ? `$${Number(item.target_price).toFixed(2)} USD` : `${Number(item.target_price).toLocaleString('es-AR')} Robux`)
-                        : 'Sin meta';
-
-                    const nombreObj = item.item_name || 'Objeto sin nombre';
-                    const estadoMonitoreo = item.is_paused ? '⏸️ En pausa' : '⚡ Activo';
-
-                    const itemDetailText = new TextDisplayBuilder().setContent(
-                        `### ${index + 1}. ${nombreObj}\n\n` +
-                        `• 🏷️ **Precio:** \`${fmtActual}\`\n` +
-                        `• 🎯 **Meta:** \`${fmtMeta}\`\n` +
-                        `• 👀 **Monitoreo:** ${estadoMonitoreo}\n` +
-                        `• 🆔 **ID:** \`${item.id_objet}\``
-                    );
-
-                    const imgUrl = miniaturas.get(String(item.id_objet));
-
-                    if (imgUrl) {
-                        const section = new SectionBuilder()
-                            .addTextDisplayComponents(itemDetailText)
-                            .setThumbnailAccessory(thumb => thumb.setURL(imgUrl));
-                        container.addSectionComponents(section);
-                    } else {
-                        container.addTextDisplayComponents(itemDetailText);
-                    }
-
-                    if (index < items.length - 1) {
-                        container.addSeparatorComponents(sep => sep.setDivider(true));
-                    }
-
-                    selectOptions.push(
-                        new StringSelectMenuOptionBuilder()
-                            .setLabel(`${index + 1}. ${nombreObj}`.substring(0, 25))
-                            .setValue(String(item.id))
-                            .setEmoji(item.is_paused ? '⏸️' : '⚡')
-                    );
-                });
-
-                const selectMenu = new StringSelectMenuBuilder()
-                    .setCustomId('select_manage_item')
-                    .setPlaceholder('⚙️ Elegí un artículo para gestionarlo...')
-                    .addOptions(selectOptions);
-
-                const rowSelect = new ActionRowBuilder().addComponents(selectMenu);
-                const rowButtons = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('btn_nav_main_menu')
-                        .setLabel('Menú Principal')
-                        .setEmoji('⬅️')
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-                container.addActionRowComponents(rowButtons);
-
-                return await interaction.editReply({
-                    components: [container, rowSelect],
-                    flags: MessageFlags.IsComponentsV2
-                });
+                return await interaction.editReply(construirLista(items, miniaturas));
             }
         } catch (error) {
             console.error('[ERROR EN NAVEGACIÓN]:', error);
+            throw error;
         }
     }
 };
