@@ -2,6 +2,7 @@
 // ARCHIVO: interactions/selects/sniperSelects.js
 // ==========================================
 
+const { MessageFlags } = require('discord.js');
 const supabase = require('../../db');
 const { renderizarPanelConfig } = require('../buttons/manageActions');
 
@@ -9,7 +10,7 @@ module.exports = {
     customIdPrefix: 'select_manage_item',
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const selectedDbId = interaction.values[0];
 
         const { data: item, error } = await supabase

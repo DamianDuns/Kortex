@@ -9,7 +9,7 @@ module.exports = {
         try {
             const { error } = await supabase
                 .from('guilds')
-                .upsert([{ guild_id: guild.id, name: guild.name, joined_at: new Date().toISOString() }], { onConflict: 'guild_id' });
+                .upsert([{ guild_id: guild.id, name: guild.name, joined_at: new Date().toISOString(), left_at: null }], { onConflict: 'guild_id' });
 
             if (error) {
                 console.error('Error al registrar el servidor en Supabase:', error.message);

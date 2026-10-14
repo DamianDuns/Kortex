@@ -36,7 +36,7 @@ module.exports = {
             }
         }
 
-        // Iniciar servicio de monitoreo de precios en segundo plano cada 5 minutos
-        iniciarMonitoreo(client, 5);
+        // Iniciar servicio de monitoreo de precios en segundo plano (por defecto cada 5 minutos)
+        iniciarMonitoreo(client, process.env.PRICE_CHECK_INTERVAL_MINUTES || 5);
     },
 };

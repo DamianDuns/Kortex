@@ -7,6 +7,18 @@ const path = require('node:path');
 const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 require('dotenv').config();
 
+// 0. Validación de variables de entorno obligatorias
+const REQUIRED_ENV = ['DISCORD_TOKEN', 'CLIENT_ID', 'SUPABASE_URL'];
+const faltantes = REQUIRED_ENV.filter(key => !process.env[key]);
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_KEY) {
+    faltantes.push('SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_KEY)');
+}
+if (faltantes.length > 0) {
+    console.error(`[CONFIG ERROR] Faltan variables de entorno: ${faltantes.join(', ')}`);
+    console.error('Creá un archivo .env (podés copiar .env.example) o configuralas en tu hosting.');
+    process.exit(1);
+}
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -69,10 +81,27 @@ async function registrarComandos() {
 process.on('unhandledRejection', (reason) => console.error('[ANTI-CRASH] Unhandled Rejection:', reason));
 process.on('uncaughtException', (error) => console.error('[ANTI-CRASH] Uncaught Exception:', error));
 
+// 4.1 Apagado limpio (el hosting envía SIGTERM al reiniciar/redeployar)
+async function apagar(signal) {
+    console.log(`[SHUTDOWN] Señal ${signal} recibida. Cerrando conexión con Discord...`);
+    try {
+        await client.destroy();
+    } finally {
+        process.exit(0);
+    }
+}
+process.once('SIGINT', () => apagar('SIGINT'));
+process.once('SIGTERM', () => apagar('SIGTERM'));
+
 // 5. Inicialización
 (async () => {
     if (process.argv.includes('--deploy')) {
         await registrarComandos();
     }
-    client.login(process.env.DISCORD_TOKEN);
+    try {
+        await client.login(process.env.DISCORD_TOKEN);
+    } catch (error) {
+        console.error('[LOGIN ERROR] No se pudo iniciar sesión en Discord. ¿El DISCORD_TOKEN es válido?', error.message);
+        process.exit(1);
+    }
 })();

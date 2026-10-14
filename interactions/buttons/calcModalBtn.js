@@ -1,4 +1,4 @@
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
 const { estadoCalculadoraUsuario } = require('../calcHelpers');
 
 module.exports = {
@@ -8,7 +8,7 @@ module.exports = {
         const seleccionadas = estadoCalculadoraUsuario.get(interaction.user.id) || [];
 
         if (seleccionadas.length === 0) {
-            return await interaction.reply({ content: '⚠️ Seleccioná al menos una opción en el menú desplegable antes de calcular.', ephemeral: true });
+            return await interaction.reply({ content: '⚠️ Seleccioná al menos una opción en el menú desplegable antes de calcular.', flags: MessageFlags.Ephemeral });
         }
 
         const modal = new ModalBuilder().setCustomId('modal_calc_limpio_submit').setTitle('Calculadora de Economía');

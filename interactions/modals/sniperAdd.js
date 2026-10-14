@@ -15,7 +15,7 @@ module.exports = {
     customIdPrefix: 'modal_add_sniper_',
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const itemType = interaction.customId.replace('modal_add_sniper_', '');
         const rawInput = interaction.fields.getTextInputValue('input_id_or_url');

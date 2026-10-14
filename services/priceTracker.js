@@ -74,7 +74,8 @@ async function procesarItem(client, item) {
 
         const diferencia = precioNuevo - precioAnterior;
         const bajoPrecio = diferencia < 0;
-        const difTexto = `${bajoPrecio ? '-' : '+'}${simbolo}${Math.abs(diferencia).toLocaleString('es-AR')}${sufijo}`;
+        const difAbs = Math.abs(diferencia);
+        const difTexto = `${bajoPrecio ? '-' : '+'}${simbolo}${esUSD ? difAbs.toFixed(2) : difAbs.toLocaleString('es-AR')}${sufijo}`;
 
         const sinMeta = targetPrice === null;
         const alcanzoMeta = targetPrice !== null && precioNuevo <= targetPrice;
@@ -85,6 +86,10 @@ async function procesarItem(client, item) {
             let robloxUrl = `https://www.roblox.com/catalog/${item.id_objet}`;
             if (type === 'gamepass') {
                 robloxUrl = `https://www.roblox.com/game-pass/${item.id_objet}`;
+            } else if (type === 'plugin') {
+                robloxUrl = `https://create.roblox.com/store/asset/${item.id_objet}`;
+            } else if (type === 'paid_access') {
+                robloxUrl = `https://www.roblox.com/games/${item.id_objet}`;
             }
 
             // ==========================================
@@ -207,7 +212,18 @@ async function procesarItem(client, item) {
     }
 }
 
+let escaneoEnCurso = false;
+let intervaloMonitoreo = null;
+
 async function revisarPrecios(client) {
+    // Evita que dos escaneos corran a la vez (alertas duplicadas) si uno tarda más que el intervalo
+    if (escaneoEnCurso) {
+        console.log('[MONITOREO] El escaneo anterior sigue en curso. Salteando este ciclo.');
+        return;
+    }
+    escaneoEnCurso = true;
+    const inicio = Date.now();
+
     try {
         console.log(`\n[MONITOREO] Iniciando escaneo de precios en Supabase...`);
         const { data: items, error } = await supabase
@@ -215,7 +231,12 @@ async function revisarPrecios(client) {
             .select('*')
             .eq('is_paused', false);
 
-        if (error || !items || items.length === 0) {
+        if (error) {
+            console.error('[MONITOREO] Error al consultar Supabase:', error.message);
+            return;
+        }
+
+        if (!items || items.length === 0) {
             console.log('[MONITOREO] Sin objetos activos para revisar.');
             return;
         }
@@ -229,16 +250,23 @@ async function revisarPrecios(client) {
             await Promise.allSettled(lote.map(item => procesarItem(client, item)));
             await delay(1200);
         }
-        console.log(`[MONITOREO] Escaneo finalizado correctamente.\n`);
+        const segundos = ((Date.now() - inicio) / 1000).toFixed(1);
+        console.log(`[MONITOREO] Escaneo finalizado correctamente en ${segundos}s.\n`);
     } catch (err) {
         console.error('[PRICE TRACKER FATAL ERROR]:', err.message);
+    } finally {
+        escaneoEnCurso = false;
     }
 }
 
 function iniciarMonitoreo(client, intervaloMinutos = 5) {
-    const ms = intervaloMinutos * 60 * 1000;
+    if (intervaloMonitoreo) return; // Ya estaba iniciado (ej: reconexión)
+
+    const minutos = Number(intervaloMinutos) > 0 ? Number(intervaloMinutos) : 5;
+    const ms = minutos * 60 * 1000;
+    console.log(`[MONITOREO] Servicio iniciado. Intervalo: cada ${minutos} minuto(s).`);
     revisarPrecios(client);
-    setInterval(() => revisarPrecios(client), ms);
+    intervaloMonitoreo = setInterval(() => revisarPrecios(client), ms);
 }
 
 module.exports = { iniciarMonitoreo, revisarPrecios };
