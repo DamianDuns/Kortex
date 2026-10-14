@@ -29,6 +29,11 @@ async function procesarItem(client, item) {
     const type = (item.item_type || 'catalog').toLowerCase();
     const detalles = await obtenerDetallesCompletos(item.id_objet, type);
 
+    if (detalles && detalles.noEncontrado) {
+        console.log(`[PRICE TRACKER] 🚫 "${item.item_name}" (ID ${item.id_objet}) devolvió 404. Considerá pausarlo o eliminarlo de la lista.`);
+        return;
+    }
+
     if (!detalles || !detalles.exito) {
         console.log(`[PRICE TRACKER] ⚠️ No se obtuvo info para ID ${item.id_objet} (${item.item_name})`);
         return;

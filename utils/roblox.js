@@ -20,6 +20,7 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
     let imagenUrl = null;
     let exito = false;
     let sinVendedores = false;
+    let noEncontrado = false;
 
     try {
         // 1. MINIATURA (Petición GET vía RoProxy)
@@ -66,7 +67,12 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                     }
                 }
             } catch (e) {
-                console.error(`[PLUGIN TOOLBOX ERROR - ID ${idObjet}]:`, e.message);
+                if (e.response?.status === 404) {
+                    noEncontrado = true;
+                    console.warn(`[PLUGIN NO ENCONTRADO - ID ${idObjet}] El objeto no existe o ya no está a la venta (404).`);
+                } else {
+                    console.error(`[PLUGIN TOOLBOX ERROR - ID ${idObjet}]:`, e.message);
+                }
             }
 
         } else if (itemType === 'paid_access') {
@@ -91,7 +97,12 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                     }
                 }
             } catch (e) {
-                console.error(`[PAID_ACCESS ERROR - ID ${idObjet}]:`, e.message);
+                if (e.response?.status === 404) {
+                    noEncontrado = true;
+                    console.warn(`[PAID_ACCESS NO ENCONTRADO - ID ${idObjet}] El objeto no existe o ya no está a la venta (404).`);
+                } else {
+                    console.error(`[PAID_ACCESS ERROR - ID ${idObjet}]:`, e.message);
+                }
             }
 
         } else if (itemType === 'catalog') {
@@ -158,7 +169,12 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                     exito = true;
                 }
             } catch (e) {
-                console.error(`[CATALOG ERROR - ID ${idObjet}]:`, e.message);
+                if (e.response?.status === 404) {
+                    noEncontrado = true;
+                    console.warn(`[CATALOG NO ENCONTRADO - ID ${idObjet}] El objeto no existe o ya no está a la venta (404).`);
+                } else {
+                    console.error(`[CATALOG ERROR - ID ${idObjet}]:`, e.message);
+                }
             }
 
         } else if (itemType === 'gamepass') {
@@ -173,7 +189,12 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                     exito = true;
                 }
             } catch (e) {
-                console.error(`[GAMEPASS ERROR - ID ${idObjet}]:`, e.message);
+                if (e.response?.status === 404) {
+                    noEncontrado = true;
+                    console.warn(`[GAMEPASS NO ENCONTRADO - ID ${idObjet}] El objeto no existe o ya no está a la venta (404).`);
+                } else {
+                    console.error(`[GAMEPASS ERROR - ID ${idObjet}]:`, e.message);
+                }
             }
         }
 
@@ -192,7 +213,8 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
         esUSD,
         imagenUrl,
         exito,
-        sinVendedores
+        sinVendedores,
+        noEncontrado
     };
 }
 

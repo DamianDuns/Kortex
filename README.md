@@ -41,6 +41,16 @@ cp .env.example .env   # y completá tus valores reales
 
 > ⚠️ **Nunca subas el archivo `.env` a GitHub.** Ya está incluido en `.gitignore`.
 
+## Despliegue en Railway
+
+1. Conectá el repositorio de GitHub a un nuevo servicio en [Railway](https://railway.com/). La configuración de build y deploy ya está versionada en `railway.json` (Railpack, reinicio automático ante fallos).
+2. En la pestaña **Variables** del servicio cargá las claves de `.env.example`: `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y `PRICE_CHECK_INTERVAL_MINUTES`.
+3. El comando de inicio es `npm start` (definido en `railway.json`).
+4. Para registrar los comandos slash, agregá `DEPLOY_COMMANDS=true` una sola vez, esperá a que el bot arranque y después sacá la variable.
+5. Cada push a `main` redeploya el bot automáticamente.
+
+> ⚠️ **Nunca subas secretos al repositorio.** Si alguna vez se commiteó un token o una clave (Discord, Supabase), regeneralo de inmediato: sacarlo del código no alcanza porque queda en el historial de Git.
+
 ## Estructura
 
 ```

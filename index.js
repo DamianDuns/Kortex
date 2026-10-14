@@ -59,7 +59,7 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// 3. Registro condicional vía parámetro CLI (--deploy)
+// 3. Registro condicional vía parámetro CLI (--deploy) o variable DEPLOY_COMMANDS=true
 async function registrarComandos() {
     const { DISCORD_TOKEN, CLIENT_ID } = process.env;
     if (!DISCORD_TOKEN || !CLIENT_ID) return;
@@ -95,7 +95,7 @@ process.once('SIGTERM', () => apagar('SIGTERM'));
 
 // 5. Inicialización
 (async () => {
-    if (process.argv.includes('--deploy')) {
+    if (process.argv.includes('--deploy') || process.env.DEPLOY_COMMANDS === 'true') {
         await registrarComandos();
     }
     try {
