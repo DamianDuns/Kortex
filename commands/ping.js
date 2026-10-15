@@ -52,8 +52,7 @@ function construirPanelPing(client, latenciaRespuesta) {
 
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ping_refresh', 'Actualizar', '🔄', ButtonStyle.Secondary),
-            boton('btn_nav_main_menu', 'Abrir Hub', '⚡', ButtonStyle.Primary)
+            boton('btn_ping_refresh', 'Actualizar', '🔄', ButtonStyle.Secondary)
         )
     );
 
