@@ -7,12 +7,11 @@ const path = require('node:path');
 const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 require('dotenv').config();
 const logger = require('./utils/logger');
-const routerInteracciones = require('./interactions');
 
 const modoDeploy = process.argv.includes('--deploy') || process.env.DEPLOY_COMMANDS === 'true';
 logger.imprimirBanner(modoDeploy);
 
-// 0. Validación de variables de entorno obligatorias
+// 0. Validación de variables de entorno obligatorias (antes de cargar módulos que usan db.js)
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'CLIENT_ID', 'SUPABASE_URL'];
 const faltantes = REQUIRED_ENV.filter(key => !process.env[key]);
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_KEY) {
@@ -20,9 +19,11 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_KEY) {
 }
 if (faltantes.length > 0) {
     logger.error('CONFIG', `Faltan variables de entorno obligatorias: ${faltantes.join(', ')}`);
-    logger.warn('Creá un archivo .env (podés copiar .env.example) o configuralas en tu hosting.');
+    logger.warn('En Railway: entrá a la pestaña "Variables" de tu servicio -> "RAW Editor" y pegá tus variables del archivo .env.');
     process.exit(1);
 }
+
+const routerInteracciones = require('./interactions');
 
 const client = new Client({
     intents: [
