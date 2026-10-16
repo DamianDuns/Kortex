@@ -8,11 +8,35 @@ const EMOJI_ROBUX = '<:Robux:1547677277590913114>';
 
 function extractIdFromInput(input) {
     if (!input) return null;
-    const match = input.match(/\d+/);
+    const match = String(input).match(/\d+/);
     return match ? match[0] : null;
 }
 
-async function obtenerDetallesCompletos(idObjet, itemType) {
+/**
+ * Detecta la categoría automáticamente si el usuario pegó un enlace de Roblox.
+ */
+function detectarTipoDesdeInput(input, fallbackType = 'catalog') {
+    if (!input) return fallbackType;
+    const lower = String(input).toLowerCase();
+    if (lower.includes('/game-pass/') || lower.includes('/gamepass/')) return 'gamepass';
+    if (lower.includes('create.roblox.com') || lower.includes('/plugins/')) return 'plugin';
+    if (lower.includes('/games/')) return 'paid_access';
+    if (lower.includes('/catalog/') || lower.includes('/bundles/')) return 'catalog';
+    return fallbackType;
+}
+
+/**
+ * Devuelve la URL pública de Roblox según el tipo de objeto.
+ */
+function obtenerUrlRoblox(idObjet, itemType = 'catalog') {
+    const type = String(itemType || 'catalog').toLowerCase();
+    if (type === 'gamepass') return `https://www.roblox.com/game-pass/${idObjet}`;
+    if (type === 'plugin') return `https://create.roblox.com/store/asset/${idObjet}`;
+    if (type === 'paid_access') return `https://www.roblox.com/games/${idObjet}`;
+    return `https://www.roblox.com/catalog/${idObjet}`;
+}
+
+async function consultarPorTipo(idObjet, itemType) {
     let nombre = 'Objeto Desconocido';
     let precio = 0;
     let esUSD = false;
@@ -35,7 +59,7 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                 );
                 imagenUrl = thumbRes.data?.data?.[0]?.imageUrl || null;
             }
-        } catch (e) {
+        } catch {
             // Silencioso
         }
 
@@ -121,7 +145,7 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                                 if (primerVendedor && typeof primerVendedor.price === 'number' && primerVendedor.price > 0) {
                                     detectedPrice = primerVendedor.price;
                                 }
-                            } catch (errReseller) {
+                            } catch {
                                 // Silencioso
                             }
                         }
@@ -135,7 +159,7 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                                 if (primerVendedor && typeof primerVendedor.price === 'number' && primerVendedor.price > 0) {
                                     detectedPrice = primerVendedor.price;
                                 }
-                            } catch (errCollectible) {
+                            } catch {
                                 // Silencioso
                             }
                         }
@@ -152,8 +176,8 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
                         sinVendedores = false;
                     }
 
-                    precioTexto = sinVendedores 
-                        ? 'Sin vendedores' 
+                    precioTexto = sinVendedores
+                        ? 'Sin vendedores'
                         : (precio > 0 ? `${precio.toLocaleString()} ${EMOJI_ROBUX}` : 'Gratis');
                     exito = true;
                 }
@@ -192,8 +216,22 @@ async function obtenerDetallesCompletos(idObjet, itemType) {
         esUSD,
         imagenUrl,
         exito,
-        sinVendedores
+        sinVendedores,
+        tipoDetectado: itemType
     };
+}
+
+async function obtenerDetallesCompletos(idObjet, itemType, permitirFallback = false) {
+    const res = await consultarPorTipo(idObjet, itemType);
+    if (res.exito || !permitirFallback) return res;
+
+    // Si el usuario eligió una categoría equivocada pero puso un ID válido, probamos las demás
+    const alternativas = ['catalog', 'gamepass', 'plugin', 'paid_access'].filter(t => t !== itemType);
+    for (const alt of alternativas) {
+        const intento = await consultarPorTipo(idObjet, alt);
+        if (intento.exito) return intento;
+    }
+    return res;
 }
 
 async function obtenerMiniaturasBatch(items) {
@@ -233,6 +271,8 @@ async function obtenerMiniaturasBatch(items) {
 
 module.exports = {
     extractIdFromInput,
+    detectarTipoDesdeInput,
+    obtenerUrlRoblox,
     obtenerDetallesCompletos,
     obtenerMiniaturasBatch
 };

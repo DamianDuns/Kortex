@@ -4,12 +4,14 @@
 
 const { ContainerBuilder, SectionBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const supabase = require('../../db');
-const { obtenerDetallesCompletos } = require('../../utils/roblox');
+const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
 module.exports = {
     customIdPrefix: 'btn_save_no_target:',
 
     async execute(interaction) {
+        await interaction.deferUpdate();
         const [, itemType, idObjet] = interaction.customId.split(':');
 
         const { data: existente } = await supabase
@@ -20,19 +22,22 @@ module.exports = {
             .maybeSingle();
 
         if (existente) {
-            return await interaction.update({
+            return await interaction.followUp({
                 content: `⚠️ El objeto (ID: \`${idObjet}\`) ya está en tu lista de seguimiento.`,
-                embeds: [],
-                components: []
+                flags: MessageFlags.Ephemeral
             });
         }
 
-        await interaction.deferUpdate();
-        const detalles = await obtenerDetallesCompletos(idObjet, itemType);
+        const detalles = await obtenerDetallesCompletos(idObjet, itemType, true);
 
         if (!detalles.exito) {
-            return await interaction.editReply({ content: '❌ No se pudo confirmar el objeto en Roblox.', embeds: [], components: [] });
+            return await interaction.followUp({
+                content: '❌ No se pudo confirmar el objeto en Roblox.',
+                flags: MessageFlags.Ephemeral
+            });
         }
+
+        const finalType = (detalles.tipoDetectado || itemType).toLowerCase();
 
         const { data: nuevo, error } = await supabase
             .from('roblox_wishlist')
@@ -40,7 +45,7 @@ module.exports = {
                 user_id: interaction.user.id,
                 guild_id: interaction.guildId || 'DM',
                 id_objet: String(idObjet),
-                item_type: itemType,
+                item_type: finalType,
                 item_name: detalles.nombre,
                 last_price: detalles.precio,
                 target_price: null,
@@ -49,23 +54,34 @@ module.exports = {
             .select()
             .single();
 
-        if (error) return await interaction.editReply({ content: `Error al guardar: ${error.message}`, embeds: [], components: [] });
+        if (error) {
+            return await interaction.followUp({
+                content: `❌ Error al guardar: ${error.message}`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
         let precioFmt = 'Gratis';
         if (detalles.sinVendedores) {
             precioFmt = 'Sin revendedores activos';
         } else if (detalles.precio > 0) {
-            precioFmt = detalles.esUSD ? `$${detalles.precio.toFixed(2)} USD` : `${detalles.precio.toLocaleString('es-AR')} Robux`;
+            precioFmt = formatearPrecio(detalles.precio, detalles.esUSD);
         }
 
-        const container = new ContainerBuilder();
+        const emojiCat = EMOJI_TIPO[finalType] || '📦';
+        const nombreCat = NOMBRE_TIPO[finalType] || finalType.toUpperCase();
+
+        const container = new ContainerBuilder()
+            .setAccentColor(COLORES.exito);
 
         const textoConfirm = new TextDisplayBuilder().setContent(
-            `## 🎯 ¡Monitoreo Activado! — ${detalles.nombre}\n\n` +
-            `• 🏷️ **Precio Inicial:** \`${precioFmt}\`\n` +
-            `• 🎯 **Meta:** \`Sin meta (notifica todo cambio)\`\n` +
-            `• 👀 **Monitoreo:** ⚡ Activo\n` +
-            `• 🆔 **ID:** \`${idObjet}\``
+            `# ✅ ¡Monitoreo Activado!\n` +
+            `### ${detalles.nombre}\n` +
+            `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
+            `🏷️ **Precio inicial:** \`${precioFmt}\`\n` +
+            `🎯 **Meta objetivo:** \`Sin meta (notifica todo cambio)\`\n` +
+            `🔔 **Destino actual:** 💬 Privado (DM)\n` +
+            `📡 **Estado:** 🟢 Activo`
         );
 
         if (detalles.imagenUrl) {
@@ -77,25 +93,24 @@ module.exports = {
             container.addTextDisplayComponents(textoConfirm);
         }
 
-        container.addSeparatorComponents(sep => sep.setDivider(true));
+        container.addSeparatorComponents(separador(true));
 
         const rowButtons = new ActionRowBuilder().addComponents(
+            boton(`btn_action_open_config:${nuevo.id}`, 'Configurar Alertas', '⚙️', ButtonStyle.Primary),
+            boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary),
             new ButtonBuilder()
-                .setCustomId(`btn_action_edit_target:${nuevo.id}:${itemType}:${idObjet}`)
-                .setLabel('Configurar Alertas')
-                .setEmoji('⚙️')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId('btn_nav_wishlist')
-                .setLabel('Ver Mi Lista')
-                .setEmoji('📋')
-                .setStyle(ButtonStyle.Secondary)
+                .setLabel('Ver en Roblox')
+                .setEmoji('🔗')
+                .setStyle(ButtonStyle.Link)
+                .setURL(obtenerUrlRoblox(idObjet, finalType))
         );
 
         container.addActionRowComponents(rowButtons);
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footer('Objeto guardado en tu lista de monitoreo'))
+        );
 
         return await interaction.editReply({ 
-            embeds: [], 
             components: [container],
             flags: MessageFlags.IsComponentsV2
         });

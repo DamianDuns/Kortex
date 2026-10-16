@@ -289,4 +289,104 @@ function iniciarMonitoreo(client, intervaloMinutos = 5) {
     intervaloMonitoreo = setInterval(() => revisarPrecios(client), ms);
 }
 
-module.exports = { iniciarMonitoreo, revisarPrecios };
+/**
+ * Envía una alerta de prueba al destino configurado del objeto (Webhook, Canal o DM).
+ */
+async function enviarAlertaPrueba(client, item) {
+    const type = (item.item_type || 'catalog').toLowerCase();
+    const esUSD = type === 'plugin';
+    const simbolo = esUSD ? '$' : '';
+    const sufijo = esUSD ? ' USD' : ' Robux';
+
+    const precioActual = parseFloat(item.last_price || 0);
+    const fmtActual = `${simbolo}${esUSD ? precioActual.toFixed(2) : precioActual.toLocaleString('es-AR')}${sufijo}`;
+    const fmtTarget = (item.target_price !== null && item.target_price !== undefined)
+        ? `${simbolo}${esUSD ? Number(item.target_price).toFixed(2) : Number(item.target_price).toLocaleString('es-AR')}${sufijo}`
+        : 'Sin meta';
+
+    let robloxUrl = `https://www.roblox.com/catalog/${item.id_objet}`;
+    if (type === 'gamepass') robloxUrl = `https://www.roblox.com/game-pass/${item.id_objet}`;
+    else if (type === 'plugin') robloxUrl = `https://create.roblox.com/store/asset/${item.id_objet}`;
+    else if (type === 'paid_access') robloxUrl = `https://www.roblox.com/games/${item.id_objet}`;
+
+    const nombre = item.item_name || `Objeto ${item.id_objet}`;
+
+    // 1. Webhook
+    if (item.webhook_url) {
+        try {
+            await axios.post(item.webhook_url, {
+                content: `<@${item.user_id}>`,
+                embeds: [{
+                    title: `🔔 Alerta de Prueba: ${nombre}`,
+                    url: robloxUrl,
+                    description: `> **Estado:** Tu Webhook está correctamente conectado con Kortex.\n\n` +
+                        `• 🏷️ **Precio Actual:** \`${fmtActual}\`\n` +
+                        `• 🎯 **Meta:** \`${fmtTarget}\`\n` +
+                        `• 🆔 **ID:** \`${item.id_objet}\``,
+                    color: 0x5865F2,
+                    footer: { text: 'Kortex • Prueba de Notificación' },
+                    timestamp: new Date().toISOString()
+                }]
+            });
+            return { ok: true, medio: 'tu **Webhook**' };
+        } catch (err) {
+            return { ok: false, error: `No se pudo enviar al Webhook (${err.message}). Verificá que la URL siga activa.` };
+        }
+    }
+
+    const construirPruebaV2 = (incluirPing = false) => {
+        const tagPing = incluirPing ? `<@${item.user_id}>\n` : '';
+        const texto = new TextDisplayBuilder().setContent(
+            `${tagPing}` +
+            `## 🔔 Alerta de Prueba — ${nombre}\n` +
+            `> ¡Todo listo! Recibirás las notificaciones de **${nombre}** por este medio cuando baje de precio.\n\n` +
+            `• 🏷️ **Precio Actual:** \`${fmtActual}\`\n` +
+            `• 🎯 **Meta:** \`${fmtTarget}\`\n` +
+            `• 🆔 **ID:** \`${item.id_objet}\``
+        );
+
+        const container = new ContainerBuilder()
+            .setAccentColor(0x5865F2)
+            .addTextDisplayComponents(texto)
+            .addSeparatorComponents(sep => sep.setDivider(true))
+            .addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('Ver en Roblox')
+                        .setEmoji('🔗')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(robloxUrl)
+                )
+            );
+
+        return {
+            components: [container],
+            flags: MessageFlags.IsComponentsV2
+        };
+    };
+
+    // 2. Canal de servidor
+    if (item.channel_id) {
+        try {
+            const canal = await client.channels.fetch(item.channel_id);
+            if (!canal || !canal.isTextBased()) {
+                return { ok: false, error: 'El canal configurado ya no existe o no es de texto.' };
+            }
+            await canal.send(construirPruebaV2(true));
+            return { ok: true, medio: `el canal <#${canal.id}>` };
+        } catch (err) {
+            return { ok: false, error: `No pude enviar mensajes en <#${item.channel_id}> (${err.message}). Revisá mis permisos.` };
+        }
+    }
+
+    // 3. DM
+    try {
+        const user = await client.users.fetch(item.user_id);
+        await user.send(construirPruebaV2(false));
+        return { ok: true, medio: 'tus **Mensajes Directos (DM)**' };
+    } catch {
+        return { ok: false, error: 'No pude enviarte un DM. Asegurate de tener habilitados los mensajes directos de miembros del servidor.' };
+    }
+}
+
+module.exports = { iniciarMonitoreo, revisarPrecios, enviarAlertaPrueba };

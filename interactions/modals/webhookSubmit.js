@@ -4,6 +4,7 @@
 
 const { MessageFlags } = require('discord.js');
 const supabase = require('../../db');
+const { renderizarPanelConfig } = require('../buttons/manageActions');
 
 module.exports = {
     customIdPrefix: 'modal_webhook_submit:',
@@ -33,6 +34,17 @@ module.exports = {
                 content: `Error al guardar el Webhook: ${error.message}`, 
                 flags: MessageFlags.Ephemeral 
             });
+        }
+
+        const { data: itemActualizado } = await supabase
+            .from('roblox_wishlist')
+            .select('*')
+            .eq('id', dbId)
+            .eq('user_id', interaction.user.id)
+            .maybeSingle();
+
+        if (itemActualizado) {
+            await interaction.editReply(await renderizarPanelConfig(itemActualizado));
         }
 
         return await interaction.followUp({ 

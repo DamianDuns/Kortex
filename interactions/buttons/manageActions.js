@@ -17,14 +17,19 @@ const {
     MessageFlags 
 } = require('discord.js');
 const supabase = require('../../db');
-const { obtenerMiniaturasBatch } = require('../../utils/roblox');
+const { obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../../utils/roblox');
+const { enviarAlertaPrueba } = require('../../services/priceTracker');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
 async function renderizarPanelConfig(item) {
     const miniaturas = await obtenerMiniaturasBatch([item]);
     const imagenUrl = miniaturas.get(String(item.id_objet)) || null;
 
-    const esUSD = (item.item_type || '').toLowerCase() === 'plugin';
-    const estadoTexto = item.is_paused ? '⏸️ En pausa' : '⚡ Activo';
+    const tipo = (item.item_type || 'catalog').toLowerCase();
+    const esUSD = tipo === 'plugin';
+    const emojiCat = EMOJI_TIPO[tipo] || '📦';
+    const nombreCat = NOMBRE_TIPO[tipo] || tipo.toUpperCase();
+    const estadoTexto = item.is_paused ? '⏸️ En pausa' : '🟢 Activo';
 
     let canalTexto = '💬 Privado (DM)';
     let defaultDest = 'dest_dm';
@@ -37,29 +42,27 @@ async function renderizarPanelConfig(item) {
         defaultDest = 'dest_channel';
     }
 
-    const fmtActual = esUSD 
-        ? `$${Number(item.last_price || 0).toFixed(2)} USD` 
-        : `${Number(item.last_price || 0).toLocaleString('es-AR')} Robux`;
-
-    const fmtMeta = (item.target_price !== null && item.target_price !== undefined)
-        ? (esUSD ? `$${Number(item.target_price).toFixed(2)} USD` : `${Number(item.target_price).toLocaleString('es-AR')} Robux`)
-        : 'Sin meta';
+    const fmtActual = formatearPrecio(item.last_price, esUSD);
+    const tieneMeta = item.target_price !== null && item.target_price !== undefined;
+    const fmtMeta = tieneMeta
+        ? formatearPrecio(item.target_price, esUSD)
+        : 'Sin meta (avisa todo cambio)';
 
     const labelPausa = item.is_paused ? 'Reanudar' : 'Pausar';
     const emojiPausa = item.is_paused ? '▶️' : '⏸️';
     const stylePausa = item.is_paused ? ButtonStyle.Success : ButtonStyle.Secondary;
 
-    // Formato simétrico y espaciado que no se rompe en pantallas angostas
     const textoConfig = new TextDisplayBuilder().setContent(
-        `## ⚙️ Configurar: ${item.item_name || 'Objeto'}\n\n` +
-        `• 🏷️ **Precio:** \`${fmtActual}\`\n` +
-        `• 🎯 **Meta:** \`${fmtMeta}\`\n` +
-        `• 🔔 **Alerta en:** ${canalTexto}\n` +
-        `• 👀 **Monitoreo:** ${estadoTexto}\n` +
-        `• 🆔 **ID:** \`${item.id_objet}\``
+        `# ⚙️ ${item.item_name || 'Objeto'}\n` +
+        `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
+        `🏷️ **Precio actual:** \`${fmtActual}\`\n` +
+        `🎯 **Meta objetivo:** \`${fmtMeta}\`\n` +
+        `🔔 **Destino de alerta:** ${canalTexto}\n` +
+        `📡 **Estado:** ${estadoTexto}`
     );
 
-    const container = new ContainerBuilder();
+    const container = new ContainerBuilder()
+        .setAccentColor(item.is_paused ? COLORES.alerta : COLORES.lista);
 
     if (imagenUrl) {
         const section = new SectionBuilder()
@@ -70,27 +73,14 @@ async function renderizarPanelConfig(item) {
         container.addTextDisplayComponents(textoConfig);
     }
 
-    // Separador nativo v2
-    container.addSeparatorComponents(sep => sep.setDivider(true));
+    container.addSeparatorComponents(separador(true));
 
     const rowButtons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`btn_action_edit_target:${item.id}:${item.item_type}:${item.id_objet}`)
-            .setLabel('Editar Meta')
-            .setEmoji('✏️')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId(`btn_action_toggle_pause:${item.id}`)
-            .setLabel(labelPausa)
-            .setEmoji(emojiPausa)
-            .setStyle(stylePausa),
-        new ButtonBuilder()
-            .setCustomId(`btn_action_delete:${item.id}`)
-            .setLabel('Eliminar')
-            .setEmoji('🗑️')
-            .setStyle(ButtonStyle.Danger)
+        boton(`btn_action_edit_target:${item.id}:${item.item_type}:${item.id_objet}`, tieneMeta ? 'Editar Meta' : 'Fijar Meta', '✏️', ButtonStyle.Primary),
+        boton(`btn_action_toggle_pause:${item.id}`, labelPausa, emojiPausa, stylePausa),
+        boton(`btn_action_test_alert:${item.id}`, 'Probar Alerta', '🔔', ButtonStyle.Secondary),
+        boton(`btn_action_delete:${item.id}`, 'Eliminar', '🗑️', ButtonStyle.Danger)
     );
-
     container.addActionRowComponents(rowButtons);
 
     const selectDestino = new StringSelectMenuBuilder()
@@ -105,7 +95,7 @@ async function renderizarPanelConfig(item) {
                 .setDefault(defaultDest === 'dest_dm'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Canal de Servidor')
-                .setDescription('Vincular un canal usando su ID')
+                .setDescription('Elegir un canal de este servidor o por ID')
                 .setValue('dest_channel')
                 .setEmoji('📢')
                 .setDefault(defaultDest === 'dest_channel'),
@@ -117,10 +107,32 @@ async function renderizarPanelConfig(item) {
                 .setDefault(defaultDest === 'dest_webhook')
         ]);
 
-    const rowSelect = new ActionRowBuilder().addComponents(selectDestino);
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(selectDestino));
+    container.addSeparatorComponents(separador());
+
+    const navButtons = [
+        boton('btn_nav_wishlist', 'Volver a Mi Lista', '⬅️', ButtonStyle.Secondary)
+    ];
+
+    if (tieneMeta) {
+        navButtons.push(boton(`btn_action_clear_target:${item.id}`, 'Quitar Meta', '🎯', ButtonStyle.Secondary));
+    }
+
+    navButtons.push(
+        new ButtonBuilder()
+            .setLabel('Ver en Roblox')
+            .setEmoji('🔗')
+            .setStyle(ButtonStyle.Link)
+            .setURL(obtenerUrlRoblox(item.id_objet, item.item_type))
+    );
+
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(navButtons));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(footer('Panel de configuración del objeto'))
+    );
 
     return { 
-        components: [container, rowSelect],
+        components: [container],
         flags: MessageFlags.IsComponentsV2
     };
 }
@@ -131,32 +143,89 @@ module.exports = {
 
     async execute(interaction) {
         if (interaction.customId.startsWith('btn_action_edit_target:')) {
-            const [, dbId, itemType, idObjet] = interaction.customId.split(':');
+            const [, , itemType, idObjet] = interaction.customId.split(':');
             const esUSD = (itemType || '').toLowerCase() === 'plugin';
 
             const modal = new ModalBuilder()
                 .setCustomId(`modal_set_target_submit:${itemType}:${idObjet}`)
-                .setTitle('Editar Meta de Precio');
+                .setTitle('Configurar Meta de Precio');
 
             const inputTarget = new TextInputBuilder()
                 .setCustomId('input_target_price_val')
-                .setLabel(esUSD ? 'Nueva Meta en Dólares ($ USD)' : 'Nueva Meta en Robux')
+                .setLabel(esUSD ? 'Meta en Dólares ($ USD) — 0 para quitar' : 'Meta en Robux — 0 para quitar')
                 .setStyle(TextInputStyle.Short)
-                .setPlaceholder(esUSD ? 'Ejemplo: 1.99' : 'Ejemplo: 100')
+                .setPlaceholder(esUSD ? 'Ej: 1.99 (o 0 para monitorear sin meta)' : 'Ej: 100 (o 0 para monitorear sin meta)')
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(inputTarget));
             return await interaction.showModal(modal);
         }
 
+        if (interaction.customId.startsWith('btn_action_open_channel_modal:')) {
+            const dbId = interaction.customId.split(':')[1];
+            const modal = new ModalBuilder()
+                .setCustomId(`modal_channel_submit:${dbId}`)
+                .setTitle('Vincular Canal por ID');
+
+            const inputChannel = new TextInputBuilder()
+                .setCustomId('input_channel_id')
+                .setLabel('ID del Canal de Discord')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('Ejemplo: 123456789012345678')
+                .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(inputChannel));
+            return await interaction.showModal(modal);
+        }
+
         await interaction.deferUpdate();
+        const selectedDbId = interaction.customId.split(':')[1];
+
+        if (interaction.customId.startsWith('btn_action_test_alert:')) {
+            const { data: item } = await supabase
+                .from('roblox_wishlist')
+                .select('*')
+                .eq('id', selectedDbId)
+                .eq('user_id', interaction.user.id)
+                .maybeSingle();
+
+            if (!item) {
+                return await interaction.followUp({
+                    content: '❌ No se encontró el objeto en tu lista.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const resultado = await enviarAlertaPrueba(interaction.client, item);
+            if (resultado.ok) {
+                return await interaction.followUp({
+                    content: `✅ **Alerta de prueba enviada** con éxito a ${resultado.destino}.`,
+                    flags: MessageFlags.Ephemeral
+                });
+            } else {
+                return await interaction.followUp({
+                    content: `❌ **No se pudo enviar la alerta de prueba (${resultado.destino}):** ${resultado.error}`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+        }
+
+        let mensajeFollowUp = null;
+
+        if (interaction.customId.startsWith('btn_action_clear_target:')) {
+            await supabase
+                .from('roblox_wishlist')
+                .update({ target_price: null })
+                .eq('id', selectedDbId)
+                .eq('user_id', interaction.user.id);
+            mensajeFollowUp = '🎯 **Meta eliminada:** Ahora recibirás alertas ante cualquier cambio de precio.';
+        }
 
         if (interaction.customId.startsWith('btn_action_toggle_pause:')) {
-            const dbId = interaction.customId.split(':')[1];
             const { data: item } = await supabase
                 .from('roblox_wishlist')
                 .select('is_paused')
-                .eq('id', dbId)
+                .eq('id', selectedDbId)
                 .eq('user_id', interaction.user.id)
                 .maybeSingle();
 
@@ -164,23 +233,36 @@ module.exports = {
                 await supabase
                     .from('roblox_wishlist')
                     .update({ is_paused: !item.is_paused })
-                    .eq('id', dbId)
+                    .eq('id', selectedDbId)
                     .eq('user_id', interaction.user.id);
             }
         }
 
         if (interaction.customId.startsWith('btn_action_delete:')) {
-            const dbId = interaction.customId.split(':')[1];
             const { error } = await supabase
                 .from('roblox_wishlist')
                 .delete()
-                .eq('id', dbId)
+                .eq('id', selectedDbId)
                 .eq('user_id', interaction.user.id);
 
             if (!error) {
                 const containerDelete = new ContainerBuilder()
+                    .setAccentColor(COLORES.error)
                     .addTextDisplayComponents(
-                        new TextDisplayBuilder().setContent('✅ **Objeto eliminado de la lista de monitoreo.**')
+                        new TextDisplayBuilder().setContent(
+                            `### 🗑️ Objeto eliminado\n` +
+                            `El objeto fue quitado de tu lista de monitoreo correctamente.`
+                        )
+                    )
+                    .addSeparatorComponents(separador())
+                    .addActionRowComponents(
+                        new ActionRowBuilder().addComponents(
+                            boton('btn_nav_wishlist', 'Volver a Mi Lista', '⬅️', ButtonStyle.Secondary),
+                            boton('btn_nav_sniper', 'Ir al Sniper', '🎯', ButtonStyle.Primary)
+                        )
+                    )
+                    .addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(footer('Objeto eliminado del monitoreo'))
                     );
 
                 return await interaction.editReply({ 
@@ -190,7 +272,6 @@ module.exports = {
             }
         }
 
-        const selectedDbId = interaction.customId.split(':')[1];
         const { data: itemActualizado } = await supabase
             .from('roblox_wishlist')
             .select('*')
@@ -200,7 +281,13 @@ module.exports = {
 
         if (itemActualizado) {
             const panelData = await renderizarPanelConfig(itemActualizado);
-            return await interaction.editReply(panelData);
+            await interaction.editReply(panelData);
+            if (mensajeFollowUp) {
+                await interaction.followUp({
+                    content: mensajeFollowUp,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
         }
     }
 };
