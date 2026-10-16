@@ -3,7 +3,8 @@
 // ==========================================
 
 const supabase = require('../db');
-const { obtenerDetallesCompletos } = require('../utils/roblox');
+const { obtenerDetallesCompletos, obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../utils/roblox');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../utils/ui');
 const logger = require('../utils/logger');
 const { 
     ContainerBuilder, 
@@ -55,22 +56,26 @@ async function procesarItem(client, item, stats) {
     if (precioNuevo !== precioAnterior) {
         stats.cambios++;
         const esUSD = type === 'plugin' || (type === 'paid_access' && detalles.esUSD === true);
-        const simbolo = esUSD ? '$' : '';
-        const sufijo = esUSD ? ' USD' : ' Robux';
 
-        const fmtAnterior = `${simbolo}${esUSD ? precioAnterior.toFixed(2) : precioAnterior.toLocaleString('es-AR')}${sufijo}`;
-        const fmtNuevo = `${simbolo}${esUSD ? precioNuevo.toFixed(2) : precioNuevo.toLocaleString('es-AR')}${sufijo}`;
+        const fmtAnterior = formatearPrecio(precioAnterior, esUSD);
+        const fmtNuevo = formatearPrecio(precioNuevo, esUSD);
         const fmtTarget = targetPrice !== null 
-            ? `${simbolo}${esUSD ? targetPrice.toFixed(2) : targetPrice.toLocaleString('es-AR')}${sufijo}` 
-            : 'Sin meta';
+            ? formatearPrecio(targetPrice, esUSD)
+            : 'Sin meta (avisa todo cambio)';
 
         const diferencia = precioNuevo - precioAnterior;
         const bajoPrecio = diferencia < 0;
         const difAbs = Math.abs(diferencia);
-        const difTexto = `${bajoPrecio ? '-' : '+'}${simbolo}${esUSD ? difAbs.toFixed(2) : difAbs.toLocaleString('es-AR')}${sufijo}`;
+        const difTexto = `${bajoPrecio ? '-' : '+'}${formatearPrecio(difAbs, esUSD)}`;
+
+        let porcentajeStr = '';
+        if (precioAnterior > 0) {
+            const pct = ((diferencia / precioAnterior) * 100).toFixed(1).replace('.0', '');
+            porcentajeStr = ` • ${bajoPrecio ? '' : '+'}${pct}%`;
+        }
 
         const iconoCambio = bajoPrecio ? '🟢 BAJÓ' : '🔴 SUBIÓ';
-        logger.sniper(`${iconoCambio} │ "${item.item_name}" (ID: ${item.id_objet}): ${fmtAnterior} ➔ ${fmtNuevo} (${difTexto})`);
+        logger.sniper(`${iconoCambio} │ "${item.item_name}" (ID: ${item.id_objet}): ${fmtAnterior} ➔ ${fmtNuevo} (${difTexto}${porcentajeStr})`);
 
         const { error: updateError } = await supabase
             .from('roblox_wishlist')
@@ -90,34 +95,48 @@ async function procesarItem(client, item, stats) {
             let notificado = false;
             let medioNotificacion = '';
 
-            let robloxUrl = `https://www.roblox.com/catalog/${item.id_objet}`;
-            if (type === 'gamepass') {
-                robloxUrl = `https://www.roblox.com/game-pass/${item.id_objet}`;
-            } else if (type === 'plugin') {
-                robloxUrl = `https://create.roblox.com/store/asset/${item.id_objet}`;
-            } else if (type === 'paid_access') {
-                robloxUrl = `https://www.roblox.com/games/${item.id_objet}`;
+            const robloxUrl = obtenerUrlRoblox(item.id_objet, type);
+            const emojiCat = EMOJI_TIPO[type] || '📦';
+            const nombreCat = NOMBRE_TIPO[type] || type.toUpperCase();
+            const nombreObj = detalles.nombre || item.item_name || `Objeto ${item.id_objet}`;
+
+            let tituloEstado = '📉 ¡Bajó de Precio!';
+            let subtituloWebhook = '🟢 **¡El precio acaba de bajar en Roblox!**';
+            let colorAlerta = COLORES.lista;
+
+            if (alcanzoMeta) {
+                tituloEstado = '🎯 ¡Meta de Precio Alcanzada!';
+                subtituloWebhook = '🎯 **¡El objeto llegó al precio objetivo que configuraste!**';
+                colorAlerta = COLORES.exito;
+            } else if (!bajoPrecio) {
+                tituloEstado = '📈 Subió de Precio';
+                subtituloWebhook = '🔔 **Se detectó un aumento de precio en este objeto.**';
+                colorAlerta = COLORES.sniper;
             }
 
-            // 1. WEBHOOK (Embed tradicional 100% compatible)
+            // 1. WEBHOOK (Embed clásico adaptado con estética similar al panel V2)
             if (item.webhook_url) {
                 try {
                     await axios.post(item.webhook_url, {
-                        content: `<@${item.user_id}>`,
+                        content: `🔔 <@${item.user_id}>`,
                         embeds: [{
-                            title: `${bajoPrecio ? '🟢 ¡Bajó de Precio!' : '🔴 Cambio de Precio'}: ${detalles.nombre}`,
+                            author: {
+                                name: '⚡ KORTEX PRICE SNIPER  •  ALERTA DE PRECIO'
+                            },
+                            title: tituloEstado,
                             url: robloxUrl,
-                            description: `> **Variación:** \`${fmtAnterior}\` ➔ **\`${fmtNuevo}\`** (\`${difTexto}\`)
-
-` +
-                                `• 🎯 **Meta:** \`${fmtTarget}\`
-` +
-                                `• 📁 **Categoría:** \`${type.toUpperCase()}\`
-` +
-                                `• 🆔 **ID:** \`${item.id_objet}\``,
-                            color: bajoPrecio ? 0x00FF88 : 0xFF3366,
+                            description:
+                                `## ${emojiCat} __**${nombreObj}**__\n` +
+                                `${subtituloWebhook}\n\n` +
+                                `> 💰 **Nuevo precio:** **\`${fmtNuevo}\`**  *(\`${difTexto}${porcentajeStr}\`)*\n` +
+                                `> 🏷️ **Precio anterior:** ~~\`${fmtAnterior}\`~~\n` +
+                                `> 🎯 **Tu meta:** \`${fmtTarget}\`${alcanzoMeta ? '  ✅' : ''}\n\n` +
+                                `──────────────────────────────\n` +
+                                `📦 **Categoría:** ${emojiCat} ${nombreCat}   •   🆔 **ID:** \`${item.id_objet}\`\n` +
+                                `🔗 **[Abrir objeto en Roblox ↗](${robloxUrl})**`,
+                            color: colorAlerta,
                             thumbnail: detalles.imagenUrl ? { url: detalles.imagenUrl } : undefined,
-                            footer: { text: 'Kortex • Roblox Price Sniper' },
+                            footer: { text: '⚡ Kortex  •  Monitoreo automático de precios' },
                             timestamp: new Date().toISOString()
                         }]
                     });
@@ -128,22 +147,22 @@ async function procesarItem(client, item, stats) {
                 }
             }
 
-            // CONSTRUCTOR DE ALERTA COMPONENTS V2 (PRO)
+            // CONSTRUCTOR DE ALERTA COMPONENTS V2 (Canal y DM)
             const construirAlertaV2 = (incluirPing = false) => {
-                const headerEmoji = bajoPrecio ? '🟢 ¡Bajó de Precio!' : '🔴 Cambio de Precio';
-                const tagPing = incluirPing ? `<@${item.user_id}>\n` : '';
+                const lineaPing = incluirPing ? `-# 🔔 Alerta para <@${item.user_id}>\n` : '';
 
                 const textoAlerta = new TextDisplayBuilder().setContent(
-                    `${tagPing}` +
-                    `## ${headerEmoji} — ${detalles.nombre}\n` +
-                    `> **Variación:** \`${fmtAnterior}\` ➔ **\`${fmtNuevo}\`** (\`${difTexto}\`)\n\n` +
-                    `• 🎯 **Meta:** \`${fmtTarget}\`\n` +
-                    `• 📁 **Categoría:** \`${type.toUpperCase()}\`\n` +
-                    `• 👀 **Monitoreo:** ⚡ Activo\n` +
-                    `• 🆔 **ID:** \`${item.id_objet}\``
+                    `${lineaPing}` +
+                    `# ${tituloEstado}\n` +
+                    `## ${emojiCat} __**${nombreObj}**__\n` +
+                    `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
+                    `> 💰 **Nuevo precio:** **\`${fmtNuevo}\`**  *(\`${difTexto}${porcentajeStr}\`)*\n` +
+                    `> 🏷️ **Precio anterior:** ~~\`${fmtAnterior}\`~~\n` +
+                    `> 🎯 **Tu meta:** \`${fmtTarget}\`${alcanzoMeta ? '  ✅' : ''}`
                 );
 
-                const container = new ContainerBuilder();
+                const container = new ContainerBuilder()
+                    .setAccentColor(colorAlerta);
 
                 if (detalles.imagenUrl) {
                     const section = new SectionBuilder()
@@ -154,7 +173,7 @@ async function procesarItem(client, item, stats) {
                     container.addTextDisplayComponents(textoAlerta);
                 }
 
-                container.addSeparatorComponents(sep => sep.setDivider(true));
+                container.addSeparatorComponents(separador(true));
 
                 const rowAction = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -162,14 +181,19 @@ async function procesarItem(client, item, stats) {
                         .setEmoji('🔗')
                         .setStyle(ButtonStyle.Link)
                         .setURL(robloxUrl),
-                    new ButtonBuilder()
-                        .setCustomId(`btn_pause_item_${item.id}`)
-                        .setLabel('Pausar')
-                        .setEmoji('⏸️')
-                        .setStyle(ButtonStyle.Secondary)
+                    boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
+                    boton(`btn_pause_item_${item.id}`, 'Pausar Alertas', '⏸️', ButtonStyle.Secondary)
                 );
 
-                return { container, rowAction };
+                container.addActionRowComponents(rowAction);
+                container.addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(footer('Kortex Price Sniper • Alerta en tiempo real'))
+                );
+
+                return {
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2
+                };
             };
 
             // 2. CANAL DE SERVIDOR
@@ -177,12 +201,7 @@ async function procesarItem(client, item, stats) {
                 try {
                     const canal = await client.channels.fetch(item.channel_id);
                     if (canal && canal.isTextBased()) {
-                        const { container, rowAction } = construirAlertaV2(true);
-
-                        await canal.send({
-                            components: [container, rowAction],
-                            flags: MessageFlags.IsComponentsV2
-                        });
+                        await canal.send(construirAlertaV2(true));
                         notificado = true;
                         medioNotificacion = `Canal #${canal.name}`;
                     }
@@ -195,12 +214,7 @@ async function procesarItem(client, item, stats) {
             if (!notificado) {
                 try {
                     const user = await client.users.fetch(item.user_id);
-                    const { container, rowAction } = construirAlertaV2(false);
-
-                    await user.send({ 
-                        components: [container, rowAction], 
-                        flags: MessageFlags.IsComponentsV2 
-                    });
+                    await user.send(construirAlertaV2(false));
                     notificado = true;
                     medioNotificacion = `DM (${user.tag})`;
                 } catch (dmErr) {
@@ -295,69 +309,95 @@ function iniciarMonitoreo(client, intervaloMinutos = 5) {
 async function enviarAlertaPrueba(client, item) {
     const type = (item.item_type || 'catalog').toLowerCase();
     const esUSD = type === 'plugin';
-    const simbolo = esUSD ? '$' : '';
-    const sufijo = esUSD ? ' USD' : ' Robux';
+    const emojiCat = EMOJI_TIPO[type] || '📦';
+    const nombreCat = NOMBRE_TIPO[type] || type.toUpperCase();
 
-    const precioActual = parseFloat(item.last_price || 0);
-    const fmtActual = `${simbolo}${esUSD ? precioActual.toFixed(2) : precioActual.toLocaleString('es-AR')}${sufijo}`;
-    const fmtTarget = (item.target_price !== null && item.target_price !== undefined)
-        ? `${simbolo}${esUSD ? Number(item.target_price).toFixed(2) : Number(item.target_price).toLocaleString('es-AR')}${sufijo}`
-        : 'Sin meta';
+    const miniaturas = await obtenerMiniaturasBatch([item]).catch(() => new Map());
+    const imagenUrl = miniaturas.get(String(item.id_objet)) || null;
 
-    let robloxUrl = `https://www.roblox.com/catalog/${item.id_objet}`;
-    if (type === 'gamepass') robloxUrl = `https://www.roblox.com/game-pass/${item.id_objet}`;
-    else if (type === 'plugin') robloxUrl = `https://create.roblox.com/store/asset/${item.id_objet}`;
-    else if (type === 'paid_access') robloxUrl = `https://www.roblox.com/games/${item.id_objet}`;
+    const fmtActual = formatearPrecio(item.last_price, esUSD);
+    const tieneMeta = item.target_price !== null && item.target_price !== undefined;
+    const fmtTarget = tieneMeta
+        ? formatearPrecio(item.target_price, esUSD)
+        : 'Sin meta (avisa todo cambio)';
 
+    const robloxUrl = obtenerUrlRoblox(item.id_objet, type);
     const nombre = item.item_name || `Objeto ${item.id_objet}`;
 
-    // 1. Webhook
+    // 1. Webhook (Embed clásico adaptado al estilo V2)
     if (item.webhook_url) {
+        const destino = 'tu **Webhook**';
         try {
             await axios.post(item.webhook_url, {
-                content: `<@${item.user_id}>`,
+                content: `🔔 <@${item.user_id}>`,
                 embeds: [{
-                    title: `🔔 Alerta de Prueba: ${nombre}`,
+                    author: {
+                        name: '⚡ KORTEX PRICE SNIPER  •  PRUEBA DE CONEXIÓN'
+                    },
+                    title: '🔔 Alerta de Prueba Exitosa',
                     url: robloxUrl,
-                    description: `> **Estado:** Tu Webhook está correctamente conectado con Kortex.\n\n` +
-                        `• 🏷️ **Precio Actual:** \`${fmtActual}\`\n` +
-                        `• 🎯 **Meta:** \`${fmtTarget}\`\n` +
-                        `• 🆔 **ID:** \`${item.id_objet}\``,
-                    color: 0x5865F2,
-                    footer: { text: 'Kortex • Prueba de Notificación' },
+                    description:
+                        `## ${emojiCat} __**${nombre}**__\n` +
+                        `✅ **¡Tu Webhook está conectado!** Así se verán las alertas cuando este objeto baje o cambie de precio.\n\n` +
+                        `> 🏷️ **Precio actual:** **\`${fmtActual}\`**\n` +
+                        `> 🎯 **Meta objetivo:** \`${fmtTarget}\`\n` +
+                        `> 📡 **Destino:** 🌐 Webhook activo\n\n` +
+                        `──────────────────────────────\n` +
+                        `📦 **Categoría:** ${emojiCat} ${nombreCat}   •   🆔 **ID:** \`${item.id_objet}\`\n` +
+                        `🔗 **[Abrir objeto en Roblox ↗](${robloxUrl})**`,
+                    color: COLORES.primario,
+                    thumbnail: imagenUrl ? { url: imagenUrl } : undefined,
+                    footer: { text: '⚡ Kortex  •  Prueba de notificación' },
                     timestamp: new Date().toISOString()
                 }]
             });
-            return { ok: true, medio: 'tu **Webhook**' };
+            return { ok: true, destino, medio: destino };
         } catch (err) {
-            return { ok: false, error: `No se pudo enviar al Webhook (${err.message}). Verificá que la URL siga activa.` };
+            return { ok: false, destino, error: `No se pudo enviar al Webhook (${err.message}). Verificá que la URL siga activa.` };
         }
     }
 
-    const construirPruebaV2 = (incluirPing = false) => {
-        const tagPing = incluirPing ? `<@${item.user_id}>\n` : '';
+    const construirPruebaV2 = (incluirPing = false, etiquetaDestino = '💬 Mensaje Directo (DM)') => {
+        const lineaPing = incluirPing ? `-# 🔔 Alerta de prueba para <@${item.user_id}>\n` : '';
         const texto = new TextDisplayBuilder().setContent(
-            `${tagPing}` +
-            `## 🔔 Alerta de Prueba — ${nombre}\n` +
-            `> ¡Todo listo! Recibirás las notificaciones de **${nombre}** por este medio cuando baje de precio.\n\n` +
-            `• 🏷️ **Precio Actual:** \`${fmtActual}\`\n` +
-            `• 🎯 **Meta:** \`${fmtTarget}\`\n` +
-            `• 🆔 **ID:** \`${item.id_objet}\``
+            `${lineaPing}` +
+            `# 🔔 Alerta de Prueba\n` +
+            `## ${emojiCat} __**${nombre}**__\n` +
+            `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
+            `> ✅ **¡Conexión lista!** Recibirás las notificaciones de este objeto por este medio apenas cambie su precio.\n\n` +
+            `🏷️ **Precio actual:** \`${fmtActual}\`  •  🎯 **Meta:** \`${fmtTarget}\`\n` +
+            `📡 **Destino verificado:** ${etiquetaDestino}`
         );
 
         const container = new ContainerBuilder()
-            .setAccentColor(0x5865F2)
-            .addTextDisplayComponents(texto)
-            .addSeparatorComponents(sep => sep.setDivider(true))
-            .addActionRowComponents(
-                new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setLabel('Ver en Roblox')
-                        .setEmoji('🔗')
-                        .setStyle(ButtonStyle.Link)
-                        .setURL(robloxUrl)
-                )
-            );
+            .setAccentColor(COLORES.primario);
+
+        if (imagenUrl) {
+            const section = new SectionBuilder()
+                .addTextDisplayComponents(texto)
+                .setThumbnailAccessory(thumb => thumb.setURL(imagenUrl));
+            container.addSectionComponents(section);
+        } else {
+            container.addTextDisplayComponents(texto);
+        }
+
+        container.addSeparatorComponents(separador(true));
+
+        container.addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setLabel('Ver en Roblox')
+                    .setEmoji('🔗')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(robloxUrl),
+                boton(`btn_action_open_config:${item.id}`, 'Configurar Objeto', '⚙️', ButtonStyle.Primary),
+                boton('btn_nav_wishlist', 'Mi Lista', '📋', ButtonStyle.Secondary)
+            )
+        );
+
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footer('Kortex Price Sniper • Prueba de notificación'))
+        );
 
         return {
             components: [container],
@@ -367,25 +407,27 @@ async function enviarAlertaPrueba(client, item) {
 
     // 2. Canal de servidor
     if (item.channel_id) {
+        const destino = `el canal <#${item.channel_id}>`;
         try {
             const canal = await client.channels.fetch(item.channel_id);
             if (!canal || !canal.isTextBased()) {
-                return { ok: false, error: 'El canal configurado ya no existe o no es de texto.' };
+                return { ok: false, destino, error: 'El canal configurado ya no existe o no es de texto.' };
             }
-            await canal.send(construirPruebaV2(true));
-            return { ok: true, medio: `el canal <#${canal.id}>` };
+            await canal.send(construirPruebaV2(true, `📢 <#${canal.id}>`));
+            return { ok: true, destino, medio: destino };
         } catch (err) {
-            return { ok: false, error: `No pude enviar mensajes en <#${item.channel_id}> (${err.message}). Revisá mis permisos.` };
+            return { ok: false, destino, error: `No pude enviar mensajes en <#${item.channel_id}> (${err.message}). Revisá mis permisos.` };
         }
     }
 
     // 3. DM
+    const destino = 'tus **Mensajes Directos (DM)**';
     try {
         const user = await client.users.fetch(item.user_id);
-        await user.send(construirPruebaV2(false));
-        return { ok: true, medio: 'tus **Mensajes Directos (DM)**' };
+        await user.send(construirPruebaV2(false, '💬 Mensaje Directo (DM)'));
+        return { ok: true, destino, medio: destino };
     } catch {
-        return { ok: false, error: 'No pude enviarte un DM. Asegurate de tener habilitados los mensajes directos de miembros del servidor.' };
+        return { ok: false, destino, error: 'No pude enviarte un DM. Asegurate de tener habilitados los mensajes directos de miembros del servidor.' };
     }
 }
 

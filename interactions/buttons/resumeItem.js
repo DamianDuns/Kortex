@@ -10,7 +10,7 @@ const {
     MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
-const { COLORES, separador, boton, footer } = require('../../utils/ui');
+const { COLORES, EMOJI_TIPO, separador, boton, footer } = require('../../utils/ui');
 
 module.exports = {
     customIdPrefix: 'btn_resume_item_',
@@ -22,7 +22,7 @@ module.exports = {
             .update({ is_paused: false })
             .eq('id', rowId)
             .eq('user_id', interaction.user.id)
-            .select('item_name')
+            .select('item_name, item_type, id_objet')
             .maybeSingle();
 
         if (error) {
@@ -32,24 +32,34 @@ module.exports = {
             });
         }
 
-        const nombre = item?.item_name || 'este objeto';
+        if (!item) {
+            return await interaction.reply({
+                content: '🔒 Solo el dueño de esta alerta puede reanudar o modificar su monitoreo.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const tipo = (item.item_type || 'catalog').toLowerCase();
+        const emojiCat = EMOJI_TIPO[tipo] || '📦';
+        const nombre = item.item_name || 'este objeto';
+
         const container = new ContainerBuilder()
             .setAccentColor(COLORES.exito)
             .addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(
-                    `## ▶️ Monitoreo reanudado
-` +
-                    `Volvés a recibir alertas de precio para **${nombre}**.`
+                    `# ▶️ Monitoreo Reanudado\n` +
+                    `## ${emojiCat} __**${nombre}**__\n` +
+                    `> Volvés a recibir alertas de precio en tiempo real para este objeto.`
                 )
             )
             .addSeparatorComponents(separador())
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton(`btn_pause_item_${rowId}`, 'Pausar Monitoreo', '⏸️', ButtonStyle.Secondary),
-                    boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Primary)
+                    boton(`btn_pause_item_${rowId}`, 'Pausar Alertas', '⏸️', ButtonStyle.Secondary),
+                    boton(`btn_action_open_config:${rowId}`, 'Configurar', '⚙️', ButtonStyle.Primary),
+                    boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary)
                 )
             )
-            .addSeparatorComponents(separador())
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(footer('Price Sniper activo')));
 
         return await interaction.update({
