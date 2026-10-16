@@ -155,8 +155,8 @@ function construirLista(items, miniaturas) {
     const container = new ContainerBuilder().setAccentColor(COLORES.lista);
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `## 📋 Tu Lista de Monitoreo  \`${items.length}/${MAX_WISHLIST_ITEMS}\`\n` +
-        `⚡ **${activos}** activo(s)  •  ⏸️ **${pausados}** en pausa`
+        `# 📋 Tu Lista de Monitoreo  \`${items.length}/${MAX_WISHLIST_ITEMS}\`\n` +
+        `-# ⚡ **${activos}** activo(s)  •  ⏸️ **${pausados}** en pausa`
     ));
     container.addSeparatorComponents(separador(true));
 
@@ -173,11 +173,11 @@ function construirLista(items, miniaturas) {
         const fmtMeta = tieneMeta
             ? `${formatearPrecio(item.target_price, esUSD)}${metaAlcanzada ? '  ✅' : ''}`
             : 'Sin meta';
-        const estado = item.is_paused ? '⏸️ En pausa' : '⚡ Activo';
+        const estado = item.is_paused ? '⏸️ En pausa' : '🟢 Activo';
 
         const detalle = new TextDisplayBuilder().setContent(
-            `### ${EMOJI_TIPO[type] || '📦'} ${nombreObj}\n` +
-            `🏷️ **Precio:** \`${fmtActual}\`  •  🎯 **Meta:** \`${fmtMeta}\`\n` +
+            `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__\n` +
+            `🏷️ Precio: \`${fmtActual}\`  •  🎯 Meta: \`${fmtMeta}\`\n` +
             `-# ${estado}  •  ${NOMBRE_TIPO[type] || type}  •  ID ${item.id_objet}`
         );
 
