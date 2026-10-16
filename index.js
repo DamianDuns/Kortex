@@ -82,7 +82,7 @@ logger.imprimirResumenCarga({
 
 // 3. Registro condicional vía parámetro CLI (--deploy) o DEPLOY_COMMANDS=true
 async function registrarComandos() {
-    const { DISCORD_TOKEN, CLIENT_ID } = process.env;
+    const { DISCORD_TOKEN, CLIENT_ID, GUILD_ID } = process.env;
     if (!DISCORD_TOKEN || !CLIENT_ID) return;
 
     const rest = new REST().setToken(DISCORD_TOKEN);
@@ -90,13 +90,34 @@ async function registrarComandos() {
     const lista = nombresComandos.map(n => `/${n}`).join(', ');
 
     try {
-        logger.deploy(`Sincronizando ${commandsForDeploy.length} comando(s) slash con Discord (${lista})...`);
+        logger.deploy(`Sincronizando ${commandsForDeploy.length} comando(s) slash globales con Discord (${lista})...`);
         await rest.put(
             Routes.applicationCommands(CLIENT_ID),
             { body: commandsForDeploy }
         );
+
+        // Limpiar comandos registrados a nivel de servidor (guild) para evitar duplicados en el menú "/"
+        const guildIds = new Set();
+        if (GUILD_ID) guildIds.add(GUILD_ID);
+        try {
+            const guilds = await rest.get(Routes.userGuilds());
+            if (Array.isArray(guilds)) {
+                guilds.forEach(g => guildIds.add(g.id));
+            }
+        } catch {
+            // Si falla la consulta de servidores, continuamos con GUILD_ID si existe
+        }
+
+        for (const gid of guildIds) {
+            try {
+                await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), { body: [] });
+            } catch {
+                // Ignorar si el bot ya no está en ese servidor o no tiene acceso
+            }
+        }
+
         const ms = Date.now() - inicio;
-        logger.ok(`Comandos slash sincronizados globalmente en ${ms}ms.`);
+        logger.ok(`Comandos slash sincronizados globalmente (sin duplicados de servidor) en ${ms}ms.`);
     } catch (error) {
         logger.error('DEPLOY', error);
     }
