@@ -7,9 +7,10 @@ node_modules/
 !.env.example
 env.
 
-# Logs y archivos del sistema
+# Logs, caché local y archivos del sistema
 *.log
 npm-debug.log*
 logs/
+data/
 .DS_Store
 Thumbs.db

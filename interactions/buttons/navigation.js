@@ -122,6 +122,8 @@ function construirMenuSniper() {
 
     return {
         components: [container],
+        files: [],
+        attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }
@@ -145,7 +147,7 @@ function construirListaVacia() {
             )
         );
 
-    return { components: [container], flags: MessageFlags.IsComponentsV2 };
+    return { components: [container], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
 }
 
 function construirLista(items, miniaturas) {
@@ -211,7 +213,7 @@ function construirLista(items, miniaturas) {
         new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('select_manage_item')
-                .setPlaceholder('⚙️ Elegí un objeto para editar meta, pausar o eliminar...')
+                .setPlaceholder('📈 Elegí un objeto para ver su gráfica o configurar alertas...')
                 .addOptions(selectOptions)
         )
     );
@@ -226,13 +228,15 @@ function construirLista(items, miniaturas) {
     );
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesNav));
 
-    return { components: [container], flags: MessageFlags.IsComponentsV2 };
+    return { components: [container], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
 }
 
 module.exports = {
     customIdPrefix: 'btn_nav_',
     construirMenuPrincipal,
     construirMenuSniper,
+    construirLista,
+    construirListaVacia,
 
     async execute(interaction) {
         try {
@@ -240,7 +244,16 @@ module.exports = {
 
             if (action === 'main_menu') {
                 await interaction.deferUpdate();
-                return await interaction.editReply(construirMenuPrincipal(interaction.user.id));
+                return await interaction.editReply({
+                    ...construirMenuPrincipal(interaction.user.id),
+                    files: [],
+                    attachments: []
+                });
+            }
+
+            if (action === 'sniper') {
+                await interaction.deferUpdate();
+                return await interaction.editReply(construirMenuSniper());
             }
 
             if (action === 'wishlist') {

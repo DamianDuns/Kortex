@@ -12,6 +12,7 @@ const {
     MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
+const PriceItem = require('../../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
@@ -80,6 +81,8 @@ module.exports = {
                 flags: MessageFlags.Ephemeral
             });
         }
+
+        await PriceItem.recordPrice(idObjet, detalles.nombre, detalles.precio).catch(() => null);
 
         let precioFmt = 'Gratis';
         if (detalles.sinVendedores) {

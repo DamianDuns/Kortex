@@ -36,8 +36,10 @@
   },
   "homepage": "https://github.com/DamianDuns/Kortex#readme",
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
     "@supabase/supabase-js": "^2.116.0",
     "axios": "^1.20.0",
+    "chart.js": "^4.5.1",
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
     "noblox.js": "^9.0.0"

@@ -111,6 +111,7 @@ async function renderizarPanelConfig(item) {
     container.addSeparatorComponents(separador());
 
     const navButtons = [
+        boton(`roblox_chart_${item.id}_7d`, 'Ver Gráfica', '📈', ButtonStyle.Primary),
         boton('btn_nav_wishlist', 'Volver a Mi Lista', '⬅️', ButtonStyle.Secondary)
     ];
 
@@ -133,6 +134,8 @@ async function renderizarPanelConfig(item) {
 
     return { 
         components: [container],
+        files: [],
+        attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }

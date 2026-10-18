@@ -3,6 +3,7 @@
 // ==========================================
 
 const supabase = require('../db');
+const PriceItem = require('../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../utils/roblox');
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../utils/ui');
 const logger = require('../utils/logger');
@@ -52,6 +53,9 @@ async function procesarItem(client, item, stats) {
         stats.errores++;
         return;
     }
+
+    // Registrar en el historial con Delta Logging (solo inserta si el precio varió respecto al último punto)
+    await PriceItem.recordPrice(item.id_objet, detalles.nombre || item.item_name, precioNuevo).catch(() => null);
 
     if (precioNuevo !== precioAnterior) {
         stats.cambios++;
