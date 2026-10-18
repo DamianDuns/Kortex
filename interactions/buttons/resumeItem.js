@@ -6,10 +6,12 @@ const {
     ContainerBuilder,
     TextDisplayBuilder,
     ActionRowBuilder,
+    ButtonBuilder,
     ButtonStyle,
     MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
+const { obtenerUrlRoblox } = require('../../utils/roblox');
 const { COLORES, EMOJI_TIPO, separador, boton, footer } = require('../../utils/ui');
 
 module.exports = {
@@ -34,7 +36,7 @@ module.exports = {
 
         if (!item) {
             return await interaction.reply({
-                content: '🔒 Solo el dueño de esta alerta puede reanudar o modificar su monitoreo.',
+                content: '🔒 Solo el dueño de esta alerta puede reanudar o pausar su monitoreo.',
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -42,6 +44,34 @@ module.exports = {
         const tipo = (item.item_type || 'catalog').toLowerCase();
         const emojiCat = EMOJI_TIPO[tipo] || '📦';
         const nombre = item.item_name || 'este objeto';
+        const robloxUrl = obtenerUrlRoblox(item.id_objet, tipo);
+
+        const rowPausar = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setLabel('Ver en Roblox')
+                .setEmoji('🔗')
+                .setStyle(ButtonStyle.Link)
+                .setURL(robloxUrl),
+            boton(`btn_pause_item_${rowId}`, 'Pausar Alertas', '⏸️', ButtonStyle.Secondary)
+        );
+
+        // Conservar intacto el mensaje de alerta y su gráfica adjunta; solo alternar el botón de pausa
+        const rawContainer = interaction.message?.components?.[0]?.toJSON?.();
+        if (rawContainer && Array.isArray(rawContainer.components)) {
+            rawContainer.components = rawContainer.components.map(comp =>
+                comp.type === 1 ? rowPausar.toJSON() : comp
+            );
+
+            await interaction.update({
+                components: [new ContainerBuilder(rawContainer)],
+                flags: MessageFlags.IsComponentsV2
+            });
+
+            return await interaction.followUp({
+                content: `▶️ **Alertas reanudadas** para **${nombre}**. Volvés a recibir notificaciones de cambios de precio.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
         const container = new ContainerBuilder()
             .setAccentColor(COLORES.exito)
@@ -53,19 +83,11 @@ module.exports = {
                 )
             )
             .addSeparatorComponents(separador())
-            .addActionRowComponents(
-                new ActionRowBuilder().addComponents(
-                    boton(`btn_pause_item_${rowId}`, 'Pausar Alertas', '⏸️', ButtonStyle.Secondary),
-                    boton(`btn_action_open_config:${rowId}`, 'Configurar', '⚙️', ButtonStyle.Primary),
-                    boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary)
-                )
-            )
+            .addActionRowComponents(rowPausar)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(footer('Price Sniper activo')));
 
         return await interaction.update({
             components: [container],
-            files: [],
-            attachments: [],
             flags: MessageFlags.IsComponentsV2
         });
     }

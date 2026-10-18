@@ -6,10 +6,12 @@ const {
     ContainerBuilder,
     TextDisplayBuilder,
     ActionRowBuilder,
+    ButtonBuilder,
     ButtonStyle,
     MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
+const { obtenerUrlRoblox } = require('../../utils/roblox');
 const { COLORES, EMOJI_TIPO, separador, boton, footer } = require('../../utils/ui');
 
 module.exports = {
@@ -34,7 +36,7 @@ module.exports = {
 
         if (!item) {
             return await interaction.reply({
-                content: '🔒 Solo el dueño de esta alerta puede pausar o modificar su monitoreo.',
+                content: '🔒 Solo el dueño de esta alerta puede pausar o reanudar su monitoreo.',
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -42,6 +44,34 @@ module.exports = {
         const tipo = (item.item_type || 'catalog').toLowerCase();
         const emojiCat = EMOJI_TIPO[tipo] || '📦';
         const nombre = item.item_name || 'este objeto';
+        const robloxUrl = obtenerUrlRoblox(item.id_objet, tipo);
+
+        const rowReanudar = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setLabel('Ver en Roblox')
+                .setEmoji('🔗')
+                .setStyle(ButtonStyle.Link)
+                .setURL(robloxUrl),
+            boton(`btn_resume_item_${rowId}`, 'Reanudar Alertas', '▶️', ButtonStyle.Success)
+        );
+
+        // Conservar intacto el mensaje de alerta y su gráfica adjunta; solo alternar el botón de pausa
+        const rawContainer = interaction.message?.components?.[0]?.toJSON?.();
+        if (rawContainer && Array.isArray(rawContainer.components)) {
+            rawContainer.components = rawContainer.components.map(comp =>
+                comp.type === 1 ? rowReanudar.toJSON() : comp
+            );
+
+            await interaction.update({
+                components: [new ContainerBuilder(rawContainer)],
+                flags: MessageFlags.IsComponentsV2
+            });
+
+            return await interaction.followUp({
+                content: `⏸️ **Alertas en pausa** para **${nombre}**. Podés reanudarlas cuando quieras desde el botón de la alerta.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
         const container = new ContainerBuilder()
             .setAccentColor(COLORES.alerta)
@@ -53,19 +83,11 @@ module.exports = {
                 )
             )
             .addSeparatorComponents(separador())
-            .addActionRowComponents(
-                new ActionRowBuilder().addComponents(
-                    boton(`btn_resume_item_${rowId}`, 'Reanudar Monitoreo', '▶️', ButtonStyle.Success),
-                    boton(`btn_action_open_config:${rowId}`, 'Configurar', '⚙️', ButtonStyle.Primary),
-                    boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary)
-                )
-            )
+            .addActionRowComponents(rowReanudar)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(footer('Podés reanudarlo cuando quieras')));
 
         return await interaction.update({
             components: [container],
-            files: [],
-            attachments: [],
             flags: MessageFlags.IsComponentsV2
         });
     }

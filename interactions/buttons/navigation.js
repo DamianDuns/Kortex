@@ -25,30 +25,24 @@ function construirMenuPrincipal(userId) {
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         '# ⚡ Roblox Toolkit\n' +
-        'Todo lo que necesitás para la economía de Roblox, en un solo lugar.'
+        'Elegí una categoría para empezar:'
     ));
 
     container.addSeparatorComponents(separador(true));
 
-    // Cada herramienta es una sección con su botón a la derecha
+    // Categoría 1: Price Sniper (incluye añadir objetos + Mi Lista y gráficas)
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 '### 🎯 Price Sniper\n' +
-                'Monitoreá Catálogo, Limiteds, Gamepasses y Plugins. Te aviso cuando el precio baja.'
+                `Monitoreá Catálogo, Limiteds, Gamepasses y Plugins, consultá **Mi Lista** (máx. ${MAX_WISHLIST_ITEMS}) y mirá gráficas de precios.`
             ))
-            .setButtonAccessory(boton('btn_quick_sniper', 'Añadir', '➕', ButtonStyle.Primary))
+            .setButtonAccessory(boton('btn_quick_sniper', 'Abrir', '🎯', ButtonStyle.Primary))
     );
 
-    container.addSectionComponents(
-        new SectionBuilder()
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                '### 📋 Mi Lista\n' +
-                `Revisá, pausá o editá tus objetos en seguimiento (máx. ${MAX_WISHLIST_ITEMS}).`
-            ))
-            .setButtonAccessory(boton('btn_nav_wishlist', 'Ver lista', '📋', ButtonStyle.Success))
-    );
+    container.addSeparatorComponents(separador());
 
+    // Categoría 2: Calculadoras
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -60,7 +54,7 @@ function construirMenuPrincipal(userId) {
 
     container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('¿Primera vez? Usá /help para ver la guía completa')
+        footer('¿Primera vez? Usá /help para ver la guía de herramientas')
     ));
 
     return {
@@ -70,24 +64,22 @@ function construirMenuPrincipal(userId) {
 }
 
 // ==========================================
-// PRICE SNIPER: elegir categoría
+// PRICE SNIPER: elegir categoría + acceso a Mi Lista
 // ==========================================
 function construirMenuSniper() {
     const container = new ContainerBuilder().setAccentColor(COLORES.sniper);
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         '## 🎯 Price Sniper\n' +
-        'Añadí un objeto en 3 pasos:\n' +
-        '> **1.** Elegí la categoría en el menú de abajo.\n' +
+        'Añadí un objeto nuevo en 3 pasos:\n' +
+        '> **1.** Elegí la categoría en el menú desplegable.\n' +
         '> **2.** Pegá el **ID** o el **enlace** de Roblox.\n' +
         '> **3.** Definí una meta de precio *(opcional)* y dónde recibir las alertas.'
     ));
 
-    container.addSeparatorComponents(separador());
-
     const selectTipo = new StringSelectMenuBuilder()
         .setCustomId('select_sniper_type')
-        .setPlaceholder('📂 Elegí la categoría del objeto...')
+        .setPlaceholder('➕ Elegí una categoría para añadir un objeto...')
         .addOptions([
             new StringSelectMenuOptionBuilder()
                 .setLabel('Catálogo / UGC / Limiteds')
@@ -113,9 +105,22 @@ function construirMenuSniper() {
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectTipo));
 
+    container.addSeparatorComponents(separador(true));
+
+    // Mi Lista integrada dentro de la categoría Price Sniper
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                '### 📋 Mi Lista de Monitoreo\n' +
+                `Revisá tus objetos en seguimiento (máx. ${MAX_WISHLIST_ITEMS}), consultá sus **gráficas de precios** o configurá tus alertas.`
+            ))
+            .setButtonAccessory(boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Success))
+    );
+
+    container.addSeparatorComponents(separador());
+
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_nav_wishlist', 'Mi Lista', '📋', ButtonStyle.Success),
             boton('btn_nav_main_menu', 'Volver', '⬅️')
         )
     );
@@ -129,7 +134,7 @@ function construirMenuSniper() {
 }
 
 // ==========================================
-// MI LISTA DE MONITOREO
+// MI LISTA DE MONITOREO (dentro de Price Sniper)
 // ==========================================
 function construirListaVacia() {
     const container = new ContainerBuilder()
@@ -137,13 +142,13 @@ function construirListaVacia() {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             '## 📋 Tu Lista de Monitoreo\n' +
             'Todavía no estás siguiendo ningún objeto.\n\n' +
-            '> Presioná **Añadir Objeto** y te aviso apenas cambie su precio. 🎯'
+            '> Volvé al **Price Sniper** y elegí una categoría arriba para añadir tu primer objeto. 🎯'
         ))
         .addSeparatorComponents(separador())
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_quick_sniper', 'Añadir Objeto', '🎯', ButtonStyle.Primary),
-                boton('btn_nav_main_menu', 'Menú Principal', '⬅️')
+                boton('btn_nav_sniper', 'Volver a Price Sniper', '⬅️', ButtonStyle.Primary),
+                boton('btn_nav_main_menu', 'Menú Principal', '🏠')
             )
         );
 
@@ -220,11 +225,11 @@ function construirLista(items, miniaturas) {
 
     const botonesNav = [];
     if (items.length < MAX_WISHLIST_ITEMS) {
-        botonesNav.push(boton('btn_quick_sniper', 'Añadir', '➕', ButtonStyle.Primary));
+        botonesNav.push(boton('btn_nav_sniper', 'Añadir Objeto', '➕', ButtonStyle.Primary));
     }
     botonesNav.push(
         boton('btn_nav_wishlist', 'Actualizar', '🔄'),
-        boton('btn_nav_main_menu', 'Menú Principal', '⬅️')
+        boton('btn_nav_sniper', 'Volver', '⬅️')
     );
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesNav));
 

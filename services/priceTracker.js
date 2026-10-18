@@ -222,7 +222,6 @@ async function procesarItem(client, item, stats) {
                         .setEmoji('🔗')
                         .setStyle(ButtonStyle.Link)
                         .setURL(robloxUrl),
-                    boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
                     boton(`btn_pause_item_${item.id}`, 'Pausar Alertas', '⏸️', ButtonStyle.Secondary)
                 );
 
@@ -444,6 +443,10 @@ async function enviarAlertaPrueba(client, item) {
         );
         container.addSeparatorComponents(separador(true));
 
+        const btnPausaPrueba = item.is_paused
+            ? boton(`btn_resume_item_${item.id}`, 'Reanudar Alertas', '▶️', ButtonStyle.Success)
+            : boton(`btn_pause_item_${item.id}`, 'Pausar Alertas', '⏸️', ButtonStyle.Secondary);
+
         container.addActionRowComponents(
             new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -451,8 +454,7 @@ async function enviarAlertaPrueba(client, item) {
                     .setEmoji('🔗')
                     .setStyle(ButtonStyle.Link)
                     .setURL(robloxUrl),
-                boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
-                boton('btn_nav_wishlist', 'Mi Lista', '📋', ButtonStyle.Secondary)
+                btnPausaPrueba
             )
         );
 

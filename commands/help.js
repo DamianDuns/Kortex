@@ -14,42 +14,33 @@ function construirPanelHelp() {
     const container = new ContainerBuilder().setAccentColor(COLORES.primario);
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        '## ⌨️ Comandos de Kortex\n' +
-        'Referencia de todos los comandos disponibles y cómo ejecutarlos:'
+        '# ⚡ Centro de Ayuda — Kortex\n' +
+        'Guía rápida de las herramientas y comandos disponibles en el bot.'
     ));
 
     container.addSeparatorComponents(separador(true));
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        '### 🎮 `/roblox`\n' +
-        'Abre el panel interactivo con las herramientas de Roblox:\n' +
-        '> • **Price Sniper:** Añadí objetos (Catálogo, Limiteds, Gamepasses, Plugins o Accesos Pagos) para recibir alertas cuando baje el precio.\n' +
-        '> • **Mi Lista:** Consultá tus objetos en seguimiento (máx. 5), cambiá la meta, pausá el monitoreo o configurá el canal/DM/webhook de alerta.\n' +
-        '> • **Calculadoras:** Calculá descuentos de Cashback de grupo (40%), Roblox Plus (10% / 20%) y Precios Regionales.\n' +
-        '-# 💬 Por mención: `@Kortex` o `@Kortex roblox`'
+        '## 🎮 `/roblox` — Panel Principal\n' +
+        'Abre el menú interactivo con las dos categorías de herramientas:\n\n' +
+        '### 🎯 Price Sniper y Lista de Seguimiento\n' +
+        '> • **Monitoreo de precios:** Añadí hasta **5 objetos** (*Catálogo, Limiteds, Gamepasses, Plugins o Accesos Pagos*) pegando su ID o enlace.\n' +
+        '> • **Mi Lista y Gráficas:** Consultá tus objetos dentro de Price Sniper, revisá sus **gráficas de evolución** (`24h`, `7d`, `30d`, `Todo`) y fijá una **meta de precio**.\n' +
+        '> • **Alertas automáticas:** Recibí avisos con gráfica incluida por **DM**, **Canal** o **Webhook** apenas cambie el precio.\n\n' +
+        '### 🧮 Calculadoras de Roblox\n' +
+        '> • Calculá al instante descuentos e impuestos de **Cashback de grupo (40%)**, **Roblox Plus (10% / 20%)** y **Precios Regionales**.'
     ));
 
-    container.addSeparatorComponents(separador());
+    container.addSeparatorComponents(separador(true));
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        '### 🏓 `/ping`\n' +
-        'Comprueba el estado técnico y la conexión del bot en tiempo real:\n' +
-        '> • Muestra la **latencia de respuesta** (`ms`) y el ping del **WebSocket** con la API de Discord.\n' +
-        '> • Indica el **tiempo activo** (*uptime*), servidores conectados y consumo de **RAM**.\n' +
-        '-# 💬 Por mención: `@Kortex ping`'
-    ));
-
-    container.addSeparatorComponents(separador());
-
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        '### 📖 `/help`\n' +
-        'Muestra este panel con la lista y explicación de todos los comandos del bot.\n' +
-        '-# 💬 Por mención: `@Kortex help` o `@Kortex ayuda`'
+        '## 🏓 `/ping` — Estado del Bot\n' +
+        'Muestra la latencia de respuesta (`ms`), conexión con Discord y tiempo activo en línea.'
     ));
 
     container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Usá / en el chat o mencioná a @Kortex para ejecutar cualquier comando')
+        footer('Ejecutá los comandos con / en el chat o mencionando a @Kortex')
     ));
 
     return {
