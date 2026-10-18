@@ -1,6 +1,6 @@
 // ==========================================
 // ARCHIVO: interactions/buttons/chartView.js
-// Vista 3: Estado del Objeto, Estadísticas de Rango y Gráfica Local en RAM
+// Vista 3: Inspector del Objeto, Gráfica Local en RAM y Filtros de Tiempo
 // ==========================================
 
 const {
@@ -31,7 +31,7 @@ const ETIQUETA_RANGO = {
 };
 
 /**
- * Construye el payload de la Vista 3 (Estado del Objeto + Gráfica + Selector + Filtros de Tiempo).
+ * Construye el payload de la Vista 3 (Inspector de Objeto + Gráfica siempre visible + Selector + Filtros).
  */
 async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d') {
     const rangoActivo = ['24h', '7d', '30d', 'all'].includes(rangeKey) ? rangeKey : '7d';
@@ -47,7 +47,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
         listaObjetos = data || [item];
     }
 
-    // 2. Obtener miniatura e historial con Delta Logging
+    // 2. Obtener miniatura e historial desde Supabase (garantizando mínimo 2 puntos)
     const [miniaturas, priceRecord] = await Promise.all([
         obtenerMiniaturasBatch([item]).catch(() => new Map()),
         PriceItem.getOrInitItem(item)
@@ -55,7 +55,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
 
     const imagenUrl = miniaturas.get(String(item.id_objet)) || null;
     const historial = priceRecord?.history || [];
-    const stats = PriceItem.filterHistoryAndStats(historial, rangoActivo);
+    const stats = PriceItem.filterHistoryAndStats(historial, rangoActivo, item.last_price);
 
     const tipo = (item.item_type || 'catalog').toLowerCase();
     const esUSD = tipo === 'plugin';
@@ -70,30 +70,22 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     const signo = stats.diff > 0 ? '+' : '';
     const pctFmt = `${signo}${stats.pctChange.toFixed(2).replace('.00', '')}%`;
     const diffFmt = stats.diff === 0
-        ? '0% (Sin cambios)'
+        ? '0% (Estable)'
         : `${signo}${formatearPrecio(stats.diff, esUSD)} (${pctFmt})`;
 
-    const tieneGrafica = stats.filtered.length >= 2;
-    const colorBorde = tieneGrafica
-        ? (stats.isUpOrFlat ? 0x23a55a : 0xf23f43)
-        : 0x2b2d31;
+    // Borde verde (0x23a55a) si subió o se mantuvo, rojo (0xf23f43) si bajó
+    const colorBorde = stats.isUpOrFlat ? 0x23a55a : 0xf23f43;
 
     const tieneMeta = item.target_price !== null && item.target_price !== undefined;
     const fmtMeta = tieneMeta ? formatearPrecio(item.target_price, esUSD) : 'Sin meta';
 
     const container = new ContainerBuilder().setAccentColor(colorBorde);
 
-    const bloqueAviso = !tieneGrafica
-        ? `\n\n> ℹ️ **Historial en recopilación (${stats.totalRecords}/2 variaciones mínimas):**\n` +
-          `> La gráfica se generará automáticamente apenas Kortex detecte el primer cambio de precio en este objeto.`
-        : '';
-
     const textoEstadisticas = new TextDisplayBuilder().setContent(
         `# 📈 __**${nombreObj}**__\n` +
         `-# ${emojiCat} **${nombreCat}**  •  ID \`${item.id_objet}\`  •  Rango: **${ETIQUETA_RANGO[rangoActivo]}**\n\n` +
-        `🏷️ **Precio Actual:** \`${fmtActual}\`   •   📊 **Variación (%)**: \`${diffFmt}\`\n` +
-        `📉 **Mín / Máx (${rangoActivo === 'all' ? 'Todo' : rangoActivo}):** \`${fmtMin}\` / \`${fmtMax}\`   •   🎯 **Meta:** \`${fmtMeta}\`` +
-        bloqueAviso
+        `🏷️ **Precio Actual:** \`${fmtActual}\`   •   📊 **Variación (%):** \`${diffFmt}\`\n` +
+        `📉 **Mín / Máx (${rangoActivo === 'all' ? 'Todo' : rangoActivo}):** \`${fmtMin}\` / \`${fmtMax}\`   •   🎯 **Meta:** \`${fmtMeta}\``
     );
 
     if (imagenUrl) {
@@ -106,27 +98,23 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
         container.addTextDisplayComponents(textoEstadisticas);
     }
 
-    const files = [];
+    // 3. Generar SIEMPRE la gráfica en RAM e incrustarla con MediaGalleryBuilder
+    const chartBuffer = await generatePriceChart(stats.filtered, nombreObj, {
+        itemId: item.id_objet,
+        daysRange: rangoActivo,
+        esUSD
+    });
+    const attachment = new AttachmentBuilder(chartBuffer, { name: 'chart.png' });
 
-    if (tieneGrafica) {
-        const chartBuffer = await generatePriceChart(stats.filtered, nombreObj, {
-            itemId: item.id_objet,
-            daysRange: rangoActivo,
-            esUSD
-        });
-        files.push(new AttachmentBuilder(chartBuffer, { name: 'chart.png' }));
-
-        container.addSeparatorComponents(separador());
-        container.addMediaGalleryComponents(
-            new MediaGalleryBuilder().addItems(
-                new MediaGalleryItemBuilder().setURL('attachment://chart.png')
-            )
-        );
-    }
-
+    container.addSeparatorComponents(separador());
+    container.addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(
+            new MediaGalleryItemBuilder().setURL('attachment://chart.png')
+        )
+    );
     container.addSeparatorComponents(separador(true));
 
-    // Fila 1: StringSelectMenuBuilder con el objeto actual marcado como default para saltar directo a otro objeto
+    // Fila 1: StringSelectMenuBuilder con el objeto actual marcado como default
     const selectOptions = listaObjetos.slice(0, 25).map((obj, idx) => {
         const objType = (obj.item_type || 'catalog').toLowerCase();
         const objEsUSD = objType === 'plugin';
@@ -146,7 +134,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
             new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId('select_manage_item')
-                    .setPlaceholder('🔎 Cambiar a otro objeto de tu lista...')
+                    .setPlaceholder('📈 Elegí un objeto para ver su gráfica o configurar alertas...')
                     .addOptions(selectOptions)
             )
         );
@@ -168,7 +156,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     botonesRango.push(boton('btn_nav_wishlist', 'Volver a la lista', '⬅️', ButtonStyle.Secondary));
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesRango));
 
-    // Fila 3: Accesos rápidos para Configurar Alertas, Probar Alerta y Ver en Roblox
+    // Fila 3: Funciones de configuración existentes intactas
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             boton(`btn_action_open_config:${item.id}`, 'Configurar Alertas', '⚙️', ButtonStyle.Success),
@@ -182,12 +170,12 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     );
 
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(footer(`Variaciones registradas: ${stats.totalRecords}/500  •  Renderizado en RAM`))
+        new TextDisplayBuilder().setContent(footer(`Variaciones en historial: ${stats.totalRecords}/500  •  Renderizado en RAM`))
     );
 
     return {
         components: [container],
-        files,
+        files: [attachment],
         attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
@@ -200,7 +188,6 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferUpdate();
 
-        // Formato: roblox_chart_${dbId}_${daysRange}
         const resto = interaction.customId.replace('roblox_chart_', '');
         const lastUnderscore = resto.lastIndexOf('_');
         const dbId = lastUnderscore !== -1 ? resto.slice(0, lastUnderscore) : resto;

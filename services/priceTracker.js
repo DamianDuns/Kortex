@@ -4,6 +4,7 @@
 
 const supabase = require('../db');
 const PriceItem = require('../models/PriceItem');
+const { generatePriceChart } = require('../utils/chartGenerator');
 const { obtenerDetallesCompletos, obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../utils/roblox');
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../utils/ui');
 const logger = require('../utils/logger');
@@ -11,9 +12,12 @@ const {
     ContainerBuilder, 
     SectionBuilder, 
     TextDisplayBuilder, 
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
+    AttachmentBuilder,
     MessageFlags 
 } = require('discord.js');
 const axios = require('axios');
@@ -54,8 +58,18 @@ async function procesarItem(client, item, stats) {
         return;
     }
 
-    // Registrar en el historial con Delta Logging (solo inserta si el precio varió respecto al último punto)
-    await PriceItem.recordPrice(item.id_objet, detalles.nombre || item.item_name, precioNuevo).catch(() => null);
+    // Registrar en Supabase con Delta Logging (si el historial estaba vacío y hubo cambio,
+    // inserta primero previousPrice y luego newPrice para garantizar mínimo 2 puntos)
+    const priceRecord = await PriceItem.recordPrice(
+        item.id_objet,
+        detalles.nombre || item.item_name,
+        precioNuevo,
+        {
+            previousPrice: precioAnterior,
+            existingHistory: item.price_history,
+            createdAt: item.created_at
+        }
+    ).catch(() => null);
 
     if (precioNuevo !== precioAnterior) {
         stats.cambios++;
@@ -118,6 +132,21 @@ async function procesarItem(client, item, stats) {
                 colorAlerta = COLORES.sniper;
             }
 
+            // Generar el Buffer de la gráfica en RAM con el historial actualizado (mínimo 2 puntos garantizados)
+            const statsGrafica = PriceItem.filterHistoryAndStats(
+                priceRecord?.history || [
+                    { price: precioAnterior, timestamp: new Date(Date.now() - 5 * 60 * 1000) },
+                    { price: precioNuevo, timestamp: new Date() }
+                ],
+                '7d',
+                precioNuevo
+            );
+            const chartBuffer = await generatePriceChart(statsGrafica.filtered, nombreObj, {
+                itemId: item.id_objet,
+                daysRange: '7d',
+                esUSD
+            });
+
             // 1. WEBHOOK (Embed clásico adaptado con estética similar al panel V2)
             if (item.webhook_url) {
                 try {
@@ -151,9 +180,10 @@ async function procesarItem(client, item, stats) {
                 }
             }
 
-            // CONSTRUCTOR DE ALERTA COMPONENTS V2 (Canal y DM)
+            // CONSTRUCTOR DE ALERTA COMPONENTS V2 CON GRÁFICA INCRUSTADA (Canal y DM)
             const construirAlertaV2 = (incluirPing = false) => {
                 const lineaPing = incluirPing ? `-# 🔔 Alerta para <@${item.user_id}>\n` : '';
+                const attachment = new AttachmentBuilder(chartBuffer, { name: 'chart.png' });
 
                 const textoAlerta = new TextDisplayBuilder().setContent(
                     `${lineaPing}` +
@@ -177,6 +207,12 @@ async function procesarItem(client, item, stats) {
                     container.addTextDisplayComponents(textoAlerta);
                 }
 
+                container.addSeparatorComponents(separador());
+                container.addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL('attachment://chart.png')
+                    )
+                );
                 container.addSeparatorComponents(separador(true));
 
                 const rowAction = new ActionRowBuilder().addComponents(
@@ -196,6 +232,7 @@ async function procesarItem(client, item, stats) {
 
                 return {
                     components: [container],
+                    files: [attachment],
                     flags: MessageFlags.IsComponentsV2
                 };
             };
@@ -316,7 +353,10 @@ async function enviarAlertaPrueba(client, item) {
     const emojiCat = EMOJI_TIPO[type] || '📦';
     const nombreCat = NOMBRE_TIPO[type] || type.toUpperCase();
 
-    const miniaturas = await obtenerMiniaturasBatch([item]).catch(() => new Map());
+    const [miniaturas, priceRecord] = await Promise.all([
+        obtenerMiniaturasBatch([item]).catch(() => new Map()),
+        PriceItem.getOrInitItem(item).catch(() => null)
+    ]);
     const imagenUrl = miniaturas.get(String(item.id_objet)) || null;
 
     const fmtActual = formatearPrecio(item.last_price, esUSD);
@@ -327,6 +367,13 @@ async function enviarAlertaPrueba(client, item) {
 
     const robloxUrl = obtenerUrlRoblox(item.id_objet, type);
     const nombre = item.item_name || `Objeto ${item.id_objet}`;
+
+    const statsGrafica = PriceItem.filterHistoryAndStats(priceRecord?.history || [], '7d', item.last_price);
+    const chartBuffer = await generatePriceChart(statsGrafica.filtered, nombre, {
+        itemId: item.id_objet,
+        daysRange: '7d',
+        esUSD
+    });
 
     // 1. Webhook (Embed clásico adaptado al estilo V2)
     if (item.webhook_url) {
@@ -363,6 +410,8 @@ async function enviarAlertaPrueba(client, item) {
 
     const construirPruebaV2 = (incluirPing = false, etiquetaDestino = '💬 Mensaje Directo (DM)') => {
         const lineaPing = incluirPing ? `-# 🔔 Alerta de prueba para <@${item.user_id}>\n` : '';
+        const attachment = new AttachmentBuilder(chartBuffer, { name: 'chart.png' });
+
         const texto = new TextDisplayBuilder().setContent(
             `${lineaPing}` +
             `# 🔔 Alerta de Prueba\n` +
@@ -385,6 +434,12 @@ async function enviarAlertaPrueba(client, item) {
             container.addTextDisplayComponents(texto);
         }
 
+        container.addSeparatorComponents(separador());
+        container.addMediaGalleryComponents(
+            new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder().setURL('attachment://chart.png')
+            )
+        );
         container.addSeparatorComponents(separador(true));
 
         container.addActionRowComponents(
@@ -405,6 +460,7 @@ async function enviarAlertaPrueba(client, item) {
 
         return {
             components: [container],
+            files: [attachment],
             flags: MessageFlags.IsComponentsV2
         };
     };

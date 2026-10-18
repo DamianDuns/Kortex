@@ -1,6 +1,6 @@
 // ==========================================
 // ARCHIVO: models/PriceItem.js
-// Modelo de Historial de Precios con Delta Logging (Supabase + Persistencia Local)
+// Modelo de Historial de Precios en Supabase (price_history jsonb) con Delta Logging
 // ==========================================
 
 const fs = require('node:fs');
@@ -11,9 +11,8 @@ const MAX_HISTORY_LENGTH = 500;
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const LOCAL_STORE_PATH = path.join(DATA_DIR, 'price_history.json');
 
-// Caché en memoria: Map<string, Array<{ price: number, timestamp: string }>>
+// Caché en memoria sincronizada con Supabase
 const memoryStore = new Map();
-let supabaseSupportsColumn = null; // null = desconocido, true = soporta columna price_history, false = usar store local
 
 function cargarStoreLocal() {
     try {
@@ -27,7 +26,7 @@ function cargarStoreLocal() {
             }
         }
     } catch {
-        // Si no existe o está corrupto, iniciamos limpio
+        // Ignorar si no existe
     }
 }
 
@@ -42,7 +41,7 @@ function guardarStoreLocal() {
         }
         fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(obj, null, 2), 'utf8');
     } catch {
-        // Ignorar errores de escritura en entornos de solo lectura
+        // Ignorar errores en disco de solo lectura
     }
 }
 
@@ -50,17 +49,19 @@ cargarStoreLocal();
 
 class PriceItem {
     /**
-     * Registra un precio aplicando Delta Logging:
-     * - Si el objeto no tiene historial, crea el primer punto.
-     * - Si ya existe, solo inserta un nuevo registro si `newPrice` cambió respecto al último guardado.
-     * - Limita el historial a un máximo de 500 variaciones (eliminando el más antiguo con shift()).
+     * Registra un precio en Supabase (`roblox_wishlist.price_history`) aplicando Delta Logging:
+     * - Si el historial está vacío y se recibe `previousPrice` distinto de `newPrice`,
+     *   inserta primero `previousPrice` (unos minutos antes) y luego `newPrice` para asegurar mínimo 2 puntos.
+     * - Si el historial está vacío y no hay variación previa, crea un punto base de referencia + el punto actual.
+     * - Si ya existe historial, compara `newPrice` con el último elemento y solo inserta si el precio varió.
+     * - Limita el array a un máximo de 500 registros usando `shift()`.
      *
      * @param {string|number} itemId ID del objeto de Roblox (id_objet)
      * @param {string} name Nombre del objeto
-     * @param {number} newPrice Precio actual detectado
-     * @returns {Promise<{ itemId: string, name: string, currentPrice: number, history: Array<{ price: number, timestamp: Date }>, changed: boolean }>}
+     * @param {number} newPrice Precio actual
+     * @param {object} [options] Opciones adicionales: { previousPrice, existingHistory, createdAt }
      */
-    static async recordPrice(itemId, name, newPrice) {
+    static async recordPrice(itemId, name, newPrice, options = {}) {
         const idStr = String(itemId);
         const precioNum = Number(newPrice);
 
@@ -68,10 +69,17 @@ class PriceItem {
             return null;
         }
 
-        let record = memoryStore.get(idStr);
+        const {
+            previousPrice = null,
+            existingHistory = null,
+            createdAt = null
+        } = options;
 
-        // Intentar hidratar desde Supabase si aún no está en memoria
-        if (!record && supabaseSupportsColumn !== false) {
+        let record = memoryStore.get(idStr);
+        let dbHistory = Array.isArray(existingHistory) ? existingHistory : null;
+
+        // Consultar historial actual en Supabase si no fue provisto
+        if (!dbHistory) {
             try {
                 const { data, error } = await supabase
                     .from('roblox_wishlist')
@@ -80,52 +88,90 @@ class PriceItem {
                     .limit(1)
                     .maybeSingle();
 
-                if (!error) {
-                    supabaseSupportsColumn = true;
-                    if (data && Array.isArray(data.price_history) && data.price_history.length > 0) {
-                        record = {
-                            itemId: idStr,
-                            name: name || data.item_name || `Objeto ${idStr}`,
-                            currentPrice: precioNum,
-                            history: data.price_history
-                        };
-                    }
-                } else if (error.message && error.message.includes('price_history')) {
-                    supabaseSupportsColumn = false;
+                if (!error && data && Array.isArray(data.price_history)) {
+                    dbHistory = data.price_history;
                 }
             } catch {
-                // Continuar con store en memoria/local
+                // Continuar con caché en memoria si falla la red
             }
         }
 
-        const ahoraIso = new Date().toISOString();
+        if (Array.isArray(dbHistory) && dbHistory.length > 0) {
+            if (!record || dbHistory.length >= (record.history?.length || 0)) {
+                record = {
+                    itemId: idStr,
+                    name: name || record?.name || `Objeto ${idStr}`,
+                    currentPrice: precioNum,
+                    history: dbHistory.map(h => ({
+                        price: Number(h.price),
+                        timestamp: new Date(h.timestamp).toISOString()
+                    }))
+                };
+            }
+        }
+
+        const ahoraMs = Date.now();
+        const ahoraIso = new Date(ahoraMs).toISOString();
+        const prevTimeIso = createdAt
+            ? new Date(createdAt).toISOString()
+            : new Date(ahoraMs - 5 * 60 * 1000).toISOString();
+
+        const tienePrevValido = previousPrice !== null && previousPrice !== undefined && !isNaN(Number(previousPrice));
+        const prevNum = tienePrevValido ? Number(previousPrice) : precioNum;
+
         let changed = false;
 
         if (!record || !Array.isArray(record.history) || record.history.length === 0) {
-            record = {
-                itemId: idStr,
-                name: name || `Objeto ${idStr}`,
-                currentPrice: precioNum,
-                history: [{ price: precioNum, timestamp: ahoraIso }]
-            };
+            // Historial vacío: si hubo cambio desde previousPrice, insertamos previousPrice + newPrice
+            if (tienePrevValido && prevNum !== precioNum) {
+                record = {
+                    itemId: idStr,
+                    name: name || `Objeto ${idStr}`,
+                    currentPrice: precioNum,
+                    history: [
+                        { price: prevNum, timestamp: prevTimeIso },
+                        { price: precioNum, timestamp: ahoraIso }
+                    ]
+                };
+            } else {
+                record = {
+                    itemId: idStr,
+                    name: name || `Objeto ${idStr}`,
+                    currentPrice: precioNum,
+                    history: [
+                        { price: precioNum, timestamp: ahoraIso }
+                    ]
+                };
+            }
             changed = true;
         } else {
             record.name = name || record.name;
             record.currentPrice = precioNum;
 
+            // Si solo había 1 punto con el precio nuevo pero el Sniper acaba de detectar un cambio desde previousPrice,
+            // aseguramos que el punto con previousPrice esté al inicio antes del nuevo precio
+            if (record.history.length === 1 && tienePrevValido && prevNum !== precioNum && Number(record.history[0].price) === precioNum) {
+                record.history.unshift({
+                    price: prevNum,
+                    timestamp: prevTimeIso
+                });
+                changed = true;
+            }
+
             const ultimoRegistro = record.history[record.history.length - 1];
             const ultimoPrecio = Number(ultimoRegistro?.price);
 
-            // Delta Logging: solo agregamos si cambió el precio respecto al último punto guardado
+            // Delta Logging: solo agregamos un nuevo punto si el precio cambió respecto al último guardado
             if (ultimoPrecio !== precioNum) {
                 record.history.push({
                     price: precioNum,
                     timestamp: ahoraIso
                 });
+                changed = true;
+            }
 
-                while (record.history.length > MAX_HISTORY_LENGTH) {
-                    record.history.shift();
-                }
+            while (record.history.length > MAX_HISTORY_LENGTH) {
+                record.history.shift();
                 changed = true;
             }
         }
@@ -134,23 +180,13 @@ class PriceItem {
 
         if (changed) {
             guardarStoreLocal();
-
-            // Si la tabla de Supabase tiene la columna price_history (JSONB), la sincronizamos
-            if (supabaseSupportsColumn !== false) {
-                try {
-                    const { error } = await supabase
-                        .from('roblox_wishlist')
-                        .update({ price_history: record.history })
-                        .eq('id_objet', idStr);
-
-                    if (error && error.message && error.message.includes('price_history')) {
-                        supabaseSupportsColumn = false;
-                    } else if (!error) {
-                        supabaseSupportsColumn = true;
-                    }
-                } catch {
-                    // Ignorar si la columna no existe en Supabase
-                }
+            try {
+                await supabase
+                    .from('roblox_wishlist')
+                    .update({ price_history: record.history })
+                    .eq('id_objet', idStr);
+            } catch {
+                // Ignorar si falla la conexión puntual
             }
         }
 
@@ -167,33 +203,24 @@ class PriceItem {
     }
 
     /**
-     * Obtiene el historial completo de un objeto, inicializándolo con el precio actual de Supabase si aún no tenía puntos.
+     * Obtiene el historial del objeto desde Supabase o lo inicializa.
      */
     static async getOrInitItem(wishlistItem) {
         const idStr = String(wishlistItem.id_objet);
         const nombre = wishlistItem.item_name || `Objeto ${idStr}`;
         const precioActual = Number(wishlistItem.last_price || 0);
 
-        // Si el registro de Supabase ya trae price_history en la fila, sincronizarlo
-        if (Array.isArray(wishlistItem.price_history) && wishlistItem.price_history.length > 0) {
-            const actual = memoryStore.get(idStr);
-            if (!actual || actual.history.length < wishlistItem.price_history.length) {
-                memoryStore.set(idStr, {
-                    itemId: idStr,
-                    name: nombre,
-                    currentPrice: precioActual,
-                    history: wishlistItem.price_history.slice(-MAX_HISTORY_LENGTH)
-                });
-            }
-        }
-
-        return await PriceItem.recordPrice(idStr, nombre, precioActual);
+        return await PriceItem.recordPrice(idStr, nombre, precioActual, {
+            existingHistory: Array.isArray(wishlistItem.price_history) ? wishlistItem.price_history : null,
+            createdAt: wishlistItem.created_at || null
+        });
     }
 
     /**
-     * Filtra el historial según el rango ('24h', '7d', '30d', 'all') y calcula métricas financieras.
+     * Filtra el historial según el rango ('24h', '7d', '30d', 'all') y garantiza SIEMPRE
+     * al menos 2 puntos (punto base de referencia + punto actual) para que la gráfica siempre se renderice.
      */
-    static filterHistoryAndStats(history, rangeKey = '7d') {
+    static filterHistoryAndStats(history, rangeKey = '7d', fallbackPrice = 0) {
         const ahora = Date.now();
         const rangosMs = {
             '24h': 24 * 60 * 60 * 1000,
@@ -214,34 +241,48 @@ class PriceItem {
             .sort((a, b) => a.timestamp - b.timestamp);
 
         let filtrados = ventanaMs === Infinity
-            ? normalizados
+            ? [...normalizados]
             : normalizados.filter(h => h.timestamp.getTime() >= limite);
 
-        // Si en la ventana temporal elegida hay menos de 2 puntos pero existen registros previos,
-        // incluimos el último precio vigente antes de la ventana como punto de partida del período.
+        // Si en el rango hay menos de 2 puntos pero existen puntos previos, tomar el último precio previo como base
         if (filtrados.length < 2 && normalizados.length >= 2 && ventanaMs !== Infinity) {
             const previos = normalizados.filter(h => h.timestamp.getTime() < limite);
             if (previos.length > 0) {
-                const puntoBase = previos[previos.length - 1];
-                filtrados = [puntoBase, ...filtrados];
+                filtrados = [previos[previos.length - 1], ...filtrados];
+            } else {
+                filtrados = normalizados.slice(-2);
             }
         }
 
-        if (filtrados.length === 0 && normalizados.length > 0) {
-            filtrados = [normalizados[normalizados.length - 1]];
+        // Si aún no tuvo variaciones (0 o 1 punto en total), generamos el punto base de referencia + el punto actual
+        // para que SIEMPRE se renderice y muestre la gráfica en lugar de omitirla.
+        if (filtrados.length === 0) {
+            const baseVal = normalizados.length > 0 ? normalizados[normalizados.length - 1].price : Number(fallbackPrice || 0);
+            filtrados = [
+                { price: baseVal, timestamp: new Date(ahora - 5 * 60 * 1000) },
+                { price: baseVal, timestamp: new Date(ahora) }
+            ];
+        } else if (filtrados.length === 1) {
+            const unico = filtrados[0];
+            const tiempoUnico = unico.timestamp.getTime();
+            const tiempoBase = Math.min(tiempoUnico - 5 * 60 * 1000, ahora - 60 * 1000);
+            filtrados = [
+                { price: unico.price, timestamp: new Date(tiempoBase) },
+                { price: unico.price, timestamp: new Date(Math.max(tiempoUnico, ahora)) }
+            ];
         }
 
         const precios = filtrados.map(h => h.price);
-        const firstPrice = precios.length > 0 ? precios[0] : 0;
-        const lastPrice = precios.length > 0 ? precios[precios.length - 1] : 0;
-        const minPrice = precios.length > 0 ? Math.min(...precios) : 0;
-        const maxPrice = precios.length > 0 ? Math.max(...precios) : 0;
+        const firstPrice = precios[0];
+        const lastPrice = precios[precios.length - 1];
+        const minPrice = Math.min(...precios);
+        const maxPrice = Math.max(...precios);
         const diff = lastPrice - firstPrice;
         const pctChange = firstPrice > 0 ? ((diff / firstPrice) * 100) : 0;
 
         return {
             filtered: filtrados,
-            totalRecords: normalizados.length,
+            totalRecords: Math.max(normalizados.length, 1),
             firstPrice,
             lastPrice,
             minPrice,

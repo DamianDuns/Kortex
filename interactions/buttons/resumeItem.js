@@ -64,6 +64,8 @@ module.exports = {
 
         return await interaction.update({
             components: [container],
+            files: [],
+            attachments: [],
             flags: MessageFlags.IsComponentsV2
         });
     }
