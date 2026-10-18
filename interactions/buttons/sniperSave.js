@@ -6,7 +6,7 @@ const { ContainerBuilder, SectionBuilder, TextDisplayBuilder, ActionRowBuilder, 
 const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
 module.exports = {
     customIdPrefix: 'btn_save_no_target:',
@@ -81,7 +81,7 @@ module.exports = {
             `# ✅ ¡Monitoreo Activado!\n` +
             `### ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
-            `🪙 **Precio inicial:** ${precioFmt}\n` +
+            `${EMOJI_ROBUX} **Precio inicial:** ${precioFmt}\n` +
             `🎯 **Meta objetivo:** \`Sin meta (notifica todo cambio)\`\n` +
             `🔔 **Destino actual:** 💬 Privado (DM)\n` +
             `📡 **Estado:** 🟢 Activo`

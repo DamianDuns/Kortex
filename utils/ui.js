@@ -80,7 +80,7 @@ function formatearPrecio(valor, esUSD) {
 /** Formatea un precio en texto plano (para descripciones de menús desplegables o consola). */
 function formatearPrecioTexto(valor, esUSD) {
     const n = Number(valor || 0);
-    return esUSD ? `$${n.toFixed(2)} USD` : `🪙 ${n.toLocaleString('es-AR')}`;
+    return esUSD ? `$${n.toFixed(2)} USD` : `${n.toLocaleString('es-AR')} Robux`;
 }
 
 module.exports = {

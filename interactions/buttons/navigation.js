@@ -10,7 +10,7 @@ const {
 const supabase = require('../../db');
 const { obtenerMiniaturasBatch } = require('../../utils/roblox');
 const {
-    COLORES, EMOJI_TIPO, NOMBRE_TIPO,
+    COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX,
     footer, separador, boton, formatearPrecio, formatearPrecioTexto
 } = require('../../utils/ui');
 
@@ -185,7 +185,7 @@ function construirLista(items, miniaturas) {
 
         const detalle = new TextDisplayBuilder().setContent(
             `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__\n` +
-            `🪙 **Precio:** ${fmtActual}  •  🎯 **Meta:** ${fmtMeta}\n` +
+            `${EMOJI_ROBUX} **Precio:** ${fmtActual}  •  🎯 **Meta:** ${fmtMeta}\n` +
             `-# ${estado}  •  ${NOMBRE_TIPO[type] || type}  •  ID ${item.id_objet}`
         );
 

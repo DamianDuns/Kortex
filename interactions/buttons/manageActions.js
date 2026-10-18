@@ -19,7 +19,7 @@ const {
 const supabase = require('../../db');
 const { obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../../utils/roblox');
 const { enviarAlertaPrueba } = require('../../services/priceTracker');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
 async function renderizarPanelConfig(item) {
     const miniaturas = await obtenerMiniaturasBatch([item]);
@@ -55,7 +55,7 @@ async function renderizarPanelConfig(item) {
     const textoConfig = new TextDisplayBuilder().setContent(
         `# ⚙️ Configuración — ${item.item_name || 'Objeto'}\n` +
         `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-        `🪙 **Precio actual:** ${fmtActual}\n` +
+        `${EMOJI_ROBUX} **Precio actual:** ${fmtActual}\n` +
         `🎯 **Meta objetivo:** ${fmtMeta}\n` +
         `🔔 **Destino de alerta:** ${canalTexto}\n` +
         `📡 **Estado:** ${estadoTexto}`

@@ -21,7 +21,7 @@ const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { generatePriceChart } = require('../../utils/chartGenerator');
 const { obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../../utils/roblox');
-const { EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
+const { EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
 
 const ETIQUETA_RANGO = {
     '24h': '24 horas',
@@ -76,7 +76,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     const textoEstadisticas = new TextDisplayBuilder().setContent(
         `# 📈 __**${nombreObj}**__\n` +
         `-# ${emojiCat} **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-        `🪙 **Precio Actual:** ${fmtActual}   •   🎯 **Meta:** ${fmtMeta}`
+        `${EMOJI_ROBUX} **Precio Actual:** ${fmtActual}   •   🎯 **Meta:** ${fmtMeta}`
     );
 
     if (imagenUrl) {

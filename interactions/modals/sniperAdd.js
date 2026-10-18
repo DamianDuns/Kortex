@@ -8,7 +8,7 @@ const {
 } = require('discord.js');
 const supabase = require('../../db');
 const { extractIdFromInput, detectarTipoDesdeInput, obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
 const MAX_WISHLIST_ITEMS = 5;
 
@@ -77,7 +77,7 @@ module.exports = {
         const textoPreview = new TextDisplayBuilder().setContent(
             `# 🔎 ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`${notaAutodeteccion}\n\n` +
-            `🪙 **Precio actual:** ${precioFmt}\n` +
+            `${EMOJI_ROBUX} **Precio actual:** ${precioFmt}\n` +
             `Elegí si querés fijar un **precio objetivo** o monitorear **cualquier cambio de precio**:`
         );
 

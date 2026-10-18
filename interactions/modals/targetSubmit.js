@@ -14,7 +14,7 @@ const {
 const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 
 module.exports = {
     customIdPrefix: 'modal_set_target_submit:',
@@ -102,7 +102,7 @@ module.exports = {
             `# 🎯 ${existente ? 'Meta Actualizada' : '¡Monitoreo Activado!'}\n` +
             `### ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
-            `🪙 **Precio actual:** ${precioFmt}\n` +
+            `${EMOJI_ROBUX} **Precio actual:** ${precioFmt}\n` +
             `🎯 **Meta objetivo:** ${targetFmt}\n` +
             `📡 **Estado:** 🟢 Activo`
         );

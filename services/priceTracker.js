@@ -166,7 +166,7 @@ async function procesarItem(client, item, stats) {
                             description:
                                 `## ${emojiCat} __**${nombreObj}**__\n` +
                                 `${subtituloWebhook}\n\n` +
-                                `> 🪙 **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
+                                `> ${EMOJI_ROBUX} **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
                                 `> 📉 **Precio anterior:** ~~${fmtAnterior}~~\n` +
                                 `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? '  ✅' : ''}\n\n` +
                                 `──────────────────────────────\n` +
@@ -195,7 +195,7 @@ async function procesarItem(client, item, stats) {
                     `# ${tituloEstado}\n` +
                     `## ${emojiCat} __**${nombreObj}**__\n` +
                     `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-                    `> 🪙 **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
+                    `> ${EMOJI_ROBUX} **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
                     `> 📉 **Precio anterior:** ~~${fmtAnterior}~~\n` +
                     `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? '  ✅' : ''}`
                 );
@@ -395,7 +395,7 @@ async function enviarAlertaPrueba(client, item) {
                     description:
                         `## ${emojiCat} __**${nombre}**__\n` +
                         `✅ **¡Tu Webhook está conectado!** Así se verán las alertas cuando este objeto baje o cambie de precio.\n\n` +
-                        `> 🪙 **Precio actual:** **${fmtActual}**\n` +
+                        `> ${EMOJI_ROBUX} **Precio actual:** **${fmtActual}**\n` +
                         `> 🎯 **Meta objetivo:** ${fmtTarget}\n` +
                         `> 📡 **Destino:** 🌐 Webhook activo\n\n` +
                         `──────────────────────────────\n` +
@@ -423,7 +423,7 @@ async function enviarAlertaPrueba(client, item) {
             `## ${emojiCat} __**${nombre}**__\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
             `> ✅ **¡Conexión lista!** Recibirás las notificaciones de este objeto por este medio apenas cambie su precio.\n\n` +
-            `🪙 **Precio actual:** ${fmtActual}  •  🎯 **Meta:** ${fmtTarget}\n` +
+            `${EMOJI_ROBUX} **Precio actual:** ${fmtActual}  •  🎯 **Meta:** ${fmtTarget}\n` +
             `📡 **Destino verificado:** ${etiquetaDestino}`
         );
 
