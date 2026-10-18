@@ -21,7 +21,7 @@ const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { generatePriceChart } = require('../../utils/chartGenerator');
 const { obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../../utils/roblox');
-const { EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
 
 const ETIQUETA_RANGO = {
     '24h': '24 horas',
@@ -69,14 +69,14 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     const colorBorde = stats.isUpOrFlat ? 0x23a55a : 0xf23f43;
 
     const tieneMeta = item.target_price !== null && item.target_price !== undefined;
-    const fmtMeta = tieneMeta ? `🟠 ${formatearPrecio(item.target_price, esUSD)}` : 'Sin meta';
+    const fmtMeta = tieneMeta ? `🟠 ${formatearPrecio(item.target_price, esUSD)}` : '`Sin meta`';
 
     const container = new ContainerBuilder().setAccentColor(colorBorde);
 
     const textoEstadisticas = new TextDisplayBuilder().setContent(
         `# 📈 __**${nombreObj}**__\n` +
         `-# ${emojiCat} **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-        `🏷️ **Precio Actual:** \`${fmtActual}\`   •   🎯 **Meta:** \`${fmtMeta}\``
+        `🪙 **Precio Actual:** ${fmtActual}   •   🎯 **Meta:** ${fmtMeta}`
     );
 
     if (imagenUrl) {
@@ -126,7 +126,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
         const objType = (obj.item_type || 'catalog').toLowerCase();
         const objEsUSD = objType === 'plugin';
         const label = `${idx + 1}. ${obj.item_name || `Objeto ${obj.id_objet}`}`.substring(0, 100);
-        const desc = `${formatearPrecio(obj.last_price, objEsUSD)}  •  ${obj.is_paused ? 'En pausa' : 'Activo'}`.substring(0, 100);
+        const desc = `${formatearPrecioTexto(obj.last_price, objEsUSD)}  •  ${obj.is_paused ? 'En pausa' : 'Activo'}`.substring(0, 100);
 
         return new StringSelectMenuOptionBuilder()
             .setLabel(label)

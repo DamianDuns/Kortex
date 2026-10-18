@@ -69,20 +69,30 @@ function formatearUptime(ms) {
     return partes.join(' ');
 }
 
-/** Formatea un precio según la moneda del tipo de objeto. */
+const EMOJI_ROBUX = '<:Robux:1547677277590913114>';
+
+/** Formatea un precio con Markdown y el emoji de Robux para paneles y mensajes de Discord. */
 function formatearPrecio(valor, esUSD) {
     const n = Number(valor || 0);
-    return esUSD ? `$${n.toFixed(2)} USD` : `${n.toLocaleString('es-AR')} R$`;
+    return esUSD ? `\`$${n.toFixed(2)} USD\`` : `\`${n.toLocaleString('es-AR')}\` ${EMOJI_ROBUX}`;
+}
+
+/** Formatea un precio en texto plano (para descripciones de menús desplegables o consola). */
+function formatearPrecioTexto(valor, esUSD) {
+    const n = Number(valor || 0);
+    return esUSD ? `$${n.toFixed(2)} USD` : `🪙 ${n.toLocaleString('es-AR')}`;
 }
 
 module.exports = {
     COLORES,
     EMOJI_TIPO,
     NOMBRE_TIPO,
+    EMOJI_ROBUX,
     footer,
     separador,
     espacio,
     boton,
     formatearUptime,
-    formatearPrecio
+    formatearPrecio,
+    formatearPrecioTexto
 };

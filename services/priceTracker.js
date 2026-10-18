@@ -6,7 +6,7 @@ const supabase = require('../db');
 const PriceItem = require('../models/PriceItem');
 const { generatePriceChart } = require('../utils/chartGenerator');
 const { obtenerDetallesCompletos, obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../utils/roblox');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, footer, separador, boton, formatearPrecio } = require('../utils/ui');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../utils/ui');
 const logger = require('../utils/logger');
 const { 
     ContainerBuilder, 
@@ -79,21 +79,25 @@ async function procesarItem(client, item, stats) {
         const fmtNuevo = formatearPrecio(precioNuevo, esUSD);
         const fmtTarget = targetPrice !== null 
             ? formatearPrecio(targetPrice, esUSD)
-            : 'Sin meta (avisa todo cambio)';
+            : '`Sin meta (avisa todo cambio)`';
 
         const diferencia = precioNuevo - precioAnterior;
         const bajoPrecio = diferencia < 0;
         const difAbs = Math.abs(diferencia);
-        const difTexto = `${bajoPrecio ? '-' : '+'}${formatearPrecio(difAbs, esUSD)}`;
+        const signo = bajoPrecio ? '-' : '+';
+        const difTexto = esUSD
+            ? `\`${signo}$${difAbs.toFixed(2)} USD\``
+            : `\`${signo}${difAbs.toLocaleString('es-AR')}\` ${EMOJI_ROBUX}`;
+        const difTextoPlano = `${signo}${formatearPrecioTexto(difAbs, esUSD)}`;
 
         let porcentajeStr = '';
         if (precioAnterior > 0) {
             const pct = ((diferencia / precioAnterior) * 100).toFixed(1).replace('.0', '');
-            porcentajeStr = ` • ${bajoPrecio ? '' : '+'}${pct}%`;
+            porcentajeStr = ` • \`${bajoPrecio ? '' : '+'}${pct}%\``;
         }
 
         const iconoCambio = bajoPrecio ? '🟢 BAJÓ' : '🔴 SUBIÓ';
-        logger.sniper(`${iconoCambio} │ "${item.item_name}" (ID: ${item.id_objet}): ${fmtAnterior} ➔ ${fmtNuevo} (${difTexto}${porcentajeStr})`);
+        logger.sniper(`${iconoCambio} │ "${item.item_name}" (ID: ${item.id_objet}): ${formatearPrecioTexto(precioAnterior, esUSD)} ➔ ${formatearPrecioTexto(precioNuevo, esUSD)} (${difTextoPlano})`);
 
         const { error: updateError } = await supabase
             .from('roblox_wishlist')
@@ -162,9 +166,9 @@ async function procesarItem(client, item, stats) {
                             description:
                                 `## ${emojiCat} __**${nombreObj}**__\n` +
                                 `${subtituloWebhook}\n\n` +
-                                `> 💰 **Nuevo precio:** **\`${fmtNuevo}\`**  *(\`${difTexto}${porcentajeStr}\`)*\n` +
-                                `> 🏷️ **Precio anterior:** ~~\`${fmtAnterior}\`~~\n` +
-                                `> 🎯 **Tu meta:** \`${fmtTarget}\`${alcanzoMeta ? '  ✅' : ''}\n\n` +
+                                `> 🪙 **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
+                                `> 📉 **Precio anterior:** ~~${fmtAnterior}~~\n` +
+                                `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? '  ✅' : ''}\n\n` +
                                 `──────────────────────────────\n` +
                                 `📦 **Categoría:** ${emojiCat} ${nombreCat}   •   🆔 **ID:** \`${item.id_objet}\`\n` +
                                 `🔗 **[Abrir objeto en Roblox ↗](${robloxUrl})**`,
@@ -191,9 +195,9 @@ async function procesarItem(client, item, stats) {
                     `# ${tituloEstado}\n` +
                     `## ${emojiCat} __**${nombreObj}**__\n` +
                     `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-                    `> 💰 **Nuevo precio:** **\`${fmtNuevo}\`**  *(\`${difTexto}${porcentajeStr}\`)*\n` +
-                    `> 🏷️ **Precio anterior:** ~~\`${fmtAnterior}\`~~\n` +
-                    `> 🎯 **Tu meta:** \`${fmtTarget}\`${alcanzoMeta ? '  ✅' : ''}`
+                    `> 🪙 **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
+                    `> 📉 **Precio anterior:** ~~${fmtAnterior}~~\n` +
+                    `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? '  ✅' : ''}`
                 );
 
                 const container = new ContainerBuilder()
@@ -363,7 +367,7 @@ async function enviarAlertaPrueba(client, item) {
     const tieneMeta = item.target_price !== null && item.target_price !== undefined;
     const fmtTarget = tieneMeta
         ? formatearPrecio(item.target_price, esUSD)
-        : 'Sin meta (avisa todo cambio)';
+        : '`Sin meta (avisa todo cambio)`';
 
     const robloxUrl = obtenerUrlRoblox(item.id_objet, type);
     const nombre = item.item_name || `Objeto ${item.id_objet}`;
@@ -391,8 +395,8 @@ async function enviarAlertaPrueba(client, item) {
                     description:
                         `## ${emojiCat} __**${nombre}**__\n` +
                         `✅ **¡Tu Webhook está conectado!** Así se verán las alertas cuando este objeto baje o cambie de precio.\n\n` +
-                        `> 🏷️ **Precio actual:** **\`${fmtActual}\`**\n` +
-                        `> 🎯 **Meta objetivo:** \`${fmtTarget}\`\n` +
+                        `> 🪙 **Precio actual:** **${fmtActual}**\n` +
+                        `> 🎯 **Meta objetivo:** ${fmtTarget}\n` +
                         `> 📡 **Destino:** 🌐 Webhook activo\n\n` +
                         `──────────────────────────────\n` +
                         `📦 **Categoría:** ${emojiCat} ${nombreCat}   •   🆔 **ID:** \`${item.id_objet}\`\n` +
@@ -419,7 +423,7 @@ async function enviarAlertaPrueba(client, item) {
             `## ${emojiCat} __**${nombre}**__\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
             `> ✅ **¡Conexión lista!** Recibirás las notificaciones de este objeto por este medio apenas cambie su precio.\n\n` +
-            `🏷️ **Precio actual:** \`${fmtActual}\`  •  🎯 **Meta:** \`${fmtTarget}\`\n` +
+            `🪙 **Precio actual:** ${fmtActual}  •  🎯 **Meta:** ${fmtTarget}\n` +
             `📡 **Destino verificado:** ${etiquetaDestino}`
         );
 

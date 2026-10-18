@@ -10,7 +10,7 @@ const {
     ActionRowBuilder,
     MessageFlags
 } = require('discord.js');
-const { obtenerSeleccion, calcularEmbedResultado } = require('../calcHelpers');
+const { obtenerSeleccion, calcularEmbedResultado, EMOJI_ROBUX } = require('../calcHelpers');
 const { COLORES, separador } = require('../../utils/ui');
 
 module.exports = {
@@ -44,7 +44,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         '## 🌎 Elegí tu región\n' +
-                        `Precio base: **${basePrice.toLocaleString('es-AR')} R$**`
+                        `🪙 Precio base: **\`${basePrice.toLocaleString('es-AR')}\`** ${EMOJI_ROBUX}`
                     )
                 )
                 .addSeparatorComponents(separador())

@@ -64,9 +64,9 @@ module.exports = {
 
         await PriceItem.recordPrice(idObjet, detalles.nombre, detalles.precio).catch(() => null);
 
-        let precioFmt = 'Gratis';
+        let precioFmt = '`Gratis`';
         if (detalles.sinVendedores) {
-            precioFmt = 'Sin revendedores activos';
+            precioFmt = '`Sin revendedores activos`';
         } else if (detalles.precio > 0) {
             precioFmt = formatearPrecio(detalles.precio, detalles.esUSD);
         }
@@ -81,7 +81,7 @@ module.exports = {
             `# ✅ ¡Monitoreo Activado!\n` +
             `### ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
-            `🏷️ **Precio inicial:** \`${precioFmt}\`\n` +
+            `🪙 **Precio inicial:** ${precioFmt}\n` +
             `🎯 **Meta objetivo:** \`Sin meta (notifica todo cambio)\`\n` +
             `🔔 **Destino actual:** 💬 Privado (DM)\n` +
             `📡 **Estado:** 🟢 Activo`

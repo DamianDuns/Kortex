@@ -46,7 +46,7 @@ async function renderizarPanelConfig(item) {
     const tieneMeta = item.target_price !== null && item.target_price !== undefined;
     const fmtMeta = tieneMeta
         ? formatearPrecio(item.target_price, esUSD)
-        : 'Sin meta (avisa todo cambio)';
+        : '`Sin meta (avisa todo cambio)`';
 
     const labelPausa = item.is_paused ? 'Reanudar' : 'Pausar';
     const emojiPausa = item.is_paused ? '▶️' : '⏸️';
@@ -55,8 +55,8 @@ async function renderizarPanelConfig(item) {
     const textoConfig = new TextDisplayBuilder().setContent(
         `# ⚙️ Configuración — ${item.item_name || 'Objeto'}\n` +
         `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-        `🏷️ **Precio actual:** \`${fmtActual}\`\n` +
-        `🎯 **Meta objetivo:** \`${fmtMeta}\`\n` +
+        `🪙 **Precio actual:** ${fmtActual}\n` +
+        `🎯 **Meta objetivo:** ${fmtMeta}\n` +
         `🔔 **Destino de alerta:** ${canalTexto}\n` +
         `📡 **Estado:** ${estadoTexto}`
     );

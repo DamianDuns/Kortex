@@ -84,16 +84,16 @@ module.exports = {
 
         await PriceItem.recordPrice(idObjet, detalles.nombre, detalles.precio).catch(() => null);
 
-        let precioFmt = 'Gratis';
+        let precioFmt = '`Gratis`';
         if (detalles.sinVendedores) {
-            precioFmt = 'Sin revendedores activos';
+            precioFmt = '`Sin revendedores activos`';
         } else if (detalles.precio > 0) {
             precioFmt = formatearPrecio(detalles.precio, detalles.esUSD);
         }
 
         const targetFmt = finalTarget !== null
             ? formatearPrecio(finalTarget, detalles.esUSD)
-            : 'Sin meta (notifica todo cambio)';
+            : '`Sin meta (notifica todo cambio)`';
 
         const emojiCat = EMOJI_TIPO[finalType] || '📦';
         const nombreCat = NOMBRE_TIPO[finalType] || finalType.toUpperCase();
@@ -102,8 +102,8 @@ module.exports = {
             `# 🎯 ${existente ? 'Meta Actualizada' : '¡Monitoreo Activado!'}\n` +
             `### ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
-            `🏷️ **Precio actual:** \`${precioFmt}\`\n` +
-            `🎯 **Meta objetivo:** \`${targetFmt}\`\n` +
+            `🪙 **Precio actual:** ${precioFmt}\n` +
+            `🎯 **Meta objetivo:** ${targetFmt}\n` +
             `📡 **Estado:** 🟢 Activo`
         );
 

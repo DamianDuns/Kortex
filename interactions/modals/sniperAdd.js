@@ -59,10 +59,10 @@ module.exports = {
         const emojiCat = EMOJI_TIPO[itemType] || '📦';
         const nombreCat = NOMBRE_TIPO[itemType] || itemType.toUpperCase();
         const monedaCode = detalles.esUSD ? 'USD' : 'ROBUX';
-        let precioFmt = 'Gratis';
+        let precioFmt = '`Gratis`';
 
         if (detalles.sinVendedores) {
-            precioFmt = 'Sin revendedores activos';
+            precioFmt = '`Sin revendedores activos`';
         } else if (detalles.precio > 0) {
             precioFmt = formatearPrecio(detalles.precio, detalles.esUSD);
         }
@@ -77,8 +77,8 @@ module.exports = {
         const textoPreview = new TextDisplayBuilder().setContent(
             `# 🔎 ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`${notaAutodeteccion}\n\n` +
-            `🏷️ **Precio actual:** \`${precioFmt}\`\n` +
-            ` Elegí si querés fijar un **precio objetivo** o monitorear **cualquier cambio de precio**:`
+            `🪙 **Precio actual:** ${precioFmt}\n` +
+            `Elegí si querés fijar un **precio objetivo** o monitorear **cualquier cambio de precio**:`
         );
 
         if (detalles.imagenUrl) {

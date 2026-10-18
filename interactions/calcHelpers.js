@@ -111,12 +111,12 @@ function construirPanelCalculadoraLimpio(opcionesSeleccionadas = OPCIONES_DEFAUL
 
 function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') {
     let precioAjustadoRobux = basePrice;
-    const lineas = [`🏷️ **Precio base:** \`${fmt(basePrice)} R$\``];
+    const lineas = [`🪙 **Precio base:** \`${fmt(basePrice)}\` ${EMOJI_ROBUX}`];
 
     if (seleccionadas.includes('roblox_regional')) {
         const tierConfig = TIERS_ROBLOX[tierKey] || TIERS_ROBLOX.TIER_100;
         precioAjustadoRobux = Math.floor(basePrice * tierConfig.factor);
-        lineas.push(`🌎 **Precio regional:** \`${fmt(precioAjustadoRobux)} R$\``);
+        lineas.push(`🌎 **Precio regional:** \`${fmt(precioAjustadoRobux)}\` ${EMOJI_ROBUX}`);
         lineas.push(`-# ${tierConfig.nombre} — ${tierConfig.desc}`);
     }
 
@@ -125,19 +125,19 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
     if (seleccionadas.includes('grupo_40')) {
         const cashbackGrupo = Math.floor(precioAjustadoRobux * 0.40);
         totalAhorroRobux += cashbackGrupo;
-        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupo)} R$\``);
+        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupo)}\` ${EMOJI_ROBUX}`);
     }
 
     if (seleccionadas.includes('plus_10')) {
         const descPlus10 = Math.floor(precioAjustadoRobux * 0.10);
         totalAhorroRobux += descPlus10;
-        lineas.push(`⭐ **Roblox Plus (10%):** \`-${fmt(descPlus10)} R$\``);
+        lineas.push(`⭐ **Roblox Plus (10%):** \`-${fmt(descPlus10)}\` ${EMOJI_ROBUX}`);
     }
 
     if (seleccionadas.includes('plus_20')) {
         const descPlus20 = Math.floor(precioAjustadoRobux * 0.20);
         totalAhorroRobux += descPlus20;
-        lineas.push(`🌟 **Roblox Plus 2+ meses (20%):** \`-${fmt(descPlus20)} R$\``);
+        lineas.push(`🌟 **Roblox Plus 2+ meses (20%):** \`-${fmt(descPlus20)}\` ${EMOJI_ROBUX}`);
     }
 
     const precioFinalEfectivo = Math.max(0, precioAjustadoRobux - totalAhorroRobux);
@@ -151,8 +151,8 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas.join('\n')))
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### 💰 Precio final efectivo: \`${fmt(precioFinalEfectivo)} R$\`\n` +
-            `Ahorrás **${fmt(ahorroTotalVsBase)} R$** (${porcentaje}%)\n` +
+            `### 🪙 Precio final efectivo: \`${fmt(precioFinalEfectivo)}\` ${EMOJI_ROBUX}\n` +
+            `Ahorrás **\`${fmt(ahorroTotalVsBase)}\`** ${EMOJI_ROBUX} (${porcentaje}%)\n` +
             `\`${barraProgreso(porcentaje)}\``
         ))
         .addSeparatorComponents(separador())

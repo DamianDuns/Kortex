@@ -11,7 +11,7 @@ const supabase = require('../../db');
 const { obtenerMiniaturasBatch } = require('../../utils/roblox');
 const {
     COLORES, EMOJI_TIPO, NOMBRE_TIPO,
-    footer, separador, boton, formatearPrecio
+    footer, separador, boton, formatearPrecio, formatearPrecioTexto
 } = require('../../utils/ui');
 
 const MAX_WISHLIST_ITEMS = 5;
@@ -177,14 +177,15 @@ function construirLista(items, miniaturas) {
         const metaAlcanzada = tieneMeta && Number(item.last_price) <= Number(item.target_price);
 
         const fmtActual = formatearPrecio(item.last_price, esUSD);
+        const fmtActualPlano = formatearPrecioTexto(item.last_price, esUSD);
         const fmtMeta = tieneMeta
             ? `${formatearPrecio(item.target_price, esUSD)}${metaAlcanzada ? '  ✅' : ''}`
-            : 'Sin meta';
+            : '`Sin meta`';
         const estado = item.is_paused ? '⏸️ En pausa' : '🟢 Activo';
 
         const detalle = new TextDisplayBuilder().setContent(
             `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__\n` +
-            `🏷️ Precio: \`${fmtActual}\`  •  🎯 Meta: \`${fmtMeta}\`\n` +
+            `🪙 **Precio:** ${fmtActual}  •  🎯 **Meta:** ${fmtMeta}\n` +
             `-# ${estado}  •  ${NOMBRE_TIPO[type] || type}  •  ID ${item.id_objet}`
         );
 
@@ -206,7 +207,7 @@ function construirLista(items, miniaturas) {
         selectOptions.push(
             new StringSelectMenuOptionBuilder()
                 .setLabel(`${index + 1}. ${nombreObj}`.substring(0, 100))
-                .setDescription(`${fmtActual}  •  ${item.is_paused ? 'En pausa' : 'Activo'}`.substring(0, 100))
+                .setDescription(`${fmtActualPlano}  •  ${item.is_paused ? 'En pausa' : 'Activo'}`.substring(0, 100))
                 .setValue(String(item.id))
                 .setEmoji(item.is_paused ? '⏸️' : (EMOJI_TIPO[type] || '⚡'))
         );
