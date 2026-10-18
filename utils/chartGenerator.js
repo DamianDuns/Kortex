@@ -3,8 +3,26 @@
 // Renderizador local en RAM de gráficas financieras con HUD completo para Discord (#2b2d31)
 // ==========================================
 
-const { createCanvas } = require('@napi-rs/canvas');
+const path = require('path');
+const { createCanvas, GlobalFonts } = require('@napi-rs/canvas');
 const Chart = require('chart.js/auto');
+
+// Registrar fuentes TTF locales incluidas en el repositorio para garantizar que el texto
+// se renderice en cualquier servidor/contenedor Linux (Railway, Render, Docker, Alpine, etc.)
+// aunque el sistema operativo no tenga fuentes preinstaladas.
+const FONT_REGULAR_PATH = path.join(__dirname, '../assets/fonts/LiberationSans-Regular.ttf');
+const FONT_BOLD_PATH = path.join(__dirname, '../assets/fonts/LiberationSans-Bold.ttf');
+const FONT_FAMILY = 'KortexSans';
+
+try {
+    GlobalFonts.registerFromPath(FONT_REGULAR_PATH, FONT_FAMILY);
+    GlobalFonts.registerFromPath(FONT_BOLD_PATH, FONT_FAMILY);
+    GlobalFonts.registerFromPath(FONT_REGULAR_PATH, 'sans-serif');
+    GlobalFonts.registerFromPath(FONT_BOLD_PATH, 'sans-serif');
+    Chart.defaults.font.family = FONT_FAMILY;
+} catch (err) {
+    console.error('[ChartGenerator] Error registrando fuentes TTF:', err.message);
+}
 
 const CHART_WIDTH = 740;
 const CHART_HEIGHT = 380;
@@ -104,7 +122,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
 
     // Clave de caché: `${itemId}_${daysRange}_${historyLength}`
     const cacheKey = `${itemId}_${daysRange}_${historyLength}`;
-    const signature = `v2_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
+    const signature = `v3_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
     const cachedEntry = chartCache.get(cacheKey);
     if (cachedEntry && cachedEntry.signature === signature) {
         return cachedEntry.buffer;
@@ -161,13 +179,13 @@ async function generatePriceChart(historyData, itemName, options = {}) {
             // 2. Barra superior HUD (y = 12..78)
             const rangoLabel = RANGO_TEXTO[daysRange] || String(daysRange).toUpperCase();
             c.fillStyle = '#949ba4';
-            c.font = 'bold 11px sans-serif';
+            c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
             c.fillText(`EVOLUCIÓN DE PRECIO  •  ${rangoLabel}  (${historyLength} PTS)`, 20, 24);
 
             // Precio actual grande a la izquierda
             const textoActual = fmtMoneda(lastPrice, esUSD);
             c.fillStyle = '#ffffff';
-            c.font = 'bold 23px sans-serif';
+            c.font = `bold 23px "${FONT_FAMILY}", sans-serif`;
             c.fillText(textoActual, 20, 54);
             const anchoPrecio = c.measureText(textoActual).width;
 
@@ -178,7 +196,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                 ? '0% (Estable)'
                 : `${signo}${fmtMoneda(diff, esUSD)} (${pctStr})`;
 
-            c.font = 'bold 12px sans-serif';
+            c.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
             const textVarW = c.measureText(varTexto).width;
             const varWidth = textVarW + 20;
             const varX = 20 + anchoPrecio + 12;
@@ -225,11 +243,11 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                 c.stroke();
 
                 c.fillStyle = '#949ba4';
-                c.font = 'bold 10px sans-serif';
+                c.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
                 c.fillText(card.label, cx + 10, cardY + 18);
 
                 c.fillStyle = card.color;
-                c.font = 'bold 13px sans-serif';
+                c.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
                 c.fillText(card.value, cx + 10, cardY + 39);
             });
 
@@ -275,7 +293,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                 }
 
                 c.save();
-                c.font = 'bold 11px sans-serif';
+                c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
                 c.textBaseline = 'middle';
 
                 for (const idx of indicesClave) {
@@ -327,7 +345,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                     const textoMeta = `Meta: ${fmtMoneda(metaNum, esUSD)}`;
 
                     c.save();
-                    c.font = 'bold 11px sans-serif';
+                    c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
                     const textWidth = c.measureText(textoMeta).width;
                     const padX = 9;
                     const boxW = textWidth + padX * 2;
@@ -426,13 +444,13 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                         maxRotation: 0,
                         font: {
                             size: 11,
-                            family: 'sans-serif'
+                            family: FONT_FAMILY
                         }
                     }
                 },
                 y: {
-                    suggestedMin: Math.max(0, minEscala - margen),
-                    suggestedMax: maxEscala + margen,
+                    suggestedMin: esUSD ? Math.max(0, minEscala - margen) : Math.max(0, Math.floor(minEscala - Math.max(1, margen))),
+                    suggestedMax: esUSD ? (maxEscala + margen) : Math.ceil(maxEscala + Math.max(1, margen)),
                     grid: {
                         color: 'rgba(255, 255, 255, 0.06)'
                     },
@@ -442,9 +460,10 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                     ticks: {
                         color: '#dbdee1',
                         maxTicksLimit: 6,
+                        precision: esUSD ? 2 : 0,
                         font: {
                             size: 11,
-                            family: 'sans-serif'
+                            family: FONT_FAMILY
                         },
                         callback: (value) => fmtMoneda(value, esUSD)
                     }
