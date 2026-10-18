@@ -111,7 +111,7 @@ function construirPanelCalculadoraLimpio(opcionesSeleccionadas = OPCIONES_DEFAUL
 
 function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') {
     let precioAjustadoRobux = basePrice;
-    const lineas = [`${EMOJI_ROBUX} **Precio base:** \`${fmt(basePrice)}\` ${EMOJI_ROBUX}`];
+    const lineas = [`🏷️ **Precio base:** \`${fmt(basePrice)}\` ${EMOJI_ROBUX}`];
 
     if (seleccionadas.includes('roblox_regional')) {
         const tierConfig = TIERS_ROBLOX[tierKey] || TIERS_ROBLOX.TIER_100;
@@ -151,7 +151,7 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas.join('\n')))
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ${EMOJI_ROBUX} Precio final efectivo: \`${fmt(precioFinalEfectivo)}\` ${EMOJI_ROBUX}\n` +
+            `### ✨ Precio final efectivo: \`${fmt(precioFinalEfectivo)}\` ${EMOJI_ROBUX}\n` +
             `Ahorrás **\`${fmt(ahorroTotalVsBase)}\`** ${EMOJI_ROBUX} (${porcentaje}%)\n` +
             `\`${barraProgreso(porcentaje)}\``
         ))

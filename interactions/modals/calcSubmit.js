@@ -44,7 +44,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         '## 🌎 Elegí tu región\n' +
-                        `${EMOJI_ROBUX} Precio base: **\`${basePrice.toLocaleString('es-AR')}\`** ${EMOJI_ROBUX}`
+                        `🏷️ Precio base: **\`${basePrice.toLocaleString('es-AR')}\`** ${EMOJI_ROBUX}`
                     )
                 )
                 .addSeparatorComponents(separador())

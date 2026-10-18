@@ -76,7 +76,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     const textoEstadisticas = new TextDisplayBuilder().setContent(
         `# 📈 __**${nombreObj}**__\n` +
         `-# ${emojiCat} **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
-        `${EMOJI_ROBUX} **Precio Actual:** ${fmtActual}   •   🎯 **Meta:** ${fmtMeta}`
+        `🏷️ **Precio Actual:** ${fmtActual}   •   🎯 **Meta:** ${fmtMeta}`
     );
 
     if (imagenUrl) {

@@ -81,7 +81,7 @@ module.exports = {
             `# ✅ ¡Monitoreo Activado!\n` +
             `### ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
-            `${EMOJI_ROBUX} **Precio inicial:** ${precioFmt}\n` +
+            `🏷️ **Precio inicial:** ${precioFmt}\n` +
             `🎯 **Meta objetivo:** \`Sin meta (notifica todo cambio)\`\n` +
             `🔔 **Destino actual:** 💬 Privado (DM)\n` +
             `📡 **Estado:** 🟢 Activo`

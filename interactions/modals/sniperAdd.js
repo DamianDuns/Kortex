@@ -77,7 +77,7 @@ module.exports = {
         const textoPreview = new TextDisplayBuilder().setContent(
             `# 🔎 ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`${notaAutodeteccion}\n\n` +
-            `${EMOJI_ROBUX} **Precio actual:** ${precioFmt}\n` +
+            `🏷️ **Precio actual:** ${precioFmt}\n` +
             `Elegí si querés fijar un **precio objetivo** o monitorear **cualquier cambio de precio**:`
         );
 

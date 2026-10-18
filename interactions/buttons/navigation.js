@@ -185,7 +185,7 @@ function construirLista(items, miniaturas) {
 
         const detalle = new TextDisplayBuilder().setContent(
             `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__\n` +
-            `${EMOJI_ROBUX} **Precio:** ${fmtActual}  •  🎯 **Meta:** ${fmtMeta}\n` +
+            `🏷️ **Precio:** ${fmtActual}  •  🎯 **Meta:** ${fmtMeta}\n` +
             `-# ${estado}  •  ${NOMBRE_TIPO[type] || type}  •  ID ${item.id_objet}`
         );
 
