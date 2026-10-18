@@ -31,7 +31,7 @@ const ETIQUETA_RANGO = {
 };
 
 /**
- * Construye el payload de la Vista 3 (Inspector de Objeto + Gráfica siempre visible + Selector + Filtros).
+ * Construye el payload de la Vista 3 (Inspector de Objeto + Gráfica + Botones de Rango debajo de la gráfica).
  */
 async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d') {
     const rangoActivo = ['24h', '7d', '30d', 'all'].includes(rangeKey) ? rangeKey : '7d';
@@ -77,7 +77,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     const colorBorde = stats.isUpOrFlat ? 0x23a55a : 0xf23f43;
 
     const tieneMeta = item.target_price !== null && item.target_price !== undefined;
-    const fmtMeta = tieneMeta ? formatearPrecio(item.target_price, esUSD) : 'Sin meta';
+    const fmtMeta = tieneMeta ? `🟠 ${formatearPrecio(item.target_price, esUSD)}` : 'Sin meta';
 
     const container = new ContainerBuilder().setAccentColor(colorBorde);
 
@@ -98,11 +98,12 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
         container.addTextDisplayComponents(textoEstadisticas);
     }
 
-    // 3. Generar SIEMPRE la gráfica en RAM e incrustarla con MediaGalleryBuilder
+    // 3. Generar SIEMPRE la gráfica en RAM (incluyendo la línea de Meta en amarillo/naranja si tiene meta)
     const chartBuffer = await generatePriceChart(stats.filtered, nombreObj, {
         itemId: item.id_objet,
         daysRange: rangoActivo,
-        esUSD
+        esUSD,
+        targetPrice: item.target_price
     });
     const attachment = new AttachmentBuilder(chartBuffer, { name: 'chart.png' });
 
@@ -112,9 +113,24 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
             new MediaGalleryItemBuilder().setURL('attachment://chart.png')
         )
     );
+
+    // Botones de filtro temporal (24h, 7d, 30d, Todo) justo debajo de la imagen de la gráfica
+    const botonesRango = [
+        { key: '24h', label: '24h' },
+        { key: '7d', label: '7d' },
+        { key: '30d', label: '30d' },
+        { key: 'all', label: 'Todo' }
+    ].map(r =>
+        new ButtonBuilder()
+            .setCustomId(`roblox_chart_${item.id}_${r.key}`)
+            .setLabel(r.label)
+            .setStyle(rangoActivo === r.key ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    );
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesRango));
+
     container.addSeparatorComponents(separador(true));
 
-    // Fila 1: StringSelectMenuBuilder con el objeto actual marcado como default
+    // Menú desplegable para cambiar rápidamente a otro objeto de la lista
     const selectOptions = listaObjetos.slice(0, 25).map((obj, idx) => {
         const objType = (obj.item_type || 'catalog').toLowerCase();
         const objEsUSD = objType === 'plugin';
@@ -134,33 +150,17 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
             new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId('select_manage_item')
-                    .setPlaceholder('📈 Elegí un objeto para ver su gráfica o configurar alertas...')
+                    .setPlaceholder('📈 Elegí otro objeto de tu lista...')
                     .addOptions(selectOptions)
             )
         );
     }
 
-    // Fila 2: Botones de filtro temporal (24h, 7d, 30d, Todo) + Volver a la lista
-    const botonesRango = [
-        { key: '24h', label: '24h' },
-        { key: '7d', label: '7d' },
-        { key: '30d', label: '30d' },
-        { key: 'all', label: 'Todo' }
-    ].map(r =>
-        new ButtonBuilder()
-            .setCustomId(`roblox_chart_${item.id}_${r.key}`)
-            .setLabel(r.label)
-            .setStyle(rangoActivo === r.key ? ButtonStyle.Primary : ButtonStyle.Secondary)
-    );
-
-    botonesRango.push(boton('btn_nav_wishlist', 'Volver a la lista', '⬅️', ButtonStyle.Secondary));
-    container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesRango));
-
-    // Fila 3: Funciones de configuración existentes intactas
+    // Fila inferior: Configurar, Volver a la lista y Ver en Roblox
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton(`btn_action_open_config:${item.id}`, 'Configurar Alertas', '⚙️', ButtonStyle.Success),
-            boton(`btn_action_test_alert:${item.id}`, 'Probar Alerta', '🔔', ButtonStyle.Secondary),
+            boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
+            boton('btn_nav_wishlist', 'Volver a la lista', '⬅️', ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setLabel('Ver en Roblox')
                 .setEmoji('🔗')

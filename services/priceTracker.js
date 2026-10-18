@@ -144,7 +144,8 @@ async function procesarItem(client, item, stats) {
             const chartBuffer = await generatePriceChart(statsGrafica.filtered, nombreObj, {
                 itemId: item.id_objet,
                 daysRange: '7d',
-                esUSD
+                esUSD,
+                targetPrice
             });
 
             // 1. WEBHOOK (Embed clásico adaptado con estética similar al panel V2)
@@ -372,7 +373,8 @@ async function enviarAlertaPrueba(client, item) {
     const chartBuffer = await generatePriceChart(statsGrafica.filtered, nombre, {
         itemId: item.id_objet,
         daysRange: '7d',
-        esUSD
+        esUSD,
+        targetPrice: item.target_price
     });
 
     // 1. Webhook (Embed clásico adaptado al estilo V2)
@@ -449,7 +451,7 @@ async function enviarAlertaPrueba(client, item) {
                     .setEmoji('🔗')
                     .setStyle(ButtonStyle.Link)
                     .setURL(robloxUrl),
-                boton(`btn_action_open_config:${item.id}`, 'Configurar Objeto', '⚙️', ButtonStyle.Primary),
+                boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
                 boton('btn_nav_wishlist', 'Mi Lista', '📋', ButtonStyle.Secondary)
             )
         );

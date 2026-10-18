@@ -9,6 +9,7 @@ const Chart = require('chart.js/auto');
 const CHART_WIDTH = 700;
 const CHART_HEIGHT = 320;
 const DISCORD_DARK_BG = '#2b2d31';
+const TARGET_COLOR = '#f59e0b'; // Naranja / Amarillo ámbar para la línea de Meta
 
 // Caché en memoria: Map<`${itemId}_${daysRange}_${historyLength}`, { buffer, signature }>
 const chartCache = new Map();
@@ -31,24 +32,25 @@ function formatearEtiquetaFecha(fecha, spanMs) {
 }
 
 /**
- * Genera en memoria RAM un Buffer PNG con la gráfica de evolución de precios.
- * Garantiza al menos 2 puntos si se recibe 1 solo punto para trazar siempre la línea.
+ * Genera en memoria RAM un Buffer PNG con la gráfica de evolución de precios
+ * y la línea de Meta del usuario (en color amarillo/naranja) si está configurada.
  *
  * @param {Array<{ price: number, timestamp: Date|string }>} historyData Datos filtrados del historial
  * @param {string} itemName Nombre del objeto
- * @param {object} [options] Opciones adicionales ({ itemId, daysRange, esUSD })
+ * @param {object} [options] Opciones adicionales ({ itemId, daysRange, esUSD, targetPrice })
  * @returns {Promise<Buffer>} Buffer de la imagen PNG
  */
 async function generatePriceChart(historyData, itemName, options = {}) {
     const {
         itemId = itemName || 'item',
         daysRange = '7d',
-        esUSD = false
+        esUSD = false,
+        targetPrice = null
     } = options;
 
     let puntos = Array.isArray(historyData) ? [...historyData] : [];
 
-    // Garantizar mínimo 2 puntos incluso si llamaron directamente con 0 o 1 registro
+    // Garantizar mínimo 2 puntos
     if (puntos.length === 0) {
         const ahora = Date.now();
         puntos = [
@@ -64,13 +66,16 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ];
     }
 
+    const tieneMeta = targetPrice !== null && targetPrice !== undefined && !isNaN(Number(targetPrice)) && Number(targetPrice) > 0;
+    const metaNum = tieneMeta ? Number(targetPrice) : null;
+
     const historyLength = puntos.length;
     const firstPrice = Number(puntos[0].price || 0);
     const lastPrice = Number(puntos[historyLength - 1].price || 0);
 
     // Clave de caché: `${itemId}_${daysRange}_${historyLength}`
     const cacheKey = `${itemId}_${daysRange}_${historyLength}`;
-    const signature = `${firstPrice}_${lastPrice}`;
+    const signature = `${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
     const cachedEntry = chartCache.get(cacheKey);
     if (cachedEntry && cachedEntry.signature === signature) {
         return cachedEntry.buffer;
@@ -89,10 +94,13 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const labels = puntos.map(p => formatearEtiquetaFecha(p.timestamp, spanMs));
     const values = puntos.map(p => Number(p.price));
 
-    const minVal = Math.min(...values);
-    const maxVal = Math.max(...values);
-    const esLineaPlana = minVal === maxVal;
-    const margenPlano = minVal === 0 ? 10 : Math.max(1, Number((minVal * 0.1).toFixed(2)));
+    const todosLosValores = tieneMeta ? [...values, metaNum] : values;
+    const minVal = Math.min(...todosLosValores);
+    const maxVal = Math.max(...todosLosValores);
+    const amplitud = maxVal - minVal;
+    const margen = amplitud === 0
+        ? (minVal === 0 ? 10 : Math.max(1, Number((minVal * 0.12).toFixed(2))))
+        : Number((amplitud * 0.15).toFixed(2));
 
     const canvas = createCanvas(CHART_WIDTH, CHART_HEIGHT);
     const ctx = canvas.getContext('2d');
@@ -102,7 +110,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     gradient.addColorStop(0, gradientTop);
     gradient.addColorStop(1, gradientBottom);
 
-    // Plugin beforeDraw que pinta el fondo exacto del contenedor oscuro de Discord (#2b2d31)
+    // Plugin 1: Pintar el fondo oscuro exacto del contenedor de Discord (#2b2d31)
     const customCanvasBackgroundColor = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -115,27 +123,92 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         }
     };
 
+    // Plugin 2: Etiqueta visual sobre la línea de Meta en color amarillo/naranja
+    const targetLabelPlugin = {
+        id: 'targetLabelPlugin',
+        afterDatasetsDraw: (chart) => {
+            if (!tieneMeta) return;
+            const yScale = chart.scales.y;
+            const chartArea = chart.chartArea;
+            if (!yScale || !chartArea) return;
+
+            const yPos = yScale.getPixelForValue(metaNum);
+            if (yPos < chartArea.top - 5 || yPos > chartArea.bottom + 5) return;
+
+            const textoMeta = esUSD
+                ? `Meta: $${metaNum.toFixed(2)}`
+                : `Meta: ${Math.round(metaNum).toLocaleString('es-AR')} R$`;
+
+            const chartCtx = chart.ctx;
+            chartCtx.save();
+            chartCtx.font = 'bold 11px sans-serif';
+            const textWidth = chartCtx.measureText(textoMeta).width;
+            const padX = 8;
+            const boxW = textWidth + padX * 2;
+            const boxH = 20;
+            const boxX = chartArea.right - boxW - 6;
+            const boxY = Math.max(chartArea.top + 2, Math.min(chartArea.bottom - boxH - 2, yPos - boxH / 2));
+
+            // Fondo cápsula oscura con borde amarillo/naranja
+            chartCtx.fillStyle = 'rgba(30, 31, 34, 0.92)';
+            chartCtx.strokeStyle = TARGET_COLOR;
+            chartCtx.lineWidth = 1.5;
+            chartCtx.beginPath();
+            if (typeof chartCtx.roundRect === 'function') {
+                chartCtx.roundRect(boxX, boxY, boxW, boxH, 5);
+            } else {
+                chartCtx.rect(boxX, boxY, boxW, boxH);
+            }
+            chartCtx.fill();
+            chartCtx.stroke();
+
+            // Texto en amarillo/naranja
+            chartCtx.fillStyle = TARGET_COLOR;
+            chartCtx.textBaseline = 'middle';
+            chartCtx.fillText(textoMeta, boxX + padX, boxY + boxH / 2);
+            chartCtx.restore();
+        }
+    };
+
     const pointRadius = historyLength > 25 ? 0 : 3;
+
+    const datasets = [
+        {
+            label: itemName || 'Precio',
+            data: values,
+            borderColor: lineColor,
+            backgroundColor: gradient,
+            borderWidth: 3,
+            tension: 0.25,
+            fill: true,
+            pointRadius,
+            pointBackgroundColor: lineColor,
+            pointBorderColor: DISCORD_DARK_BG,
+            pointBorderWidth: 1.5,
+            order: 1
+        }
+    ];
+
+    // Si el usuario configuró una meta, añadimos la línea horizontal en amarillo/naranja (#f59e0b)
+    if (tieneMeta) {
+        datasets.push({
+            label: 'Meta',
+            data: labels.map(() => metaNum),
+            borderColor: TARGET_COLOR,
+            borderWidth: 2,
+            borderDash: [7, 5],
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            order: 0
+        });
+    }
 
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels,
-            datasets: [
-                {
-                    label: itemName || 'Precio',
-                    data: values,
-                    borderColor: lineColor,
-                    backgroundColor: gradient,
-                    borderWidth: 3,
-                    tension: 0.25,
-                    fill: true,
-                    pointRadius,
-                    pointBackgroundColor: lineColor,
-                    pointBorderColor: DISCORD_DARK_BG,
-                    pointBorderWidth: 1.5
-                }
-            ]
+            datasets
         },
         options: {
             responsive: false,
@@ -176,8 +249,8 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                     }
                 },
                 y: {
-                    suggestedMin: esLineaPlana ? Math.max(0, minVal - margenPlano) : undefined,
-                    suggestedMax: esLineaPlana ? maxVal + margenPlano : undefined,
+                    suggestedMin: Math.max(0, minVal - margen),
+                    suggestedMax: maxVal + margen,
                     grid: {
                         color: 'rgba(255, 255, 255, 0.06)'
                     },
@@ -199,7 +272,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
                 }
             }
         },
-        plugins: [customCanvasBackgroundColor]
+        plugins: [customCanvasBackgroundColor, targetLabelPlugin]
     });
 
     const buffer = canvas.toBuffer('image/png');

@@ -99,7 +99,7 @@ module.exports = {
         container.addSeparatorComponents(separador(true));
 
         const rowButtons = new ActionRowBuilder().addComponents(
-            boton(`btn_action_open_config:${nuevo.id}`, 'Configurar Alertas', '⚙️', ButtonStyle.Primary),
+            boton(`btn_action_open_config:${nuevo.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
             boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setLabel('Ver en Roblox')

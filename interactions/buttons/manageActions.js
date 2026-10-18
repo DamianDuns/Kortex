@@ -53,7 +53,7 @@ async function renderizarPanelConfig(item) {
     const stylePausa = item.is_paused ? ButtonStyle.Success : ButtonStyle.Secondary;
 
     const textoConfig = new TextDisplayBuilder().setContent(
-        `# ⚙️ ${item.item_name || 'Objeto'}\n` +
+        `# ⚙️ Configuración — ${item.item_name || 'Objeto'}\n` +
         `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
         `🏷️ **Precio actual:** \`${fmtActual}\`\n` +
         `🎯 **Meta objetivo:** \`${fmtMeta}\`\n` +
@@ -111,8 +111,7 @@ async function renderizarPanelConfig(item) {
     container.addSeparatorComponents(separador());
 
     const navButtons = [
-        boton(`roblox_chart_${item.id}_7d`, 'Ver Gráfica', '📈', ButtonStyle.Primary),
-        boton('btn_nav_wishlist', 'Volver a Mi Lista', '⬅️', ButtonStyle.Secondary)
+        boton(`roblox_chart_${item.id}_7d`, 'Volver', '⬅️', ButtonStyle.Secondary)
     ];
 
     if (tieneMeta) {
@@ -129,7 +128,7 @@ async function renderizarPanelConfig(item) {
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(navButtons));
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(footer('Panel de configuración del objeto'))
+        new TextDisplayBuilder().setContent(footer('Configuración del objeto'))
     );
 
     return { 
