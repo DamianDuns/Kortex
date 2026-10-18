@@ -225,7 +225,7 @@ function construirLista(items, miniaturas) {
 
     const botonesNav = [];
     if (items.length < MAX_WISHLIST_ITEMS) {
-        botonesNav.push(boton('btn_nav_sniper', 'Añadir Objeto', '➕', ButtonStyle.Primary));
+        botonesNav.push(boton('btn_quick_sniper', 'Añadir Objeto', '➕', ButtonStyle.Primary));
     }
     botonesNav.push(
         boton('btn_nav_wishlist', 'Actualizar', '🔄'),
