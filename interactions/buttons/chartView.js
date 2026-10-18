@@ -64,14 +64,6 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     const nombreObj = item.item_name || `Objeto ${item.id_objet}`;
 
     const fmtActual = formatearPrecio(item.last_price, esUSD);
-    const fmtMin = formatearPrecio(stats.minPrice, esUSD);
-    const fmtMax = formatearPrecio(stats.maxPrice, esUSD);
-
-    const signo = stats.diff > 0 ? '+' : '';
-    const pctFmt = `${signo}${stats.pctChange.toFixed(2).replace('.00', '')}%`;
-    const diffFmt = stats.diff === 0
-        ? '0% (Estable)'
-        : `${signo}${formatearPrecio(stats.diff, esUSD)} (${pctFmt})`;
 
     // Borde verde (0x23a55a) si subió o se mantuvo, rojo (0xf23f43) si bajó
     const colorBorde = stats.isUpOrFlat ? 0x23a55a : 0xf23f43;
@@ -83,9 +75,8 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
 
     const textoEstadisticas = new TextDisplayBuilder().setContent(
         `# 📈 __**${nombreObj}**__\n` +
-        `-# ${emojiCat} **${nombreCat}**  •  ID \`${item.id_objet}\`  •  Rango: **${ETIQUETA_RANGO[rangoActivo]}**\n\n` +
-        `🏷️ **Precio Actual:** \`${fmtActual}\`   •   📊 **Variación (%):** \`${diffFmt}\`\n` +
-        `📉 **Mín / Máx (${rangoActivo === 'all' ? 'Todo' : rangoActivo}):** \`${fmtMin}\` / \`${fmtMax}\`   •   🎯 **Meta:** \`${fmtMeta}\``
+        `-# ${emojiCat} **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
+        `🏷️ **Precio Actual:** \`${fmtActual}\`   •   🎯 **Meta:** \`${fmtMeta}\``
     );
 
     if (imagenUrl) {
