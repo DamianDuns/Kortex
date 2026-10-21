@@ -6,9 +6,15 @@ const {
     SlashCommandBuilder,
     ContainerBuilder,
     TextDisplayBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     MessageFlags
 } = require('discord.js');
-const { COLORES, footer, separador } = require('../utils/ui');
+const { COLORES, footer, separador, boton } = require('../utils/ui');
+
+// URL de tu guía web (puedes definir DOCS_URL en tus variables de entorno de Railway)
+const DOCS_URL = process.env.DOCS_URL || 'https://raywick.github.io/Kortex/';
 
 function construirPanelHelp() {
     const container = new ContainerBuilder().setAccentColor(COLORES.primario);
@@ -35,8 +41,21 @@ function construirPanelHelp() {
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         '## 🏓 `/ping` — Estado del Bot\n' +
-        'Muestra la latencia de respuesta (`ms`), conexión con Discord y tiempo activo en línea.'
+        'Muestra la latencia de respuesta (`ms`), conexión con Discord, tiempo en línea y desglose real de memoria RAM.'
     ));
+
+    container.addSeparatorComponents(separador());
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            boton('btn_nav_main_menu', 'Abrir /roblox', '⚡', ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setLabel('Guía Web Oficial')
+                .setEmoji('🌐')
+                .setStyle(ButtonStyle.Link)
+                .setURL(DOCS_URL)
+        )
+    );
 
     container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
