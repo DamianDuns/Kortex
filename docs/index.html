@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="es" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kortex — Guía Oficial de Comandos y Herramientas</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            kortex: {
+              bg: '#090B10',
+              surface: '#111520',
+              card: '#161B29',
+              border: '#232A3E',
+              blurple: '#5865F2',
+              sniper: '#FF6B35',
+              lista: '#2ECC71',
+              calc: '#00B8D9',
+              amber: '#F59E0B'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #090B10;
+      color: #F3F4F6;
+      font-family: 'Inter', system-ui, sans-serif;
+      background-image:
+        radial-gradient(circle at 15% 0%, rgba(88, 101, 242, 0.12), transparent 35%),
+        radial-gradient(circle at 85% 10%, rgba(0, 184, 217, 0.08), transparent 35%);
+      background-attachment: fixed;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #090B10;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #232A3E;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #5865F2;
+    }
+    .glass-card {
+      background: linear-gradient(180deg, rgba(22, 27, 41, 0.85) 0%, rgba(17, 21, 32, 0.92) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .glass-card:hover {
+      border-color: rgba(88, 101, 242, 0.35);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-kortex-blurple selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 h-16 bg-kortex-bg/90 backdrop-blur-xl border-b border-kortex-border px-4 lg:px-8 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <button id="btn-mobile-menu" type="button" class="lg:hidden p-2 rounded-xl bg-kortex-card border border-kortex-border text-gray-300 hover:text-white transition" aria-label="Abrir menú">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-kortex-blurple to-kortex-calc flex items-center justify-center shadow-lg shadow-kortex-blurple/25">
+          <i data-lucide="zap" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-base tracking-tight text-white">Kortex</span>
+            <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-kortex-blurple/15 text-indigo-300 border border-kortex-blurple/30">v1.1</span>
+          </div>
+          <p class="text-[11px] text-gray-400 hidden sm:block">Guía Oficial de Comandos y Herramientas de Roblox</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Input -->
+    <div class="flex-1 max-w-md">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        <input
+          id="global-search"
+          type="text"
+          placeholder="Buscar comando, categoría, gráfica o descuento..."
+          class="w-full bg-kortex-surface/90 border border-kortex-border focus:border-kortex-blurple rounded-xl pl-10 pr-16 py-2 text-xs sm:text-sm text-gray-100 placeholder-gray-500 outline-none transition"
+        />
+        <button id="btn-clear-search" type="button" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] px-2 py-0.5 rounded-md bg-kortex-card text-gray-300 hover:text-white">
+          Limpiar
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Jump Buttons -->
+    <div class="hidden md:flex items-center gap-2">
+      <button type="button" data-goto="comandos" class="goto-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-kortex-card hover:bg-kortex-border text-gray-200 border border-kortex-border transition">
+        <i data-lucide="terminal" class="w-3.5 h-3.5 text-indigo-400"></i>
+        <span>Comandos</span>
+      </button>
+      <button type="button" data-goto="graficas" class="goto-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-kortex-blurple hover:bg-indigo-500 text-white shadow-md shadow-kortex-blurple/20 transition">
+        <i data-lucide="line-chart" class="w-3.5 h-3.5"></i>
+        <span>Simulador de Gráfica</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="flex-1 flex relative">
+
+    <!-- Mobile Backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
+
+    <!-- Left Sidebar -->
+    <aside id="sidebar" class="fixed lg:sticky top-16 left-0 z-30 w-64 h-[calc(100vh-4rem)] bg-kortex-surface/95 backdrop-blur-md border-r border-kortex-border flex flex-col justify-between p-4 overflow-y-auto custom-scrollbar -translate-x-full lg:translate-x-0 transition-transform duration-200">
+      <div class="space-y-6">
+        <div>
+          <p class="px-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">Contenido de la Guía</p>
+          <nav class="space-y-1" id="sidebar-nav">
+            <button type="button" data-section="inicio" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition bg-kortex-blurple text-white">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                <span>Resumen y Estadísticas</span>
+              </span>
+            </button>
+
+            <button type="button" data-section="comandos" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="terminal" class="w-4 h-4 text-indigo-400"></i>
+                <span>Comandos y Atajos</span>
+              </span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-kortex-card text-gray-400 border border-kortex-border">3 + 3</span>
+            </button>
+
+            <button type="button" data-section="sniper" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="crosshair" class="w-4 h-4 text-kortex-sniper"></i>
+                <span>Price Sniper y Lista</span>
+              </span>
+            </button>
+
+            <button type="button" data-section="graficas" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="line-chart" class="w-4 h-4 text-emerald-400"></i>
+                <span>Gráficas de Precios</span>
+              </span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300">Interactivo</span>
+            </button>
+
+            <button type="button" data-section="alertas" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="bell-ring" class="w-4 h-4 text-amber-400"></i>
+                <span>Destinos de Alerta</span>
+              </span>
+            </button>
+
+            <button type="button" data-section="calculadoras" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="calculator" class="w-4 h-4 text-kortex-calc"></i>
+                <span>Calculadoras y Tiers</span>
+              </span>
+            </button>
+
+            <button type="button" data-section="faq" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="help-circle" class="w-4 h-4 text-purple-400"></i>
+                <span>Preguntas Frecuentes</span>
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Quick Legend -->
+        <div class="p-3.5 rounded-xl bg-kortex-card/80 border border-kortex-border space-y-2.5">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-gray-300 block">Colores de Estado</span>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-gray-300"><span class="w-2.5 h-2.5 rounded-full bg-kortex-blurple"></span>Panel Principal</span>
+              <span class="font-mono text-[10px] text-gray-400">/roblox</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-gray-300"><span class="w-2.5 h-2.5 rounded-full bg-kortex-sniper"></span>Price Sniper</span>
+              <span class="font-mono text-[10px] text-gray-400">Rastreo</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-gray-300"><span class="w-2.5 h-2.5 rounded-full bg-kortex-lista"></span>Mi Lista / Subida</span>
+              <span class="font-mono text-[10px] text-gray-400">Activos</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-gray-300"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>Meta de Precio</span>
+              <span class="font-mono text-[10px] text-gray-400">Objetivo</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-gray-300"><span class="w-2.5 h-2.5 rounded-full bg-kortex-calc"></span>Calculadoras</span>
+              <span class="font-mono text-[10px] text-gray-400">Ahorro R$</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-kortex-border flex items-center justify-between text-xs text-gray-400">
+        <span>Kortex Bot</span>
+        <span class="inline-flex items-center gap-1.5 text-emerald-400 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          En línea
+        </span>
+      </div>
+    </aside>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto space-y-12">
+
+      <!-- Search Filter Banner -->
+      <div id="search-status" class="hidden p-4 rounded-xl bg-kortex-card border border-kortex-blurple/50 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 text-sm">
+          <i data-lucide="filter" class="w-4 h-4 text-kortex-blurple"></i>
+          <span>Filtrando por: <strong id="search-query-label" class="text-white"></strong></span>
+        </div>
+        <button id="btn-reset-filter" type="button" class="text-xs px-3 py-1.5 rounded-lg bg-kortex-surface hover:bg-kortex-border text-gray-200 transition">
+          Mostrar todo
+        </button>
+      </div>
+
+      <!-- SECTION 1: HERO & SYSTEM STATISTICS -->
+      <section id="sec-inicio" class="doc-section space-y-6">
+        <div class="rounded-2xl glass-card p-6 sm:p-8 relative overflow-hidden">
+          <div class="max-w-3xl space-y-4">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-kortex-blurple/15 border border-kortex-blurple/30 text-indigo-300 text-xs font-medium">
+              <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+              <span>Documentación Oficial para Usuarios</span>
+            </div>
+            <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+              Monitoreo de precios, gráficas históricas y calculadoras de Roblox con <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-300 to-emerald-400">Kortex</span>
+            </h1>
+            <p class="text-gray-300 text-sm sm:text-base leading-relaxed">
+              Kortex centraliza todas sus funciones en un único panel interactivo dentro de Discord. Permite seguir variaciones de precios en el Catálogo, Limiteds, Gamepasses, Plugins y Experiencias Pagas, consultar gráficas financieras por periodo y calcular descuentos regionales o cashback de grupo.
+            </p>
+          </div>
+        </div>
+
+        <!-- Uniform 6-Card Statistics & Capabilities Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+          <div class="glass-card rounded-xl p-4 flex flex-col justify-between h-full">
+            <div class="flex items-center justify-between text-gray-400 mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider">Cupo Lista</span>
+              <i data-lucide="bookmark" class="w-4 h-4 text-kortex-lista"></i>
+            </div>
+            <div>
+              <p class="text-xl font-extrabold text-white font-mono">5 Objetos</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">Simultáneos por usuario</p>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-4 flex flex-col justify-between h-full">
+            <div class="flex items-center justify-between text-gray-400 mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider">Frecuencia</span>
+              <i data-lucide="clock" class="w-4 h-4 text-indigo-400"></i>
+            </div>
+            <div>
+              <p class="text-xl font-extrabold text-white font-mono">5 Minutos</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">Escaneo automático</p>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-4 flex flex-col justify-between h-full">
+            <div class="flex items-center justify-between text-gray-400 mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider">Historial</span>
+              <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+            </div>
+            <div>
+              <p class="text-xl font-extrabold text-white font-mono">500 Pts</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">Variaciones por objeto</p>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-4 flex flex-col justify-between h-full">
+            <div class="flex items-center justify-between text-gray-400 mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider">Gráficas</span>
+              <i data-lucide="line-chart" class="w-4 h-4 text-kortex-sniper"></i>
+            </div>
+            <div>
+              <p class="text-xl font-extrabold text-white font-mono">4 Rangos</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">24h • 7d • 30d • Todo</p>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-4 flex flex-col justify-between h-full">
+            <div class="flex items-center justify-between text-gray-400 mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider">Categorías</span>
+              <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+            </div>
+            <div>
+              <p class="text-xl font-extrabold text-white font-mono">4 Tipos</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">Autodetección por URL/ID</p>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-4 flex flex-col justify-between h-full">
+            <div class="flex items-center justify-between text-gray-400 mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider">Alertas</span>
+              <i data-lucide="bell" class="w-4 h-4 text-kortex-calc"></i>
+            </div>
+            <div>
+              <p class="text-xl font-extrabold text-white font-mono">3 Canales</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">DM, Servidor o Webhook</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: COMANDOS DE BARRA Y ATAJOS POR MENCIÓN (REORGANIZADO) -->
+      <section id="sec-comandos" class="doc-section space-y-6">
+        <div class="border-b border-kortex-border pb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-indigo-400">Formas de Uso en Discord</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Comandos de Barra (<code class="text-indigo-400">/</code>) y Atajos por Mención (<code class="text-cyan-400">@Kortex</code>)</h2>
+          <p class="text-sm text-gray-400 mt-1">Cada acción de Kortex se puede ejecutar tanto mediante comandos de barra tradicionales como mencionando directamente al bot en cualquier canal de texto.</p>
+        </div>
+
+        <!-- Structured Two-Column Organization: Slash Commands vs Mention Shortcuts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+
+          <!-- Column 1: Comandos de Barra (Slash Commands) -->
+          <div class="glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-5">
+            <div class="flex items-center justify-between border-b border-kortex-border pb-3.5">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-kortex-blurple/20 border border-kortex-blurple/40 flex items-center justify-center text-indigo-300 font-mono font-bold text-sm">/</div>
+                <div>
+                  <h3 class="text-base font-bold text-white">Comandos de Barra (Slash)</h3>
+                  <p class="text-xs text-gray-400">Escribí <code class="text-gray-200">/</code> en el chat para seleccionarlos del menú de Discord</p>
+                </div>
+              </div>
+              <span class="text-[11px] font-mono px-2.5 py-1 rounded-full bg-kortex-blurple/15 text-indigo-300 border border-kortex-blurple/30">3 Comandos</span>
+            </div>
+
+            <div class="space-y-3.5 flex-1">
+              <!-- /roblox -->
+              <div class="p-4 rounded-xl bg-kortex-bg/70 border border-kortex-border flex flex-col justify-between gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-sm font-bold text-white bg-kortex-blurple/25 border border-kortex-blurple/50 px-2.5 py-1 rounded-lg">/roblox</span>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300">Panel Principal</span>
+                  </div>
+                  <button type="button" data-copy="/roblox" class="copy-btn inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Abre el <strong>Roblox Toolkit</strong> con acceso al <strong>🎯 Price Sniper</strong> (añadir objetos, gestionar <em>Mi Lista</em> y ver gráficas de precios) y a las <strong>🧮 Calculadoras</strong>.
+                </p>
+              </div>
+
+              <!-- /help -->
+              <div class="p-4 rounded-xl bg-kortex-bg/70 border border-kortex-border flex flex-col justify-between gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-sm font-bold text-white bg-kortex-blurple/25 border border-kortex-blurple/50 px-2.5 py-1 rounded-lg">/help</span>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300">Centro de Ayuda</span>
+                  </div>
+                  <button type="button" data-copy="/help" class="copy-btn inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Muestra un resumen rápido de todas las funciones del bot y el enlace directo a esta guía oficial.
+                </p>
+              </div>
+
+              <!-- /ping -->
+              <div class="p-4 rounded-xl bg-kortex-bg/70 border border-kortex-border flex flex-col justify-between gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-sm font-bold text-white bg-kortex-blurple/25 border border-kortex-blurple/50 px-2.5 py-1 rounded-lg">/ping</span>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">Estado y Latencia</span>
+                  </div>
+                  <button type="button" data-copy="/ping" class="copy-btn inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Verifica el estado de la conexión, la latencia de mensajes y WebSocket (`ms`), el tiempo en línea (`uptime`), servidores activos y el uso detallado de memoria RAM.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 2: Atajos por Mención (@Kortex) -->
+          <div class="glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-5">
+            <div class="flex items-center justify-between border-b border-kortex-border pb-3.5">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-kortex-calc/20 border border-kortex-calc/40 flex items-center justify-center text-cyan-300 font-mono font-bold text-sm">@</div>
+                <div>
+                  <h3 class="text-base font-bold text-white">Atajos Rápidos por Mención</h3>
+                  <p class="text-xs text-gray-400">Mencioná a <code class="text-gray-200">@Kortex</code> en cualquier canal sin usar barra</p>
+                </div>
+              </div>
+              <span class="text-[11px] font-mono px-2.5 py-1 rounded-full bg-kortex-calc/15 text-cyan-300 border border-kortex-calc/30">3 Atajos</span>
+            </div>
+
+            <div class="space-y-3.5 flex-1">
+              <!-- @Kortex -->
+              <div class="p-4 rounded-xl bg-kortex-bg/70 border border-kortex-border flex flex-col justify-between gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="font-mono text-sm font-bold text-cyan-300 bg-kortex-calc/15 border border-kortex-calc/35 px-2.5 py-1 rounded-lg">@Kortex</span>
+                    <span class="text-xs text-gray-500">o</span>
+                    <span class="font-mono text-xs text-gray-300 bg-kortex-card px-2 py-1 rounded-md border border-kortex-border">@Kortex roblox</span>
+                  </div>
+                  <button type="button" data-copy="@Kortex" class="copy-btn inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Equivale a ejecutar <code class="text-indigo-300">/roblox</code>. Abre de inmediato el panel principal con <strong>Price Sniper</strong> y <strong>Calculadoras</strong>.
+                </p>
+              </div>
+
+              <!-- @Kortex ayuda -->
+              <div class="p-4 rounded-xl bg-kortex-bg/70 border border-kortex-border flex flex-col justify-between gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="font-mono text-sm font-bold text-cyan-300 bg-kortex-calc/15 border border-kortex-calc/35 px-2.5 py-1 rounded-lg">@Kortex ayuda</span>
+                    <span class="text-xs text-gray-500">o</span>
+                    <span class="font-mono text-xs text-gray-300 bg-kortex-card px-2 py-1 rounded-md border border-kortex-border">@Kortex help</span>
+                  </div>
+                  <button type="button" data-copy="@Kortex ayuda" class="copy-btn inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Equivale a ejecutar <code class="text-indigo-300">/help</code>. Despliega el Centro de Ayuda directamente como respuesta a tu mensaje.
+                </p>
+              </div>
+
+              <!-- @Kortex ping -->
+              <div class="p-4 rounded-xl bg-kortex-bg/70 border border-kortex-border flex flex-col justify-between gap-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-sm font-bold text-cyan-300 bg-kortex-calc/15 border border-kortex-calc/35 px-2.5 py-1 rounded-lg">@Kortex ping</span>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300">Respuesta Directa</span>
+                  </div>
+                  <button type="button" data-copy="@Kortex ping" class="copy-btn inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copiar</span>
+                  </button>
+                </div>
+                <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Equivale a ejecutar <code class="text-indigo-300">/ping</code>. Mide los milisegundos de respuesta desde tu mensaje y muestra el panel de estado.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SECTION 3: PRICE SNIPER Y MI LISTA -->
+      <section id="sec-sniper" class="doc-section space-y-6">
+        <div class="border-b border-kortex-border pb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-kortex-sniper">Seguimiento Automático</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Price Sniper y Mi Lista de Monitoreo</h2>
+          <p class="text-sm text-gray-400 mt-1">Permite monitorear hasta 5 objetos por usuario. El sistema detecta automáticamente la categoría correcta a partir del enlace o ID de Roblox.</p>
+        </div>
+
+        <!-- Clean 3-Card Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+          <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-kortex-sniper/20 text-orange-300 border border-kortex-sniper/30">1. Añadir Objeto</span>
+                <i data-lucide="plus-circle" class="w-4 h-4 text-kortex-sniper"></i>
+              </div>
+              <h3 class="text-base font-bold text-white">Por Enlace o ID</h3>
+              <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Dentro de <strong>🎯 Price Sniper</strong>, elegí una categoría y pegá la URL o el ID del artículo. Si seleccionás una categoría distinta por error, Kortex la corrige automáticamente.
+              </p>
+            </div>
+            <p class="text-[11px] text-gray-400 pt-2 border-t border-kortex-border">Soporta enlaces web de Roblox y números de ID.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">2. Meta de Precio</span>
+                <i data-lucide="target" class="w-4 h-4 text-amber-400"></i>
+              </div>
+              <h3 class="text-base font-bold text-white">Con Meta o Sin Meta</h3>
+              <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Podés definir una <strong>Meta de Precio</strong> para recibir aviso únicamente cuando el artículo baje a ese valor o menos, o elegir <strong>Monitorear Sin Meta</strong> para enterarte de cualquier cambio.
+              </p>
+            </div>
+            <p class="text-[11px] text-gray-400 pt-2 border-t border-kortex-border">La meta puede editarse o quitarse en cualquier momento.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">3. Mi Lista</span>
+                <i data-lucide="list-checks" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <h3 class="text-base font-bold text-white">Gestión e Inspector</h3>
+              <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                El botón <strong>📋 Ver Mi Lista</strong> muestra tus objetos activos o en pausa con su miniatura. Al elegir uno en el selector, se abre su gráfica histórica y el menú de configuración.
+              </p>
+            </div>
+            <p class="text-[11px] text-gray-400 pt-2 border-t border-kortex-border">Incluye botones para pausar, probar alerta o eliminar.</p>
+          </div>
+        </div>
+
+        <!-- Supported Categories Table -->
+        <div class="glass-card rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-kortex-border flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white">Categorías de Roblox Compatibles</h3>
+            <span class="text-xs text-gray-400">Detección automática integrada</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-kortex-bg/60 text-gray-400 border-b border-kortex-border">
+                  <th class="py-3 px-5 font-semibold">Categoría</th>
+                  <th class="py-3 px-5 font-semibold">Moneda</th>
+                  <th class="py-3 px-5 font-semibold">Precio Monitoreado</th>
+                  <th class="py-3 px-5 font-semibold">Enlaces Reconocidos</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-kortex-border text-gray-300">
+                <tr>
+                  <td class="py-3.5 px-5 font-medium text-white">👕 Catálogo / UGC / Limiteds</td>
+                  <td class="py-3.5 px-5"><span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono text-xs">Robux (R$)</span></td>
+                  <td class="py-3.5 px-5">Precio oficial o el revendedor más económico disponible en artículos Limited.</td>
+                  <td class="py-3.5 px-5 font-mono text-xs text-gray-400">/catalog/ • /bundles/</td>
+                </tr>
+                <tr>
+                  <td class="py-3.5 px-5 font-medium text-white">🎫 Gamepass</td>
+                  <td class="py-3.5 px-5"><span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono text-xs">Robux (R$)</span></td>
+                  <td class="py-3.5 px-5">Pases especiales dentro de experiencias de Roblox.</td>
+                  <td class="py-3.5 px-5 font-mono text-xs text-gray-400">/game-pass/ • /gamepass/</td>
+                </tr>
+                <tr>
+                  <td class="py-3.5 px-5 font-medium text-white">🔌 Plugin de Studio</td>
+                  <td class="py-3.5 px-5"><span class="px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 font-mono text-xs">Dólares ($ USD)</span></td>
+                  <td class="py-3.5 px-5">Complementos para desarrolladores publicados en el Creator Store.</td>
+                  <td class="py-3.5 px-5 font-mono text-xs text-gray-400">create.roblox.com • /plugins/</td>
+                </tr>
+                <tr>
+                  <td class="py-3.5 px-5 font-medium text-white">🎮 Acceso Pago (Paid Access)</td>
+                  <td class="py-3.5 px-5"><span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-mono text-xs">Robux (R$)</span></td>
+                  <td class="py-3.5 px-5">Experiencias que requieren pago en Robux para ingresar.</td>
+                  <td class="py-3.5 px-5 font-mono text-xs text-gray-400">/games/</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: GRÁFICAS DE PRECIOS (CON SIMULADOR EN VIVO) -->
+      <section id="sec-graficas" class="doc-section space-y-6">
+        <div class="border-b border-kortex-border pb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-emerald-400">Historial Visual</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Gráficas Financieras HUD y Rangos de Tiempo</h2>
+          <p class="text-sm text-gray-400 mt-1">Cada objeto guarda hasta 500 variaciones de precio y genera una gráfica en tiempo real con indicadores de precio inicial, mínimo, máximo y línea de meta.</p>
+        </div>
+
+        <!-- Interactive Chart Simulator (The one interactive element the user praised) -->
+        <div class="glass-card rounded-2xl p-5 sm:p-6 space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
+                <span>Demostración Interactiva de la Gráfica de Kortex</span>
+              </h3>
+              <p class="text-xs text-gray-400">Probá los botones de rango (<code class="text-gray-300">24h, 7d, 30d, Todo</code>), cambiá la tendencia o activá la línea de meta.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" id="btn-toggle-trend" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                Tendencia: 🟢 Alcista
+              </button>
+              <button type="button" id="btn-toggle-target-line" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition">
+                🎯 Meta: 950 R$
+              </button>
+            </div>
+          </div>
+
+          <!-- Simulated Discord Chart Frame -->
+          <div id="chart-inspector-container" class="rounded-xl bg-[#1E1F22] border border-kortex-border border-l-4 border-l-[#23a55a] p-4 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="text-sm sm:text-base font-bold text-white">📈 Valkyrie Helm (Limited)</p>
+                <p class="text-xs text-gray-400 mt-0.5">
+                  🏷️ <strong>Precio Actual:</strong> <code id="chart-sim-curr" class="bg-[#2B2D31] px-1.5 py-0.5 rounded font-mono text-white">1.250 R$</code> • 🎯 <strong>Meta:</strong> <code id="chart-sim-target" class="bg-[#2B2D31] px-1.5 py-0.5 rounded font-mono text-amber-300">🟠 950 R$</code>
+                </p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button type="button" data-chart-range="24h" class="chart-range-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#4E5058] text-white hover:bg-[#6D6F78] transition">24h</button>
+                <button type="button" data-chart-range="7d" class="chart-range-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#5865F2] text-white transition">7d</button>
+                <button type="button" data-chart-range="30d" class="chart-range-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#4E5058] text-white hover:bg-[#6D6F78] transition">30d</button>
+                <button type="button" data-chart-range="all" class="chart-range-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#4E5058] text-white hover:bg-[#6D6F78] transition">Todo</button>
+              </div>
+            </div>
+
+            <div class="w-full overflow-hidden rounded-lg border border-white/10 bg-[#2b2d31]">
+              <canvas id="kortex-hud-canvas" width="740" height="380" class="w-full h-auto block"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 5: DESTINOS DE ALERTA (CONCISO Y PAREJO) -->
+      <section id="sec-alertas" class="doc-section space-y-6">
+        <div class="border-b border-kortex-border pb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-amber-400">Notificaciones Automáticas</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Destinos de Alerta y Controles del Objeto</h2>
+          <p class="text-sm text-gray-400 mt-1">Podés elegir por dónde recibir el aviso de cada objeto y enviar una alerta de prueba en cualquier momento desde su menú de configuración.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+          <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white">💬 Mensaje Directo (DM)</h3>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-medium">Por defecto</span>
+              </div>
+              <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Kortex te envía un mensaje privado con el porcentaje de cambio, la miniatura del objeto y la gráfica de los últimos 7 días.
+              </p>
+            </div>
+            <p class="text-[11px] text-gray-400 pt-2 border-t border-kortex-border">Requiere tener habilitados los mensajes directos del servidor.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white">📢 Canal de Servidor</h3>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 font-medium">Selector o ID</span>
+              </div>
+              <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Publica la alerta en el canal de texto que elijas desde el selector desplegable de Discord o ingresando su ID manualmente.
+              </p>
+            </div>
+            <p class="text-[11px] text-gray-400 pt-2 border-t border-kortex-border">Requiere permiso de <em>Gestionar Canales</em> o <em>Administrador</em>.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white">🌐 Webhook URL</h3>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">Integración</span>
+              </div>
+              <p class="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                Envía el aviso mediante cualquier URL de Webhook de Discord sin necesidad de que el bot esté presente en ese servidor.
+              </p>
+            </div>
+            <p class="text-[11px] text-gray-400 pt-2 border-t border-kortex-border">Compatible con canales de anuncios o seguimiento externo.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: CALCULADORAS Y TIERS REGIONALES (SOLO MENCIÓN CLARA, SIN EXCESO INTERACTIVO) -->
+      <section id="sec-calculadoras" class="doc-section space-y-6">
+        <div class="border-b border-kortex-border pb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-kortex-calc">Economía de Roblox</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Calculadoras de Descuentos y Precios Regionales</h2>
+          <p class="text-sm text-gray-400 mt-1">Accesible desde <code class="text-indigo-300">/roblox</code> → <strong>🧮 Calculadoras</strong>. Permite combinar uno o varios beneficios a la vez para conocer el costo final exacto en Robux.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+          <!-- Benefits Card -->
+          <div class="glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-white mb-1">Beneficios Combinables</h3>
+              <p class="text-xs text-gray-400">Podés marcar cualquiera de estas opciones en el selector múltiple de la calculadora:</p>
+            </div>
+            <div class="space-y-3 flex-1">
+              <div class="p-3.5 rounded-xl bg-kortex-bg/70 border border-kortex-border flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs sm:text-sm font-bold text-white">👥 Cashback de Grupo</p>
+                  <p class="text-xs text-gray-400">Reembolso al comprar ítems a través de fondos de grupo.</p>
+                </div>
+                <span class="shrink-0 font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">40% Ahorro</span>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-kortex-bg/70 border border-kortex-border flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs sm:text-sm font-bold text-white">⭐ Roblox Plus (Inicial y 2+ Meses)</p>
+                  <p class="text-xs text-gray-400">Descuento directo por suscripción activa en Roblox.</p>
+                </div>
+                <span class="shrink-0 font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">10% o 20%</span>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-kortex-bg/70 border border-kortex-border flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs sm:text-sm font-bold text-white">🌎 Ajuste por Precio Regional</p>
+                  <p class="text-xs text-gray-400">Reduce el precio base según la escala económica de tu país.</p>
+                </div>
+                <span class="shrink-0 font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Hasta 60%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Regional Tiers Table Card -->
+          <div class="glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4">
+            <div>
+              <h3 class="text-base font-bold text-white mb-1">Escalas de Precios Regionales (Tiers)</h3>
+              <p class="text-xs text-gray-400">Proporción del precio base aplicada por Roblox según la región:</p>
+            </div>
+            <div class="overflow-x-auto flex-1">
+              <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr class="text-gray-400 border-b border-kortex-border">
+                    <th class="py-2.5 pr-3 font-semibold">Nivel</th>
+                    <th class="py-2.5 px-3 font-semibold">Descuento</th>
+                    <th class="py-2.5 pl-3 font-semibold">Países de Referencia</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-kortex-border text-gray-300">
+                  <tr>
+                    <td class="py-3 pr-3 font-mono font-bold text-white">🌐 Tier 100%</td>
+                    <td class="py-3 px-3 text-gray-400">0% (Base)</td>
+                    <td class="py-3 pl-3">EE.UU., España, Europa</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 pr-3 font-mono font-bold text-cyan-300">🇲🇽 Tier 80%</td>
+                    <td class="py-3 px-3 text-emerald-300 font-mono">-20%</td>
+                    <td class="py-3 pl-3">México, Chile, Uruguay</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 pr-3 font-mono font-bold text-cyan-300">🇦🇷 Tier 60%</td>
+                    <td class="py-3 px-3 text-emerald-300 font-mono">-40%</td>
+                    <td class="py-3 pl-3">Argentina, Brasil, Colombia, Perú</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 pr-3 font-mono font-bold text-cyan-300">🇻🇪 Tier 40%</td>
+                    <td class="py-3 px-3 text-emerald-300 font-mono">-60%</td>
+                    <td class="py-3 pl-3">Venezuela, Bolivia, Paraguay, Filipinas</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 7: PREGUNTAS FRECUENTES (FAQ) -->
+      <section id="sec-faq" class="doc-section space-y-4">
+        <div class="border-b border-kortex-border pb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-purple-400">Dudas Comunes</span>
+          <h2 class="text-2xl font-bold text-white mt-1">Preguntas Frecuentes</h2>
+        </div>
+
+        <div class="space-y-3">
+          <div class="faq-item rounded-xl glass-card overflow-hidden">
+            <button type="button" class="faq-toggle w-full px-5 py-4 text-left flex items-center justify-between gap-4 text-sm font-semibold text-white hover:bg-kortex-card/50 transition">
+              <span>¿Qué pasa si agrego un objeto recién creado que todavía no cambió de precio?</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
+            </button>
+            <div class="faq-content hidden px-5 pb-4 text-xs sm:text-sm text-gray-300 leading-relaxed border-t border-kortex-border/60 pt-3">
+              Kortex registra automáticamente el precio inicial al momento de añadirlo y dibuja una línea base en la gráfica para que puedas visualizarlo desde el primer minuto, sumando nuevos puntos cada vez que detecte una variación real.
+            </div>
+          </div>
+
+          <div class="faq-item rounded-xl glass-card overflow-hidden">
+            <button type="button" class="faq-toggle w-full px-5 py-4 text-left flex items-center justify-between gap-4 text-sm font-semibold text-white hover:bg-kortex-card/50 transition">
+              <span>¿Cómo pruebo si mis alertas por Mensaje Directo, Canal o Webhook funcionan bien?</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
+            </button>
+            <div class="faq-content hidden px-5 pb-4 text-xs sm:text-sm text-gray-300 leading-relaxed border-t border-kortex-border/60 pt-3">
+              Entrá a <code class="text-indigo-300">/roblox</code> → <strong>🎯 Price Sniper</strong> → <strong>📋 Ver Mi Lista</strong>, elegí el objeto, tocá <strong>⚙️ Configurar</strong> y presioná el botón <strong>🔔 Probar Alerta</strong>. Kortex enviará una alerta de prueba con la gráfica actual al destino configurado.
+            </div>
+          </div>
+
+          <div class="faq-item rounded-xl glass-card overflow-hidden">
+            <button type="button" class="faq-toggle w-full px-5 py-4 text-left flex items-center justify-between gap-4 text-sm font-semibold text-white hover:bg-kortex-card/50 transition">
+              <span>¿Qué diferencia hay entre monitorear con meta y sin meta de precio?</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
+            </button>
+            <div class="faq-content hidden px-5 pb-4 text-xs sm:text-sm text-gray-300 leading-relaxed border-t border-kortex-border/60 pt-3">
+              Si fijás una <strong>Meta de Precio</strong>, el bot trazará una línea punteada naranja en la gráfica y te notificará cuando el precio sea igual o menor a tu meta. Si elegís <strong>Sin Meta</strong>, te notificará ante cualquier subida o bajada de precio.
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 px-4 py-3 rounded-xl bg-kortex-card border border-kortex-blurple text-white text-xs font-medium shadow-2xl">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-text">Copiado al portapapeles</span>
+  </div>
+
+  <script>
+    function copiarTexto(texto, mensajeToast) {
+      const mostrar = () => mostrarToast(mensajeToast || `Copiado: ${texto}`);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(mostrar).catch(() => fallbackCopy(texto, mostrar));
+      } else {
+        fallbackCopy(texto, mostrar);
+      }
+    }
+
+    function fallbackCopy(texto, callback) {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        if (callback) callback();
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    let toastTimer = null;
+    function mostrarToast(texto) {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toast-text');
+      if (!toast || !toastText) return;
+      toastText.textContent = texto;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 2400);
+    }
+
+    // Live HTML5 Canvas simulator replicating Kortex HUD Chart
+    const CHART_DATA_BY_RANGE = {
+      '24h': {
+        label: '24 HORAS',
+        up:   [{ t: '10:00', v: 1120 }, { t: '14:00', v: 1180 }, { t: '18:00', v: 1150 }, { t: '22:00', v: 1210 }, { t: '02:00', v: 1250 }],
+        down: [{ t: '10:00', v: 1450 }, { t: '14:00', v: 1380 }, { t: '18:00', v: 1310 }, { t: '22:00', v: 1220 }, { t: '02:00', v: 1100 }]
+      },
+      '7d': {
+        label: '7 DÍAS',
+        up:   [{ t: '15/10', v: 980 }, { t: '16/10', v: 1040 }, { t: '17/10', v: 1010 }, { t: '18/10', v: 1150 }, { t: '19/10', v: 1190 }, { t: '20/10', v: 1250 }],
+        down: [{ t: '15/10', v: 1580 }, { t: '16/10', v: 1490 }, { t: '17/10', v: 1420 }, { t: '18/10', v: 1300 }, { t: '19/10', v: 1180 }, { t: '20/10', v: 1090 }]
+      },
+      '30d': {
+        label: '30 DÍAS',
+        up:   [{ t: '25/09', v: 850 }, { t: '01/10', v: 920 }, { t: '07/10', v: 1080 }, { t: '13/10', v: 1140 }, { t: '20/10', v: 1250 }],
+        down: [{ t: '25/09', v: 1750 }, { t: '01/10', v: 1600 }, { t: '07/10', v: 1480 }, { t: '13/10', v: 1290 }, { t: '20/10', v: 1090 }]
+      },
+      'all': {
+        label: 'HISTÓRICO TOTAL',
+        up:   [{ t: 'Ago', v: 780 }, { t: 'Sep', v: 890 }, { t: '01/10', v: 960 }, { t: '10/10', v: 1120 }, { t: '20/10', v: 1250 }],
+        down: [{ t: 'Ago', v: 1900 }, { t: 'Sep', v: 1720 }, { t: '01/10', v: 1510 }, { t: '10/10', v: 1260 }, { t: '20/10', v: 1090 }]
+      }
+    };
+
+    let currentChartRange = '7d';
+    let currentTrendUp = true;
+    let showTargetLine = true;
+
+    function fmtAR(n) {
+      return Number(n || 0).toLocaleString('es-AR');
+    }
+
+    function drawKortexChart() {
+      const canvas = document.getElementById('kortex-hud-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+
+      const rangeObj = CHART_DATA_BY_RANGE[currentChartRange] || CHART_DATA_BY_RANGE['7d'];
+      const pts = currentTrendUp ? rangeObj.up : rangeObj.down;
+      const values = pts.map(p => p.v);
+      const firstPrice = values[0];
+      const lastPrice = values[values.length - 1];
+      const minPrice = Math.min(...values);
+      const maxPrice = Math.max(...values);
+      const diff = lastPrice - firstPrice;
+      const pct = firstPrice > 0 ? ((diff / firstPrice) * 100).toFixed(1).replace('.0', '') : '0';
+      const targetVal = 950;
+
+      const lineColor = lastPrice >= firstPrice ? '#23a55a' : '#f23f43';
+
+      const inspectorBox = document.getElementById('chart-inspector-container');
+      const simCurr = document.getElementById('chart-sim-curr');
+      const simTarget = document.getElementById('chart-sim-target');
+      if (inspectorBox) inspectorBox.style.borderLeftColor = lineColor;
+      if (simCurr) simCurr.textContent = `${fmtAR(lastPrice)} R$`;
+      if (simTarget) simTarget.textContent = showTargetLine ? '🟠 950 R$' : 'Sin meta';
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#2b2d31';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = '#949ba4';
+      ctx.font = 'bold 11px Inter, sans-serif';
+      ctx.fillText(`EVOLUCIÓN DE PRECIO • ${rangeObj.label} (${pts.length} PTS)`, 20, 24);
+
+      const textoActual = `${fmtAR(lastPrice)} R$`;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 23px Inter, sans-serif';
+      ctx.fillText(textoActual, 20, 54);
+      const anchoPrecio = ctx.measureText(textoActual).width;
+
+      const signo = diff > 0 ? '+' : '';
+      const varTexto = `${signo}${fmtAR(diff)} R$ (${signo}${pct}%)`;
+      ctx.font = 'bold 12px Inter, sans-serif';
+      const varW = ctx.measureText(varTexto).width + 20;
+      const varX = 20 + anchoPrecio + 12;
+      const varY = 34;
+      const varH = 24;
+
+      ctx.fillStyle = lastPrice >= firstPrice ? 'rgba(35, 165, 90, 0.20)' : 'rgba(242, 63, 67, 0.22)';
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(varX, varY, varW, varH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = lineColor;
+      ctx.fillText(varTexto, varX + 10, varY + 16);
+
+      const cards = [
+        { label: 'INICIAL', value: `${fmtAR(firstPrice)} R$`, color: '#b5bac1' },
+        { label: 'MÍNIMO', value: `${fmtAR(minPrice)} R$`, color: '#23a55a' },
+        { label: 'MÁXIMO', value: `${fmtAR(maxPrice)} R$`, color: '#f23f43' }
+      ];
+      const cardW = 112, cardH = 50, gap = 8;
+      const startX = W - 20 - (cards.length * cardW + (cards.length - 1) * gap);
+      cards.forEach((c, idx) => {
+        const cx = startX + idx * (cardW + gap);
+        ctx.fillStyle = '#232428';
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(cx, 14, cardW, cardH, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#949ba4';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText(c.label, cx + 10, 32);
+
+        ctx.fillStyle = c.color;
+        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.fillText(c.value, cx + 10, 53);
+      });
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(20, 76);
+      ctx.lineTo(W - 20, 76);
+      ctx.stroke();
+
+      const left = 72, right = W - 28, top = 104, bottom = H - 42;
+      const plotW = right - left, plotH = bottom - top;
+      const allVals = showTargetLine ? [...values, targetVal] : values;
+      const vMin = Math.min(...allVals) - 80;
+      const vMax = Math.max(...allVals) + 80;
+
+      const getX = i => left + (i / (pts.length - 1)) * plotW;
+      const getY = v => bottom - ((v - vMin) / (vMax - vMin)) * plotH;
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillStyle = '#dbdee1';
+      ctx.font = '11px Inter, sans-serif';
+      for (let g = 0; g <= 4; g++) {
+        const gy = top + (g / 4) * plotH;
+        const gv = Math.round(vMax - (g / 4) * (vMax - vMin));
+        ctx.beginPath();
+        ctx.moveTo(left, gy);
+        ctx.lineTo(right, gy);
+        ctx.stroke();
+        ctx.fillText(`${fmtAR(gv)} R$`, 14, gy + 4);
+      }
+
+      ctx.fillStyle = '#949ba4';
+      pts.forEach((p, i) => {
+        const x = getX(i);
+        ctx.fillText(p.t, x - 16, H - 16);
+      });
+
+      if (showTargetLine) {
+        const ty = getY(targetVal);
+        ctx.save();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath();
+        ctx.moveTo(left, ty);
+        ctx.lineTo(right, ty);
+        ctx.stroke();
+        ctx.restore();
+
+        const metaTxt = 'Meta: 950 R$';
+        ctx.font = 'bold 11px Inter, sans-serif';
+        const mw = ctx.measureText(metaTxt).width + 18;
+        ctx.fillStyle = 'rgba(30, 31, 34, 0.94)';
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(left + 10, ty - 10, mw, 20, 5);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(metaTxt, left + 19, ty + 4);
+      }
+
+      const grad = ctx.createLinearGradient(0, top, 0, bottom);
+      grad.addColorStop(0, lastPrice >= firstPrice ? 'rgba(35, 165, 90, 0.30)' : 'rgba(242, 63, 67, 0.30)');
+      grad.addColorStop(1, 'rgba(35, 165, 90, 0.01)');
+
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = getX(i), y = getY(p.v);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(getX(pts.length - 1), bottom);
+      ctx.lineTo(getX(0), bottom);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = getX(i), y = getY(p.v);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      pts.forEach((p, i) => {
+        const x = getX(i), y = getY(p.v);
+        const isLast = i === pts.length - 1;
+        ctx.beginPath();
+        ctx.arc(x, y, isLast ? 6 : 4, 0, Math.PI * 2);
+        ctx.fillStyle = lineColor;
+        ctx.fill();
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        const lbl = `${fmtAR(p.v)} R$`;
+        ctx.font = 'bold 11px Inter, sans-serif';
+        const pw = ctx.measureText(lbl).width + 12;
+        const ph = 18;
+        const px = Math.max(left + 4, Math.min(right - pw - 4, x - pw / 2));
+        const py = y - ph - 8;
+
+        ctx.fillStyle = isLast ? lineColor : 'rgba(35, 36, 40, 0.92)';
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(lbl, px + 6, py + 13);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+
+      drawKortexChart();
+
+      // Chart range buttons
+      document.querySelectorAll('.chart-range-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentChartRange = btn.getAttribute('data-chart-range') || '7d';
+          document.querySelectorAll('.chart-range-btn').forEach(b => {
+            b.className = 'chart-range-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#4E5058] text-white hover:bg-[#6D6F78] transition';
+          });
+          btn.className = 'chart-range-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#5865F2] text-white transition';
+          drawKortexChart();
+        });
+      });
+
+      const btnToggleTrend = document.getElementById('btn-toggle-trend');
+      if (btnToggleTrend) {
+        btnToggleTrend.addEventListener('click', () => {
+          currentTrendUp = !currentTrendUp;
+          btnToggleTrend.textContent = currentTrendUp ? 'Tendencia: 🟢 Alcista' : 'Tendencia: 🔴 Bajista';
+          btnToggleTrend.className = currentTrendUp
+            ? 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition'
+            : 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 transition';
+          drawKortexChart();
+        });
+      }
+
+      const btnToggleTarget = document.getElementById('btn-toggle-target-line');
+      if (btnToggleTarget) {
+        btnToggleTarget.addEventListener('click', () => {
+          showTargetLine = !showTargetLine;
+          btnToggleTarget.textContent = showTargetLine ? '🎯 Meta: 950 R$' : '🎯 Meta: Sin Meta';
+          drawKortexChart();
+        });
+      }
+
+      // Mobile menu
+      const btnMobileMenu = document.getElementById('btn-mobile-menu');
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+
+      function cerrarSidebarMobile() {
+        if (sidebar && backdrop) {
+          sidebar.classList.add('-translate-x-full');
+          backdrop.classList.add('hidden');
+        }
+      }
+
+      if (btnMobileMenu && sidebar && backdrop) {
+        btnMobileMenu.addEventListener('click', () => {
+          const isClosed = sidebar.classList.contains('-translate-x-full');
+          if (isClosed) {
+            sidebar.classList.remove('-translate-x-full');
+            backdrop.classList.remove('hidden');
+          } else {
+            cerrarSidebarMobile();
+          }
+        });
+        backdrop.addEventListener('click', cerrarSidebarMobile);
+      }
+
+      // Navigation
+      const navButtons = document.querySelectorAll('.nav-btn');
+      function irASeccion(secId) {
+        const target = document.getElementById('sec-' + secId);
+        if (target) {
+          target.classList.remove('hidden');
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        navButtons.forEach(btn => {
+          const active = btn.getAttribute('data-section') === secId;
+          btn.className = active
+            ? 'nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition bg-kortex-blurple text-white'
+            : 'nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-gray-300 hover:bg-kortex-card hover:text-white transition';
+        });
+        cerrarSidebarMobile();
+      }
+
+      navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sec = btn.getAttribute('data-section');
+          if (sec) irASeccion(sec);
+        });
+      });
+
+      document.querySelectorAll('.goto-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sec = btn.getAttribute('data-goto');
+          if (sec) irASeccion(sec);
+        });
+      });
+
+      // Copy command buttons
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.getAttribute('data-copy');
+          if (cmd) copiarTexto(cmd, `Comando copiado: ${cmd}`);
+        });
+      });
+
+      // FAQ toggles
+      document.querySelectorAll('.faq-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const item = btn.closest('.faq-item');
+          const content = item ? item.querySelector('.faq-content') : null;
+          if (content) content.classList.toggle('hidden');
+        });
+      });
+
+      // Search filter
+      const searchInput = document.getElementById('global-search');
+      const btnClearSearch = document.getElementById('btn-clear-search');
+      const searchStatus = document.getElementById('search-status');
+      const searchQueryLabel = document.getElementById('search-query-label');
+      const btnResetFilter = document.getElementById('btn-reset-filter');
+      const sections = document.querySelectorAll('.doc-section');
+
+      function ejecutarBusqueda(rawQuery) {
+        const q = (rawQuery || '').trim().toLowerCase();
+        if (!q) {
+          sections.forEach(s => s.classList.remove('hidden'));
+          if (btnClearSearch) btnClearSearch.classList.add('hidden');
+          if (searchStatus) searchStatus.classList.add('hidden');
+          return;
+        }
+        if (btnClearSearch) btnClearSearch.classList.remove('hidden');
+        if (searchStatus && searchQueryLabel) {
+          searchStatus.classList.remove('hidden');
+          searchQueryLabel.textContent = rawQuery.trim();
+        }
+        sections.forEach(sec => {
+          const text = (sec.innerText || '').toLowerCase();
+          if (text.includes(q)) {
+            sec.classList.remove('hidden');
+          } else {
+            sec.classList.add('hidden');
+          }
+        });
+      }
+
+      if (searchInput) {
+        searchInput.addEventListener('input', e => ejecutarBusqueda(e.target.value));
+      }
+      if (btnClearSearch && searchInput) {
+        btnClearSearch.addEventListener('click', () => {
+          searchInput.value = '';
+          ejecutarBusqueda('');
+        });
+      }
+      if (btnResetFilter && searchInput) {
+        btnResetFilter.addEventListener('click', () => {
+          searchInput.value = '';
+          ejecutarBusqueda('');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -32,7 +32,7 @@ function obtenerMemoriaDetallada() {
     const heapTotalMB = aMB(mem.heapTotal);
     const nativoCanvasMB = aMB((mem.external || 0) + (mem.arrayBuffers || 0));
 
-    // Lectura de cgroups en Linux (Railway / Docker) para coincidir con el panel de Railway
+    // Lectura opcional de cgroups en Linux (Railway / Docker) para coincidir con el panel de Railway
     let contenedorMB = null;
     try {
         if (fs.existsSync('/sys/fs/cgroup/memory.current')) {
