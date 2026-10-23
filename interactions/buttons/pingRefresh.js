@@ -5,7 +5,7 @@
 const { construirPanelPing } = require('../../commands/ping');
 
 module.exports = {
-    customIdPrefix: 'btn_ping_refresh',
+    customIdPrefix: 'btn_ping_',
 
     async execute(interaction) {
         const latencia = Math.max(0, Date.now() - interaction.createdTimestamp);

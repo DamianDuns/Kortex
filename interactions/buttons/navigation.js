@@ -1,64 +1,250 @@
 // ==========================================
 // ARCHIVO: interactions/buttons/navigation.js
+// Panel Principal Multicategoría (/roblox) + Price Sniper y Mi Lista
 // ==========================================
 
 const {
-    ContainerBuilder, SectionBuilder, TextDisplayBuilder,
-    ActionRowBuilder, ButtonStyle,
-    StringSelectMenuBuilder, StringSelectMenuOptionBuilder, MessageFlags
+    ContainerBuilder,
+    SectionBuilder,
+    TextDisplayBuilder,
+    ActionRowBuilder,
+    ButtonStyle,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
 const { obtenerMiniaturasBatch } = require('../../utils/roblox');
 const {
-    COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX,
+    COLORES, EMOJI_TIPO, NOMBRE_TIPO,
     footer, separador, boton, formatearPrecio, formatearPrecioTexto
 } = require('../../utils/ui');
+const { obtenerCuentaVinculada, obtenerCuentaVinculadaSync } = require('../../src/utils/fastLink');
 
 const MAX_WISHLIST_ITEMS = 5;
+const ultimaCategoriaUsuario = new Map();
+
+const DEFINICION_CATEGORIAS = {
+    cat_economy: {
+        titulo: '💰 Categoría 1: Economía, Mercado y Precios',
+        color: COLORES.primario,
+        descripcion: 'Monitoreo inteligente de precios, pisos dinámicos UGC, Robux pendientes y auditoría de grupos.',
+        herramientas: [
+            {
+                titulo: '### 🎯 1.1 Price Sniper y Mi Lista (máx. 5)',
+                desc: 'Monitoreá Catálogo, Limiteds, Gamepasses y Plugins con gráficas históricas y alertas en vivo.',
+                btnId: 'btn_quick_sniper',
+                emoji: '🎯',
+                style: ButtonStyle.Primary
+            },
+            {
+                titulo: '### 🧮 1.2 Calculadoras Financieras (+40% Cashback)',
+                desc: 'Calculá descuentos de Cashback de grupo (40%), Roblox Plus (10%/20%) y precios regionales por país.',
+                btnId: 'btn_quick_calc',
+                emoji: '🧮',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 📉 1.3 Monitor de Pisos de Precio Dinámicos (UGC)',
+                desc: 'Detectá en qué categorías de accesorios acaba de bajar el precio mínimo oficial de Roblox.',
+                btnId: 'btn_econ_floors',
+                emoji: '📉',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### ⏳ 1.4 Agenda y Alerta de Robux Pendientes',
+                desc: 'Registrá tus ventas o cashbacks y recibí una alerta exacta cuando Roblox libere tus Robux.',
+                btnId: 'btn_econ_pending',
+                emoji: '⏳',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🏛️ 1.5 Auditor y Catálogo de Grupos',
+                desc: 'Inspeccioná cualquier grupo de Roblox, ordená su catálogo de ropa y calculá el retorno del 40%.',
+                btnId: 'btn_econ_group',
+                emoji: '🏛️',
+                style: ButtonStyle.Secondary
+            }
+        ]
+    },
+    cat_avatar: {
+        titulo: '👕 Categoría 2: Taller de Avatares y Estudio 3D/2D',
+        color: 0x8B5CF6,
+        descripcion: 'Prueba de conjuntos en vivo, ítems similares y alternativos, descarga de plantillas de ropa, modelos 3D y combinación por color.',
+        herramientas: [
+            {
+                titulo: '### 🧪 2.1 Probador de Combinaciones en Vivo (Outfit Sandbox)',
+                desc: 'Probate hasta 5 objetos del catálogo sobre tu personaje o cotizá tu ropa equipada actual con desglose de precios.',
+                btnId: 'btn_ava_sandbox',
+                emoji: '🧪',
+                style: ButtonStyle.Primary
+            },
+            {
+                titulo: '### 🔍 2.2 Buscador de Clones y Similares (Roblox + UGC)',
+                desc: 'Encontrá tanto ítems oficiales de Roblox parecidos como alternativas UGC económicas con su porcentaje de ahorro.',
+                btnId: 'btn_ava_clones',
+                emoji: '🔍',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🧬 2.3 Extractor de Texturas + Maniquí 2D',
+                desc: 'Descargá la plantilla original .PNG de cualquier camisa o pantalón y probala sobre un maniquí frente y espalda.',
+                btnId: 'btn_ava_textures',
+                emoji: '🧬',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 📦 2.4 Exportador 3D (Render PNG HD + Archivo .ZIP)',
+                desc: 'Obtené el render PNG de alta resolución y el paquete .ZIP con el modelo 3D y sus texturas listo para usar.',
+                btnId: 'btn_ava_export3d',
+                emoji: '📦',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🎨 2.5 Emparejador de Accesorios por Color (Color-Match)',
+                desc: 'Detecta los 3 colores principales de tu prenda o avatar y busca accesorios del catálogo que combinen.',
+                btnId: 'btn_ava_colormatch',
+                emoji: '🎨',
+                style: ButtonStyle.Secondary
+            }
+        ]
+    },
+    cat_games: {
+        titulo: '🎮 Categoría 3: Utilidades de Juego y Servidores',
+        color: 0x10B981,
+        descripcion: 'Servidores vacíos con unión rápida, pases de juego, códigos promocionales, avisos de actualizaciones y mapas conectados.',
+        herramientas: [
+            {
+                titulo: '### 👻 3.1 Buscador de Servidores Vacíos con Unión Directa',
+                desc: 'Encontrá los servidores públicos con menos jugadores y mejor conexión listos para entrar en un clic.',
+                btnId: 'btn_games_servers',
+                emoji: '👻',
+                style: ButtonStyle.Primary
+            },
+            {
+                titulo: '### 🎟️ 3.2 Extractor Completo de Pases de un Juego',
+                desc: 'Consultá, buscá y ordená por precio todos los pases de tienda y paquetes internos de cualquier juego.',
+                btnId: 'btn_games_passes',
+                emoji: '🎟️',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🎁 3.3 Bóveda de Códigos Activos con Checklist Personal',
+                desc: 'Consultá o agregá códigos promocionales y marcá cuáles ya canjeaste para llevar tu progreso.',
+                btnId: 'btn_games_codes',
+                emoji: '🎁',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🔔 3.4 Avisos de Parches y Actualizaciones de Juegos',
+                desc: 'Seguí tus juegos favoritos y recibí un aviso apenas los creadores publiquen una nueva actualización.',
+                btnId: 'btn_games_patches',
+                emoji: '🔔',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🗺️ 3.5 Explorador de Sub-Lugares y Mapas Conectados',
+                desc: 'Descubrí todos los mapas secundarios, lobbies de intercambio y mundos dentro de cualquier experiencia.',
+                btnId: 'btn_games_mapper',
+                emoji: '🗺️',
+                style: ButtonStyle.Secondary
+            }
+        ]
+    }
+};
 
 // ==========================================
 // HUB PRINCIPAL (/roblox y @Kortex)
 // ==========================================
-// eslint-disable-next-line no-unused-vars
-function construirMenuPrincipal(userId) {
-    const container = new ContainerBuilder().setAccentColor(COLORES.primario);
+function construirMenuPrincipal(userId, categoryKey = null, feedbackMsg = null) {
+    const uid = String(userId || 'anon');
+    const activeCatKey = categoryKey || ultimaCategoriaUsuario.get(uid) || 'cat_economy';
+    ultimaCategoriaUsuario.set(uid, activeCatKey);
+
+    const cat = DEFINICION_CATEGORIAS[activeCatKey] || DEFINICION_CATEGORIAS.cat_economy;
+    const cuentaVinculada = obtenerCuentaVinculadaSync(uid);
+
+    const container = new ContainerBuilder().setAccentColor(cat.color);
+
+    const metodoBadge = cuentaVinculada?.auth_method === 'oauth' || cuentaVinculada?.roblox_oauth_verified
+        ? '🔐 Roblox OAuth 2.0'
+        : '⚡ Modo Básico';
+
+    const fastLinkLine = cuentaVinculada
+        ? `\n-# 🎮 **Cuenta de Roblox:** \`@${cuentaVinculada.roblox_username}\` (ID \`${cuentaVinculada.roblox_user_id}\` • ${metodoBadge})`
+        : '\n-# 🎮 *Sin cuenta de Roblox vinculada — tocá el botón al pie para conectar tu cuenta de Roblox*';
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        '# ⚡ Roblox Toolkit\n' +
-        'Elegí una categoría para empezar:'
+        '# ⚡ Roblox Toolkit — Kortex\n' +
+        `**${cat.titulo}**\n` +
+        `${cat.descripcion}` +
+        fastLinkLine +
+        (feedbackMsg ? `\n\n> ✅ ${feedbackMsg}` : '')
     ));
+
+    // Selector de las 3 grandes categorías (customId: 'roblox_category_select')
+    const selectCategoria = new StringSelectMenuBuilder()
+        .setCustomId('roblox_category_select')
+        .setPlaceholder('📂 Cambiá entre las 3 categorías de herramientas...')
+        .addOptions([
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Categoría 1: Economía, Mercado y Precios (5 herramientas)')
+                .setDescription('Price Sniper, Calculadoras, Pisos de Precio, Robux Pendientes y Grupos')
+                .setValue('cat_economy')
+                .setEmoji('💰')
+                .setDefault(activeCatKey === 'cat_economy'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Categoría 2: Taller de Avatares y Estudio 3D/2D (5 herramientas)')
+                .setDescription('Probador de Ropa, Similares, Plantillas 2D, Exportador 3D y Color-Match')
+                .setValue('cat_avatar')
+                .setEmoji('👕')
+                .setDefault(activeCatKey === 'cat_avatar'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Categoría 3: Utilidades de Juego y Servidores (5 herramientas)')
+                .setDescription('Servidores Vacíos, Pases de Juego, Códigos, Actualizaciones y Mapas')
+                .setValue('cat_games')
+                .setEmoji('🎮')
+                .setDefault(activeCatKey === 'cat_games')
+        ]);
+
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(selectCategoria));
+    container.addSeparatorComponents(separador(true));
+
+    // Las 5 herramientas de la categoría activa con su respectivo botón "Abrir" a la derecha (SectionBuilder)
+    cat.herramientas.forEach((h, idx) => {
+        container.addSectionComponents(
+            new SectionBuilder()
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `${h.titulo}\n${h.desc}`
+                ))
+                .setButtonAccessory(boton(h.btnId, 'Abrir', h.emoji, h.style))
+        );
+        if (idx < cat.herramientas.length - 1) {
+            container.addSeparatorComponents(separador());
+        }
+    });
 
     container.addSeparatorComponents(separador(true));
 
-    // Categoría 1: Price Sniper (incluye añadir objetos + Mi Lista y gráficas)
-    container.addSectionComponents(
-        new SectionBuilder()
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                '### 🎯 Price Sniper\n' +
-                `Monitoreá Catálogo, Limiteds, Gamepasses y Plugins, consultá **Mi Lista** (máx. ${MAX_WISHLIST_ITEMS}) y mirá gráficas de precios.`
-            ))
-            .setButtonAccessory(boton('btn_quick_sniper', 'Abrir', '🎯', ButtonStyle.Primary))
+    // Único botón inferior en /roblox: exclusivamente para la cuenta de Roblox
+    const labelFastLink = cuentaVinculada
+        ? `Cuenta de Roblox: @${cuentaVinculada.roblox_username} (Gestionar)`
+        : 'Vincular Cuenta de Roblox';
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            boton('btn_fastlink_modal', labelFastLink, '🎮', ButtonStyle.Secondary)
+        )
     );
 
-    container.addSeparatorComponents(separador());
-
-    // Categoría 2: Calculadoras
-    container.addSectionComponents(
-        new SectionBuilder()
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                '### 🧮 Calculadoras\n' +
-                'Cashback de grupo (40%), Roblox Plus (10% / 20%) y precios regionales.'
-            ))
-            .setButtonAccessory(boton('btn_quick_calc', 'Abrir', '🧮'))
-    );
-
-    container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('¿Primera vez? Usá /help para ver la guía de herramientas')
+        footer('Navegación en un solo panel • 15 utilidades de Roblox • Configuración de Discord: /config')
     ));
 
     return {
         components: [container],
+        files: [],
+        attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }
@@ -121,7 +307,7 @@ function construirMenuSniper() {
 
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_nav_main_menu', 'Volver', '⬅️')
+            boton('btn_nav_main_menu', 'Volver al Toolkit', '⬅️')
         )
     );
 
@@ -230,7 +416,8 @@ function construirLista(items, miniaturas) {
     }
     botonesNav.push(
         boton('btn_nav_wishlist', 'Actualizar', '🔄'),
-        boton('btn_nav_sniper', 'Volver', '⬅️')
+        boton('btn_nav_sniper', 'Volver a Sniper', '⬅️'),
+        boton('btn_nav_main_menu', 'Menú Principal', '🏠')
     );
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesNav));
 
@@ -239,6 +426,7 @@ function construirLista(items, miniaturas) {
 
 module.exports = {
     customIdPrefix: 'btn_nav_',
+    DEFINICION_CATEGORIAS,
     construirMenuPrincipal,
     construirMenuSniper,
     construirLista,
@@ -250,8 +438,20 @@ module.exports = {
 
             if (action === 'main_menu') {
                 await interaction.deferUpdate();
+                await obtenerCuentaVinculada(interaction.user.id).catch(() => null);
                 return await interaction.editReply({
                     ...construirMenuPrincipal(interaction.user.id),
+                    files: [],
+                    attachments: []
+                });
+            }
+
+            if (action.startsWith('cat:')) {
+                const catKey = action.split(':')[1] || 'cat_economy';
+                await interaction.deferUpdate();
+                await obtenerCuentaVinculada(interaction.user.id).catch(() => null);
+                return await interaction.editReply({
+                    ...construirMenuPrincipal(interaction.user.id, catKey),
                     files: [],
                     attachments: []
                 });

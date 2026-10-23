@@ -44,18 +44,21 @@ async function consultarPorTipo(idObjet, itemType) {
     let imagenUrl = null;
     let exito = false;
     let sinVendedores = false;
+    let assetTypeId = null;
+    let creatorName = null;
+    let creatorId = null;
 
     try {
-        // 1. MINIATURA (Petición GET vía RoProxy)
+        // 1. MINIATURA
         try {
             if (itemType === 'gamepass') {
                 const thumbRes = await fetchWithRetry(
-                    `https://thumbnails.roproxy.com/v1/game-passes?gamePassIds=${idObjet}&size=150x150&format=Png`
+                    `https://thumbnails.roblox.com/v1/game-passes?gamePassIds=${idObjet}&size=150x150&format=Png`
                 );
                 imagenUrl = thumbRes.data?.data?.[0]?.imageUrl || null;
             } else {
                 const thumbRes = await fetchWithRetry(
-                    `https://thumbnails.roproxy.com/v1/assets?assetIds=${idObjet}&size=420x420&format=Png`
+                    `https://thumbnails.roblox.com/v1/assets?assetIds=${idObjet}&size=420x420&format=Png`
                 );
                 imagenUrl = thumbRes.data?.data?.[0]?.imageUrl || null;
             }
@@ -67,7 +70,7 @@ async function consultarPorTipo(idObjet, itemType) {
         if (itemType === 'plugin') {
             try {
                 const mpRes = await fetchWithRetry(
-                    `https://apis.roproxy.com/toolbox-service/v1/items/details?assetIds=${idObjet}`
+                    `https://apis.roblox.com/toolbox-service/v1/items/details?assetIds=${idObjet}`
                 );
 
                 const item = mpRes.data?.data?.[0];
@@ -96,14 +99,14 @@ async function consultarPorTipo(idObjet, itemType) {
         } else if (itemType === 'paid_access') {
             try {
                 const universeRes = await fetchWithRetry(
-                    `https://apis.roproxy.com/universes/v1/places/${idObjet}/universe`
+                    `https://apis.roblox.com/universes/v1/places/${idObjet}/universe`
                 );
 
                 const universeId = universeRes.data?.universeId;
 
                 if (universeId) {
                     const gameRes = await fetchWithRetry(
-                        `https://games.roproxy.com/v1/games?universeIds=${universeId}`
+                        `https://games.roblox.com/v1/games?universeIds=${universeId}`
                     );
 
                     const gameData = gameRes.data?.data?.[0];
@@ -121,25 +124,38 @@ async function consultarPorTipo(idObjet, itemType) {
         } else if (itemType === 'catalog') {
             try {
                 const assetRes = await fetchWithRetry(
-                    `https://economy.roproxy.com/v2/assets/${idObjet}/details`
+                    `https://economy.roblox.com/v2/assets/${idObjet}/details`
                 );
 
                 if (assetRes.data && assetRes.data.Name) {
                     nombre = assetRes.data.Name;
                     const d = assetRes.data;
-                    const esLimited = Boolean(d.IsLimited || d.IsLimitedUnique || d.CollectibleItemId);
+                    assetTypeId = d.AssetTypeId || null;
+                    creatorName = d.Creator?.Name || null;
+                    creatorId = d.Creator?.CreatorTargetId || d.Creator?.Id || null;
+
+                    const esLimited = Boolean(
+                        d.IsLimited ||
+                        d.IsLimitedUnique ||
+                        d.CollectibleItemId ||
+                        d.CollectiblesItemDetails?.IsLimited
+                    );
 
                     if (esLimited) {
                         let detectedPrice = 0;
 
-                        if (typeof d.LowestResellPrice === 'number' && d.LowestResellPrice > 0) {
+                        if (typeof d.CollectiblesItemDetails?.CollectibleLowestResalePrice === 'number' && d.CollectiblesItemDetails.CollectibleLowestResalePrice > 0) {
+                            detectedPrice = d.CollectiblesItemDetails.CollectibleLowestResalePrice;
+                        } else if (typeof d.LowestResellPrice === 'number' && d.LowestResellPrice > 0) {
                             detectedPrice = d.LowestResellPrice;
+                        } else if (typeof d.PriceInRobux === 'number' && d.PriceInRobux > 0) {
+                            detectedPrice = d.PriceInRobux;
                         }
 
                         if (detectedPrice === 0) {
                             try {
                                 const resellerRes = await fetchWithRetry(
-                                    `https://economy.roproxy.com/v1/assets/${idObjet}/resellers?limit=1`
+                                    `https://economy.roblox.com/v1/assets/${idObjet}/resellers?limit=1`
                                 );
                                 const primerVendedor = resellerRes.data?.data?.[0];
                                 if (primerVendedor && typeof primerVendedor.price === 'number' && primerVendedor.price > 0) {
@@ -153,7 +169,7 @@ async function consultarPorTipo(idObjet, itemType) {
                         if (detectedPrice === 0 && d.CollectibleItemId) {
                             try {
                                 const collectibleRes = await fetchWithRetry(
-                                    `https://apis.roproxy.com/marketplace-sales/v1/item/${d.CollectibleItemId}/resellers?limit=1`
+                                    `https://apis.roblox.com/marketplace-sales/v1/item/${d.CollectibleItemId}/resellers?limit=1`
                                 );
                                 const primerVendedor = collectibleRes.data?.data?.[0];
                                 if (primerVendedor && typeof primerVendedor.price === 'number' && primerVendedor.price > 0) {
@@ -172,7 +188,7 @@ async function consultarPorTipo(idObjet, itemType) {
                             sinVendedores = true;
                         }
                     } else {
-                        precio = Number(d.PriceInRobux || d.priceInRobux || 0);
+                        precio = Number(d.PriceInRobux || d.priceInRobux || d.CollectiblesItemDetails?.CollectibleLowestResalePrice || 0);
                         sinVendedores = false;
                     }
 
@@ -188,7 +204,7 @@ async function consultarPorTipo(idObjet, itemType) {
         } else if (itemType === 'gamepass') {
             try {
                 const gpRes = await fetchWithRetry(
-                    `https://apis.roproxy.com/game-passes/v1/game-passes/${idObjet}/product-info`
+                    `https://apis.roblox.com/game-passes/v1/game-passes/${idObjet}/product-info`
                 );
                 if (gpRes.data && (gpRes.data.Name || gpRes.data.name)) {
                     nombre = gpRes.data.Name || gpRes.data.name;
@@ -217,7 +233,10 @@ async function consultarPorTipo(idObjet, itemType) {
         imagenUrl,
         exito,
         sinVendedores,
-        tipoDetectado: itemType
+        tipoDetectado: itemType,
+        assetTypeId,
+        creatorName,
+        creatorId
     };
 }
 
@@ -243,7 +262,7 @@ async function obtenerMiniaturasBatch(items) {
     try {
         if (gamepassIds.length > 0) {
             const res = await fetchWithRetry(
-                `https://thumbnails.roproxy.com/v1/game-passes?gamePassIds=${gamepassIds.join(',')}&size=150x150&format=Png`
+                `https://thumbnails.roblox.com/v1/game-passes?gamePassIds=${gamepassIds.join(',')}&size=150x150&format=Png`
             );
             (res.data?.data || []).forEach(entry => {
                 resultado.set(String(entry.targetId), entry.imageUrl || null);
@@ -256,7 +275,7 @@ async function obtenerMiniaturasBatch(items) {
     try {
         if (assetIds.length > 0) {
             const res = await fetchWithRetry(
-                `https://thumbnails.roproxy.com/v1/assets?assetIds=${assetIds.join(',')}&size=150x150&format=Png`
+                `https://thumbnails.roblox.com/v1/assets?assetIds=${assetIds.join(',')}&size=150x150&format=Png`
             );
             (res.data?.data || []).forEach(entry => {
                 resultado.set(String(entry.targetId), entry.imageUrl || null);

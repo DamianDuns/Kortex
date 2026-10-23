@@ -2,7 +2,6 @@
 // ARCHIVO: commands/ping.js
 // ==========================================
 
-const fs = require('fs');
 const {
     SlashCommandBuilder,
     ContainerBuilder,
@@ -12,6 +11,7 @@ const {
     MessageFlags
 } = require('discord.js');
 const { COLORES, footer, separador, boton, formatearUptime } = require('../utils/ui');
+const { leerEstadoRecursos } = require('../src/utils/performanceManager');
 
 function evaluarLatencia(ms) {
     if (ms < 0) return { emoji: '⚪', texto: 'Midiendo...', color: COLORES.neutro };
@@ -21,48 +21,23 @@ function evaluarLatencia(ms) {
 }
 
 /**
- * Obtiene el desglose real de memoria del proceso Node.js y del contenedor Linux (Railway).
+ * Obtiene el desglose real de memoria del proceso Node.js y del contenedor/servidor de cualquier plataforma de hosting.
  */
 function obtenerMemoriaDetallada() {
-    const mem = process.memoryUsage();
-    const aMB = (bytes) => (bytes / 1024 / 1024).toFixed(1);
-
-    const rssMB = aMB(mem.rss);
-    const heapUsadoMB = aMB(mem.heapUsed);
-    const heapTotalMB = aMB(mem.heapTotal);
-    const nativoCanvasMB = aMB((mem.external || 0) + (mem.arrayBuffers || 0));
-
-    // Lectura opcional de cgroups en Linux (Railway / Docker) para coincidir con el panel de Railway
-    let contenedorMB = null;
-    try {
-        if (fs.existsSync('/sys/fs/cgroup/memory.current')) {
-            const raw = fs.readFileSync('/sys/fs/cgroup/memory.current', 'utf8').trim();
-            const bytes = Number(raw);
-            if (Number.isFinite(bytes) && bytes > 0) {
-                contenedorMB = aMB(bytes);
-            }
-        } else if (fs.existsSync('/sys/fs/cgroup/memory/memory.usage_in_bytes')) {
-            const raw = fs.readFileSync('/sys/fs/cgroup/memory/memory.usage_in_bytes', 'utf8').trim();
-            const bytes = Number(raw);
-            if (Number.isFinite(bytes) && bytes > 0) {
-                contenedorMB = aMB(bytes);
-            }
-        }
-    } catch {
-        contenedorMB = null;
-    }
-
+    const estado = leerEstadoRecursos();
     return {
-        rssMB,
-        heapUsadoMB,
-        heapTotalMB,
-        nativoCanvasMB,
-        contenedorMB
+        rssMB: estado.rssMB.toFixed(1),
+        heapUsadoMB: estado.heapUsadoMB.toFixed(1),
+        heapTotalMB: estado.heapTotalMB.toFixed(1),
+        nativoCanvasMB: estado.nativoCanvasMB.toFixed(1),
+        hostUsadaMB: estado.hostUsadaMB.toFixed(1),
+        hostLimiteMB: estado.hostLimiteMB ? estado.hostLimiteMB.toFixed(1) : null,
+        porcentajeUso: estado.pctHost ? estado.pctHost.toFixed(1) : null
     };
 }
 
 /**
- * Construye el panel de estado del bot.
+ * Construye el panel de estado del bot (/ping).
  * @param {import('discord.js').Client} client
  * @param {number} latenciaRespuesta ms entre el mensaje del usuario y la respuesta
  */
@@ -85,16 +60,18 @@ function construirPanelPing(client, latenciaRespuesta) {
 
     container.addSeparatorComponents(separador());
 
-    const lineaContenedor = mem.contenedorMB
-        ? `\n> 📦 **Contenedor (Railway):** \`${mem.contenedorMB} MB\``
+    const detalleLimiteHost = mem.hostLimiteMB
+        ? ` / \`${mem.hostLimiteMB} MB\` *(${mem.porcentajeUso}%)*`
         : '';
+
+    const lineaHost = `\n> 📦 **RAM Contenedor / Host:** \`${mem.hostUsadaMB} MB\`${detalleLimiteHost}`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `> ⚡ **Respuesta:** \`${latenciaRespuesta}ms\`\n` +
         `> 🌐 **WebSocket (API):** \`${wsPing < 0 ? '—' : `${wsPing}ms`}\`\n` +
         `> ⏱️ **Uptime:** \`${uptime}\`  •  🖥️ **Servidores:** \`${servidores}\`\n` +
-        `> 💾 **RAM Proceso (RSS):** \`${mem.rssMB} MB\` *(JS: \`${mem.heapUsadoMB} MB\` • Canvas/Caché: \`${mem.nativoCanvasMB} MB\`)*` +
-        lineaContenedor
+        `> 💾 **RAM Proceso (Bot):** \`${mem.rssMB} MB\` *(JS: \`${mem.heapUsadoMB} MB\` • Canvas/Caché: \`${mem.nativoCanvasMB} MB\`)*` +
+        lineaHost
     ));
 
     container.addActionRowComponents(
@@ -115,7 +92,7 @@ function construirPanelPing(client, latenciaRespuesta) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ping')
-        .setDescription('Muestra la latencia, el estado del bot y el consumo real de RAM.'),
+        .setDescription('Muestra la latencia, el estado del bot y el consumo de RAM del proceso y del servidor.'),
 
     construirPanelPing,
 

@@ -99,12 +99,14 @@ function construirPanelCalculadoraLimpio(opcionesSeleccionadas = OPCIONES_DEFAUL
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
                 boton('btn_calc_execute_modal', 'Calcular', '🧮', ButtonStyle.Primary),
-                boton('btn_nav_main_menu', 'Menú Principal', '⬅️')
+                boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️')
             )
         );
 
     return {
         components: [container],
+        files: [],
+        attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }
@@ -121,11 +123,12 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
     }
 
     let totalAhorroRobux = 0;
+    let cashbackGrupoMonto = 0;
 
     if (seleccionadas.includes('grupo_40')) {
-        const cashbackGrupo = Math.floor(precioAjustadoRobux * 0.40);
-        totalAhorroRobux += cashbackGrupo;
-        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupo)}\` ${EMOJI_ROBUX}`);
+        cashbackGrupoMonto = Math.floor(precioAjustadoRobux * 0.40);
+        totalAhorroRobux += cashbackGrupoMonto;
+        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupoMonto)}\` ${EMOJI_ROBUX}`);
     }
 
     if (seleccionadas.includes('plus_10')) {
@@ -155,13 +158,22 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
             `Ahorrás **\`${fmt(ahorroTotalVsBase)}\`** ${EMOJI_ROBUX} (${porcentaje}%)\n` +
             `\`${barraProgreso(porcentaje)}\``
         ))
-        .addSeparatorComponents(separador())
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Valores estimados • Roblox redondea hacia abajo')
-        ));
+        .addSeparatorComponents(separador());
+
+    const rowBotones = [
+        boton('btn_quick_calc', 'Nuevo Cálculo', '🧮', ButtonStyle.Primary),
+        boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️', ButtonStyle.Secondary)
+    ];
+
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(rowBotones));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        footer('Valores estimados • Roblox redondea hacia abajo')
+    ));
 
     return {
         components: [container],
+        files: [],
+        attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }

@@ -3,12 +3,58 @@
 // Tema visual compartido para todos los paneles (Components V2)
 // ==========================================
 
-const { ButtonBuilder, ButtonStyle, SeparatorSpacingSize } = require('discord.js');
+const {
+    ButtonBuilder,
+    ButtonStyle,
+    SeparatorSpacingSize,
+    ModalBuilder,
+    TextInputBuilder,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    TextDisplayBuilder
+} = require('discord.js');
+
+// Parche global defensivo contra ExpectedConstraintError > s.string().lengthLessThanOrEqual()
+// Garantiza que ningún componente dinámico o estático supere jamás los límites estrictos de Discord API
+(function installDiscordBuilderLengthGuards() {
+    function guardStringMethod(Proto, methodName, maxLen, minLen = 1, fallback = '-') {
+        if (!Proto || !Proto.prototype || typeof Proto.prototype[methodName] !== 'function') return;
+        if (Proto.prototype[`__kortexGuarded_${methodName}`]) return;
+        const original = Proto.prototype[methodName];
+        Proto.prototype[methodName] = function (val, ...rest) {
+            if (typeof val === 'string' || typeof val === 'number') {
+                let s = String(val).trim();
+                if (s.length < minLen) s = fallback;
+                if (s.length > maxLen) s = s.slice(0, maxLen);
+                return original.call(this, s, ...rest);
+            }
+            return original.call(this, val, ...rest);
+        };
+        Object.defineProperty(Proto.prototype, `__kortexGuarded_${methodName}`, {
+            value: true,
+            enumerable: false
+        });
+    }
+
+    guardStringMethod(ModalBuilder, 'setTitle', 45, 1, 'Panel');
+    guardStringMethod(ModalBuilder, 'setCustomId', 100, 1, 'modal_id');
+    guardStringMethod(TextInputBuilder, 'setLabel', 45, 1, 'Dato solicitado');
+    guardStringMethod(TextInputBuilder, 'setPlaceholder', 100, 0, '');
+    guardStringMethod(TextInputBuilder, 'setCustomId', 100, 1, 'input_id');
+    guardStringMethod(ButtonBuilder, 'setLabel', 80, 1, 'Abrir');
+    guardStringMethod(ButtonBuilder, 'setCustomId', 100, 1, 'btn_id');
+    guardStringMethod(StringSelectMenuBuilder, 'setPlaceholder', 150, 0, '');
+    guardStringMethod(StringSelectMenuBuilder, 'setCustomId', 100, 1, 'select_id');
+    guardStringMethod(StringSelectMenuOptionBuilder, 'setLabel', 100, 1, 'Opción');
+    guardStringMethod(StringSelectMenuOptionBuilder, 'setDescription', 100, 1, 'Detalle');
+    guardStringMethod(StringSelectMenuOptionBuilder, 'setValue', 100, 1, 'val');
+    guardStringMethod(TextDisplayBuilder, 'setContent', 4000, 1, ' ');
+})();
 
 // Paleta de colores de acento (barra lateral de cada panel)
 const COLORES = {
     primario: 0x5865F2, // Blurple: Hub, ayuda
-    sniper: 0xFF6B35,   // Naranja: Price Sniper
+    sniper: 0xFF6B35,   // Naranja: Seguimiento de Precios
     lista: 0x2ECC71,    // Verde: lista de monitoreo
     calc: 0x00B8D9,     // Cian: calculadoras
     exito: 0x57F287,
@@ -49,9 +95,11 @@ function espacio() {
     return sep => sep.setDivider(false).setSpacing(SeparatorSpacingSize.Small);
 }
 
-/** Atajo para crear botones con menos código. */
+/** Atajo para crear botones con menos código y validación automática de longitud. */
 function boton(customId, label, emoji, style = ButtonStyle.Secondary) {
-    const b = new ButtonBuilder().setCustomId(customId).setLabel(label).setStyle(style);
+    const safeId = String(customId || 'btn_action').slice(0, 100);
+    const safeLabel = String(label || 'Abrir').slice(0, 80);
+    const b = new ButtonBuilder().setCustomId(safeId).setLabel(safeLabel).setStyle(style);
     if (emoji) b.setEmoji(emoji);
     return b;
 }

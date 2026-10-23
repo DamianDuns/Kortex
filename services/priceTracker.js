@@ -279,8 +279,16 @@ async function procesarItem(client, item, stats) {
 
 let escaneoEnCurso = false;
 let intervaloMonitoreo = null;
+let intervaloWorkers15m = null;
+
+const { revisarRobuxPendientesWorker } = require('../src/modules/economyModule');
+const { revisarParchesJuegosWorker } = require('../src/modules/gamesModule');
+const { obtenerConfigPropietario } = require('../src/utils/performanceManager');
 
 async function revisarPrecios(client) {
+    if (!obtenerConfigPropietario().backgroundMonitorsEnabled) {
+        return;
+    }
     if (escaneoEnCurso) {
         logger.warn('El escaneo anterior sigue en curso. Salteando este ciclo.');
         return;
@@ -346,6 +354,16 @@ function iniciarMonitoreo(client, intervaloMinutos = 5) {
     const ms = minutos * 60 * 1000;
     revisarPrecios(client);
     intervaloMonitoreo = setInterval(() => revisarPrecios(client), ms);
+
+    // Worker cada 15 minutos para Agenda de Robux Pendientes y Suscriptor de Parches Silenciosos
+    if (!intervaloWorkers15m) {
+        const ms15 = 15 * 60 * 1000;
+        intervaloWorkers15m = setInterval(async () => {
+            if (!obtenerConfigPropietario().backgroundMonitorsEnabled) return;
+            await revisarRobuxPendientesWorker(client).catch(() => null);
+            await revisarParchesJuegosWorker(client).catch(() => null);
+        }, ms15);
+    }
 }
 
 /**

@@ -11,7 +11,7 @@ const {
     MessageFlags
 } = require('discord.js');
 const { obtenerSeleccion, calcularEmbedResultado, EMOJI_ROBUX } = require('../calcHelpers');
-const { COLORES, separador } = require('../../utils/ui');
+const { COLORES, separador, boton } = require('../../utils/ui');
 
 module.exports = {
     customIdPrefix: 'modal_calc_limpio_submit',
@@ -48,18 +48,29 @@ module.exports = {
                     )
                 )
                 .addSeparatorComponents(separador())
-                .addActionRowComponents(new ActionRowBuilder().addComponents(selectRegion));
+                .addActionRowComponents(new ActionRowBuilder().addComponents(selectRegion))
+                .addActionRowComponents(
+                    new ActionRowBuilder().addComponents(
+                        boton('btn_quick_calc', 'Volver a Calculadora', '⬅️')
+                    )
+                );
 
-            return await interaction.reply({
+            await interaction.deferUpdate();
+            return await interaction.editReply({
                 components: [containerRegion],
-                flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+                files: [],
+                attachments: [],
+                flags: MessageFlags.IsComponentsV2
             });
         }
 
         const resData = calcularEmbedResultado(basePrice, seleccionadas);
-        return await interaction.reply({
+        await interaction.deferUpdate();
+        return await interaction.editReply({
             components: resData.components,
-            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+            files: [],
+            attachments: [],
+            flags: MessageFlags.IsComponentsV2
         });
     }
 };
