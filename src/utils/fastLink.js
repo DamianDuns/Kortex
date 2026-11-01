@@ -99,7 +99,7 @@ function cargarConfigsDiscordDesdeDisco() {
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
                 for (const [discordId, cfg] of Object.entries(parsed)) {
-                    if (cfg && (cfg.oauth_verified || cfg.discord_username)) {
+                    if (cfg && (cfg.oauth_verified || cfg.discord_username || cfg.language_selected || cfg.lang || cfg.default_tier)) {
                         discordConfigCache.set(String(discordId), cfg);
                     }
                 }
@@ -708,6 +708,11 @@ function obtenerConfigDiscord(discordId) {
         access_token: saved.access_token || null,
         refresh_token: saved.refresh_token || null,
         verified_at: saved.verified_at || null,
+        lang: saved.lang === 'en' ? 'en' : 'es',
+        language_selected: Boolean(saved.language_selected),
+        default_tier: saved.default_tier || 'TIER_100',
+        ephemeral_config: Boolean(saved.ephemeral_config),
+        dm_alerts_enabled: saved.dm_alerts_enabled !== false,
         updated_at: saved.updated_at || null
     };
 }
@@ -809,10 +814,8 @@ async function guardarCuentaVinculada(discordId, profileData, { recordHistory = 
         if (recordHistory) {
             registrarEventoHistorialCuenta(key, {
                 category: 'roblox',
-                title: `Cuenta de Roblox registrada: @${fullRecord.roblox_username}`,
-                detail: fullRecord.roblox_oauth_verified
-                    ? `ID ${fullRecord.roblox_user_id} • Verificada con OAuth 2.0 Oficial`
-                    : `ID ${fullRecord.roblox_user_id} • Verificada con código de seguridad (MD / Buzón)`
+                title: `Cuenta de Roblox autorizada: @${fullRecord.roblox_username}`,
+                detail: `ID ${fullRecord.roblox_user_id} • Autorizada con Roblox OAuth 2.0 Oficial`
             });
         }
     }
@@ -901,6 +904,11 @@ function cargarCuentaBotRobloxDesdeDisco() {
                     display_name: String(parsed.display_name || parsed.roblox_username || ''),
                     avatar_url: parsed.avatar_url || null,
                     cookie: String(parsed.cookie),
+                    current_friends_count: Number(parsed.current_friends_count || 0),
+                    verified_by_friendship_count: Number(parsed.verified_by_friendship_count || 0),
+                    friends_cleaned_count: Number(parsed.friends_cleaned_count || 0),
+                    auto_unfriend_enabled: parsed.auto_unfriend_enabled !== false,
+                    last_sweep_at: parsed.last_sweep_at || null,
                     updated_at: parsed.updated_at || new Date().toISOString()
                 };
             }
@@ -938,6 +946,15 @@ function obtenerEstadoCuentaBotRoblox() {
         roblox_username: robloxBotAccountState.roblox_username || null,
         display_name: robloxBotAccountState.display_name || null,
         avatar_url: robloxBotAccountState.avatar_url || null,
+        current_friends_count: Number(robloxBotAccountState.current_friends_count || 0),
+        max_friends_limit: 200,
+        verified_by_friendship_count: Number(robloxBotAccountState.verified_by_friendship_count || 0),
+        friends_cleaned_count: Number(robloxBotAccountState.friends_cleaned_count || 0),
+        auto_unfriend_enabled: robloxBotAccountState.auto_unfriend_enabled !== false,
+        last_sweep_at: robloxBotAccountState.last_sweep_at || null,
+        profile_url: robloxBotAccountState.roblox_user_id
+            ? `https://www.roblox.com/users/${robloxBotAccountState.roblox_user_id}/profile`
+            : null,
         updated_at: robloxBotAccountState.updated_at || null
     };
 }
@@ -952,6 +969,11 @@ async function conectarCuentaBotRoblox(rawCookieInput) {
             display_name: null,
             avatar_url: null,
             cookie: null,
+            current_friends_count: 0,
+            verified_by_friendship_count: 0,
+            friends_cleaned_count: 0,
+            auto_unfriend_enabled: true,
+            last_sweep_at: null,
             updated_at: null
         };
         guardarCuentaBotRobloxEnDisco();
@@ -988,11 +1010,18 @@ async function conectarCuentaBotRoblox(rawCookieInput) {
         }
 
         let avatarUrl = null;
+        let currentFriendsCount = 0;
         try {
-            const thumbRes = await fetchWithRetry(
-                `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${botUser.id}&size=150x150&format=Png&isCircular=false`
-            ).catch(() => null);
+            const [thumbRes, countRes] = await Promise.all([
+                fetchWithRetry(
+                    `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${botUser.id}&size=150x150&format=Png&isCircular=false`
+                ).catch(() => null),
+                axios.get(`https://friends.roblox.com/v1/users/${botUser.id}/friends/count`, { timeout: 5500 }).catch(() => null)
+            ]);
             avatarUrl = thumbRes?.data?.data?.[0]?.imageUrl || null;
+            if (typeof countRes?.data?.count === 'number') {
+                currentFriendsCount = countRes.data.count;
+            }
         } catch {
             // Silencioso
         }
@@ -1004,6 +1033,11 @@ async function conectarCuentaBotRoblox(rawCookieInput) {
             display_name: String(botUser.displayName || botUser.name),
             avatar_url: avatarUrl,
             cookie: cleanCookie,
+            current_friends_count: currentFriendsCount,
+            verified_by_friendship_count: Number(robloxBotAccountState.verified_by_friendship_count || 0),
+            friends_cleaned_count: Number(robloxBotAccountState.friends_cleaned_count || 0),
+            auto_unfriend_enabled: true,
+            last_sweep_at: robloxBotAccountState.last_sweep_at || new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
 
@@ -1012,7 +1046,7 @@ async function conectarCuentaBotRoblox(rawCookieInput) {
         return {
             ok: true,
             account: obtenerEstadoCuentaBotRoblox(),
-            message: `✅ Cuenta de Roblox del Bot conectada: **@${botUser.name}** (ID \`${botUser.id}\`). Ahora el bot enviará los códigos directamente por Roblox.`
+            message: `✅ Cuenta de Roblox del Bot conectada: **@${botUser.name}** (ID \`${botUser.id}\` • Amigos actuales: \`${currentFriendsCount}/200\`). Ahora enviará solicitudes de amistad y eliminará automáticamente al amigo tras verificar.`
         };
     } catch (err) {
         const status = err.response?.status;
@@ -1047,18 +1081,189 @@ async function obtenerCsrfTokenRoblox(cookie) {
 }
 
 /**
- * Envía el código secreto de 6 dígitos DIRECTAMENTE dentro de la plataforma Roblox:
- * 1) A la Galería de Mensajes / Buzón de Roblox del usuario destino (privatemessages.roblox.com/v1/messages/send).
- * 2) Al Chat de Roblox del usuario destino (chat.roblox.com/v2/send-message) si tiene chat habilitado con el bot.
+ * Elimina a un usuario específico de la lista de amigos de la cuenta de Roblox del Bot
+ * inmediatamente después de completar la verificación para no llenar el límite de 200 amigos.
  */
-async function enviarMensajeVerificacionEnRoblox(targetProfile, secretInboxCode, verifyPhrase) {
+async function eliminarAmigoDeCuentaBotRoblox(targetRobloxUserId, csrfTokenHint = null) {
+    if (!robloxBotAccountState.connected || !robloxBotAccountState.cookie || !targetRobloxUserId) {
+        return { ok: false, reason: 'bot_not_connected' };
+    }
+    const cookie = robloxBotAccountState.cookie;
+    const csrfToken = csrfTokenHint || (await obtenerCsrfTokenRoblox(cookie));
+    if (!csrfToken) {
+        return { ok: false, reason: 'csrf_failed' };
+    }
+
+    const headers = {
+        Cookie: `.ROBLOSECURITY=${cookie}`,
+        'x-csrf-token': csrfToken,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    };
+
+    try {
+        await axios.post(
+            `https://friends.roblox.com/v1/users/${Number(targetRobloxUserId)}/unfriend`,
+            {},
+            { headers, timeout: 6500 }
+        );
+        robloxBotAccountState.friends_cleaned_count = Number(robloxBotAccountState.friends_cleaned_count || 0) + 1;
+        robloxBotAccountState.current_friends_count = Math.max(0, Number(robloxBotAccountState.current_friends_count || 1) - 1);
+        robloxBotAccountState.last_sweep_at = new Date().toISOString();
+        guardarCuentaBotRobloxEnDisco();
+        return { ok: true };
+    } catch {
+        return { ok: false, reason: 'unfriend_request_failed' };
+    }
+}
+
+/**
+ * Obtiene la lista real de amigos actuales de la cuenta de Roblox del Bot y actualiza su contador.
+ */
+async function obtenerListaAmigosBotRoblox() {
+    if (!robloxBotAccountState.connected || !robloxBotAccountState.roblox_user_id) {
+        return [];
+    }
+    try {
+        const res = await axios.get(
+            `https://friends.roblox.com/v1/users/${Number(robloxBotAccountState.roblox_user_id)}/friends`,
+            {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    ...(robloxBotAccountState.cookie ? { Cookie: `.ROBLOSECURITY=${robloxBotAccountState.cookie}` } : {})
+                },
+                timeout: 6500
+            }
+        );
+        const list = Array.isArray(res.data?.data) ? res.data.data : [];
+        robloxBotAccountState.current_friends_count = list.length;
+        guardarCuentaBotRobloxEnDisco();
+        return list;
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Limpia la lista de amigos de la cuenta de Roblox del Bot para mantener el historial limpio (0/200)
+ * y permitir nuevas verificaciones sin alcanzar nunca el tope de 200 amigos de Roblox.
+ */
+async function limpiarListaAmigosBotRoblox(forceAll = true) {
+    const botStatus = obtenerEstadoCuentaBotRoblox();
+    if (!botStatus.connected || !robloxBotAccountState.cookie) {
+        return {
+            ok: false,
+            removed: 0,
+            remaining: 0,
+            message: '⚠️ El bot aún no tiene una cuenta de Roblox conectada en `/config`.'
+        };
+    }
+
+    const friendsList = await obtenerListaAmigosBotRoblox();
+    if (friendsList.length === 0) {
+        robloxBotAccountState.current_friends_count = 0;
+        robloxBotAccountState.last_sweep_at = new Date().toISOString();
+        guardarCuentaBotRobloxEnDisco();
+        return {
+            ok: true,
+            removed: 0,
+            remaining: 0,
+            message: `✨ La lista de amigos de **@${botStatus.roblox_username}** ya está completamente limpia (\`0 / 200\` amigos).`
+        };
+    }
+
+    const csrfToken = await obtenerCsrfTokenRoblox(robloxBotAccountState.cookie);
+    if (!csrfToken) {
+        return {
+            ok: false,
+            removed: 0,
+            remaining: friendsList.length,
+            message: '❌ No se pudo obtener token CSRF de Roblox. Revisá que la cookie `.ROBLOSECURITY` siga vigente.'
+        };
+    }
+
+    // Si hay verificaciones activas en curso, antes de borrar a un amigo comprobamos si está esperando verificación para verificarlo primero
+    for (const [discId, pending] of pendingRobloxVerifications.entries()) {
+        if (pending && pending.profile?.roblox_user_id) {
+            const matchFriend = friendsList.find(f => Number(f.id) === Number(pending.profile.roblox_user_id));
+            if (matchFriend) {
+                await confirmarVerificacionCodigoRoblox(discId, '').catch(() => null);
+            }
+        }
+    }
+
+    let removedCount = 0;
+    const updatedFriends = await obtenerListaAmigosBotRoblox();
+    for (const friend of updatedFriends) {
+        if (!friend || !friend.id) continue;
+        if (!forceAll) {
+            // Si es limpieza automática preventiva, respetar si hay alguien con solicitud de hace menos de 90 segundos
+            let isVeryRecentPending = false;
+            for (const pending of pendingRobloxVerifications.values()) {
+                if (
+                    Number(pending?.profile?.roblox_user_id) === Number(friend.id) &&
+                    Date.now() - (pending.createdAt || 0) < 90 * 1000
+                ) {
+                    isVeryRecentPending = true;
+                    break;
+                }
+            }
+            if (isVeryRecentPending) continue;
+        }
+        const resUnfriend = await eliminarAmigoDeCuentaBotRoblox(friend.id, csrfToken);
+        if (resUnfriend.ok) {
+            removedCount++;
+        }
+    }
+
+    const finalFriends = await obtenerListaAmigosBotRoblox();
+    robloxBotAccountState.current_friends_count = finalFriends.length;
+    robloxBotAccountState.last_sweep_at = new Date().toISOString();
+    guardarCuentaBotRobloxEnDisco();
+
+    return {
+        ok: true,
+        removed: removedCount,
+        remaining: finalFriends.length,
+        message:
+            `🧹 **Limpieza de amigos del Bot completada en @${botStatus.roblox_username}:**\n` +
+            `> • **Amigos eliminados en esta barrida:** **${removedCount}**\n` +
+            `> • **Cupo disponible actual:** \`${finalFriends.length} / 200\` amigos (listo para nuevas verificaciones).`
+    };
+}
+
+/**
+ * Envía una Solicitud de Amistad desde la cuenta de Roblox del Bot al usuario destino.
+ * Si el usuario destino ya era amigo o ya había enviado una solicitud al bot, lo detecta al instante.
+ */
+async function enviarSolicitudAmistadEnRoblox(targetProfile, verifyPhrase) {
     const botStatus = obtenerEstadoCuentaBotRoblox();
     if (!botStatus.connected || !robloxBotAccountState.cookie) {
         return {
             delivered: false,
+            alreadyFriends: false,
             channel: 'bot_account_pending',
             botAccount: botStatus,
-            reason: 'El bot aún no tiene conectada su cuenta emisora de Roblox en /config.'
+            reason: 'El bot aún no tiene conectada su cuenta verificadora de Roblox en /config.'
+        };
+    }
+
+    const recipientId = Number(targetProfile.roblox_user_id);
+
+    // 0. Si la cuenta del bot supera 180 amigos, limpiar preventivamente antes de enviar nueva solicitud
+    if (Number(robloxBotAccountState.current_friends_count || 0) >= 180) {
+        await limpiarListaAmigosBotRoblox(false).catch(() => null);
+    }
+
+    // 1. Verificar si ya están en la lista de amigos del bot
+    const currentFriends = await obtenerListaAmigosBotRoblox();
+    if (currentFriends.some(f => Number(f.id) === recipientId)) {
+        return {
+            delivered: true,
+            alreadyFriends: true,
+            channel: 'roblox_friend_already',
+            botAccount: obtenerEstadoCuentaBotRoblox(),
+            reason: null
         };
     }
 
@@ -1067,6 +1272,7 @@ async function enviarMensajeVerificacionEnRoblox(targetProfile, secretInboxCode,
     if (!csrfToken) {
         return {
             delivered: false,
+            alreadyFriends: false,
             channel: 'csrf_failed',
             botAccount: botStatus,
             reason: 'No se pudo obtener token CSRF de la cuenta de Roblox del bot (revisar cookie en /config).'
@@ -1080,118 +1286,140 @@ async function enviarMensajeVerificacionEnRoblox(targetProfile, secretInboxCode,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     };
 
-    const recipientId = Number(targetProfile.roblox_user_id);
-
-    // 1. Intentar envío a la Galería de Mensajes de Roblox (roblox.com/messages)
+    // 2. Si el usuario ya le había enviado una solicitud de amistad entrante al bot, aceptarla directamente
     try {
-        const pmRes = await axios.post(
-            'https://privatemessages.roblox.com/v1/messages/send',
-            {
-                userId: Number(botStatus.roblox_user_id),
-                subject: `Código de Verificación Kortex: ${secretInboxCode}`,
-                body:
-                    `¡Hola @${targetProfile.roblox_username}!\n\n` +
-                    `Recibimos una solicitud para verificar tu cuenta de Roblox en Kortex.\n\n` +
-                    `🔑 Tu código secreto de verificación de 6 dígitos es: ${secretInboxCode}\n\n` +
-                    `Introducí estos 6 dígitos en Kortex para confirmar que sos el propietario real de esta cuenta.\n` +
-                    `Si no solicitaste este código, podés ignorar este mensaje con total tranquilidad.`,
-                recipientId,
-                includePreviousMessage: false
-            },
-            { headers, timeout: 8500 }
+        const acceptRes = await axios.post(
+            `https://friends.roblox.com/v1/users/${recipientId}/accept-friend-request`,
+            {},
+            { headers, timeout: 6000 }
         );
-
-        if (pmRes.data && pmRes.data.success === true) {
+        if (acceptRes.status === 200) {
             return {
                 delivered: true,
-                channel: 'roblox_inbox',
-                botAccount: botStatus,
+                alreadyFriends: true,
+                channel: 'roblox_friend_accepted',
+                botAccount: obtenerEstadoCuentaBotRoblox(),
                 reason: null
             };
         }
     } catch {
-        // Si la Galería de Mensajes está restringida por privacidad del usuario, intentar Chat de Roblox
+        // No había solicitud entrante previa; continuar enviando solicitud saliente
     }
 
-    // 2. Intentar envío por Chat de Roblox (chat.roblox.com) si son amigos o tiene chat permitido
+    // 3. Enviar Solicitud de Amistad saliente desde el Bot hacia el usuario destino
     try {
-        const convRes = await axios.post(
-            'https://chat.roblox.com/v2/start-one-to-one-conversation',
-            { participantUserId: recipientId },
-            { headers, timeout: 6500 }
+        const reqRes = await axios.post(
+            `https://friends.roblox.com/v1/users/${recipientId}/request-friendship`,
+            { friendshipOriginSourceType: 0 },
+            { headers, timeout: 7500 }
         );
-        const convId = convRes.data?.conversation?.id;
-        if (convId) {
-            const chatRes = await axios.post(
-                'https://chat.roblox.com/v2/send-message',
-                {
-                    conversationId: convId,
-                    message: `🔐 [Kortex Verificación] ¡Hola @${targetProfile.roblox_username}! Tu código secreto de 6 dígitos es: ${secretInboxCode}`
-                },
-                { headers, timeout: 6500 }
-            );
-            if (chatRes.data && (chatRes.data.resultType === 'Success' || chatRes.data.messageId)) {
-                return {
-                    delivered: true,
-                    channel: 'roblox_chat',
-                    botAccount: botStatus,
-                    reason: null
-                };
-            }
+
+        if (reqRes.status === 200 && (reqRes.data?.success !== false)) {
+            return {
+                delivered: true,
+                alreadyFriends: false,
+                channel: 'roblox_friend_request',
+                botAccount: obtenerEstadoCuentaBotRoblox(),
+                reason: null
+            };
         }
-    } catch {
-        // Silencioso
+    } catch (err) {
+        const errMsg = err.response?.data?.errors?.[0]?.message || '';
+        if (/already friends/i.test(errMsg)) {
+            return {
+                delivered: true,
+                alreadyFriends: true,
+                channel: 'roblox_friend_already',
+                botAccount: obtenerEstadoCuentaBotRoblox(),
+                reason: null
+            };
+        }
     }
 
+    // 4. Si Roblox pidió Captcha en el envío saliente o el usuario bloqueó solicitudes, permitir que el usuario envíe la solicitud al Bot (el bot la auto-acepta)
     return {
         delivered: false,
-        channel: 'roblox_privacy_blocked',
-        botAccount: botStatus,
-        reason: `El usuario @${targetProfile.roblox_username} tiene bloqueada la recepción de mensajes de desconocidos en la privacidad de Roblox (${verifyPhrase}).`
+        alreadyFriends: false,
+        channel: 'roblox_incoming_friend_or_bio',
+        botAccount: obtenerEstadoCuentaBotRoblox(),
+        reason: `Aceptá la solicitud de @${botStatus.roblox_username} o enviale solicitud de amistad a @${botStatus.roblox_username} en Roblox (${verifyPhrase}).`
     };
 }
 
 /**
- * Revisa la Galería de Mensajes de Entrada de la propia cuenta de Roblox del Bot
- * por si el usuario destino le envió un mensaje dentro de Roblox al Bot para verificarse.
+ * Comprueba si el usuario destino ya aceptó la solicitud de amistad del Bot (o si le envió una solicitud al Bot).
+ * Si la amistad se confirma, devuelve { verified: true, autoUnfriended: true } y ELIMINA AUTOMÁTICAMENTE al usuario
+ * de los amigos del Bot para mantener la lista limpia.
  */
-async function verificarMensajeRecibidoEnBuzonBotRoblox(targetRobloxUserId, createdAt, verifyPhrase, secretCode) {
-    if (!robloxBotAccountState.connected || !robloxBotAccountState.cookie) return false;
-    try {
-        const res = await axios.get(
-            'https://privatemessages.roblox.com/v1/messages?messageTab=0&pageNumber=0&pageSize=20',
-            {
-                headers: {
-                    Cookie: `.ROBLOSECURITY=${robloxBotAccountState.cookie}`,
+async function verificarAmistadYEliminarAmigoBotRoblox(targetRobloxUserId) {
+    if (!robloxBotAccountState.connected || !robloxBotAccountState.cookie || !robloxBotAccountState.roblox_user_id) {
+        return { verified: false, autoUnfriended: false, methodNote: null };
+    }
+
+    const targetId = Number(targetRobloxUserId);
+    const cookie = robloxBotAccountState.cookie;
+    let csrfToken = null;
+    let isFriendNow = false;
+    let methodNote = null;
+
+    // 1. Revisar si ya figura en la lista de amigos actuales de la cuenta del Bot
+    const currentFriends = await obtenerListaAmigosBotRoblox();
+    if (currentFriends.some(f => Number(f.id) === targetId)) {
+        isFriendNow = true;
+        methodNote = `Solicitud de amistad aceptada con @${robloxBotAccountState.roblox_username}`;
+    }
+
+    // 2. Si aún no figura como amigo, revisar si el usuario le envió una solicitud de amistad entrante al Bot y aceptarla automáticamente
+    if (!isFriendNow) {
+        try {
+            csrfToken = await obtenerCsrfTokenRoblox(cookie);
+            if (csrfToken) {
+                const headers = {
+                    Cookie: `.ROBLOSECURITY=${cookie}`,
+                    'x-csrf-token': csrfToken,
+                    'Content-Type': 'application/json',
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                timeout: 7000
-            }
-        );
-        const collection = res.data?.collection || [];
-        for (const msg of collection) {
-            const senderId = Number(msg.sender?.id || 0);
-            if (senderId === Number(targetRobloxUserId)) {
-                const bodyAndSub = `${msg.subject || ''} ${msg.body || ''}`.toUpperCase();
-                const msgTime = msg.created ? new Date(msg.created).getTime() : Date.now();
-                if (
-                    bodyAndSub.includes(String(verifyPhrase).toUpperCase()) ||
-                    bodyAndSub.includes(String(secretCode)) ||
-                    msgTime >= createdAt - 5 * 60 * 1000
-                ) {
-                    return true;
+                };
+                const acceptRes = await axios.post(
+                    `https://friends.roblox.com/v1/users/${targetId}/accept-friend-request`,
+                    {},
+                    { headers, timeout: 6000 }
+                );
+                if (acceptRes.status === 200) {
+                    isFriendNow = true;
+                    methodNote = `Solicitud de amistad verificada y aceptada por @${robloxBotAccountState.roblox_username}`;
                 }
             }
+        } catch {
+            // Aún no envió ni aceptó solicitud
         }
-    } catch {
-        // Silencioso
     }
-    return false;
+
+    if (!isFriendNow) {
+        return { verified: false, autoUnfriended: false, methodNote: null };
+    }
+
+    // 3. ¡Amistad confirmada! Incrementar contador y ELIMINAR INMEDIATAMENTE de amigos para mantener limpio el cupo de 200 amigos
+    robloxBotAccountState.verified_by_friendship_count = Number(robloxBotAccountState.verified_by_friendship_count || 0) + 1;
+    let autoUnfriended = false;
+    if (robloxBotAccountState.auto_unfriend_enabled !== false) {
+        const unfriendRes = await eliminarAmigoDeCuentaBotRoblox(targetId, csrfToken);
+        autoUnfriended = Boolean(unfriendRes.ok);
+    }
+    guardarCuentaBotRobloxEnDisco();
+
+    return {
+        verified: true,
+        autoUnfriended,
+        methodNote: autoUnfriended
+            ? `${methodNote} (amigo eliminado automáticamente tras verificar)`
+            : methodNote
+    };
 }
 
 /**
  * Verifica directamente en los servidores de Roblox (users.roblox.com/v1/users/{id})
- * si el usuario colocó la etiqueta de verificación en su perfil de Roblox (alternativa en Roblox cuando tiene mensajes cerrados).
+ * si el usuario colocó la etiqueta de verificación en su perfil de Roblox (respaldo alternativo).
  */
 async function verificarFraseEnPerfilRoblox(targetRobloxUserId, verifyPhrase) {
     if (!targetRobloxUserId || !verifyPhrase) return false;
@@ -1207,19 +1435,12 @@ async function verificarFraseEnPerfilRoblox(targetRobloxUserId, verifyPhrase) {
     }
 }
 
-// Cargar también la cuenta de Roblox del Bot al iniciar el módulo
+// Cargar la cuenta de Roblox del Bot al iniciar el módulo
 cargarCuentaBotRobloxDesdeDisco();
 
-/**
- * SISTEMA DE VERIFICACIÓN EN 2 PASOS EXCLUSIVO POR PLATAFORMA ROBLOX:
- * - NUNCA envía el código al MD de Discord ni lo muestra en la pantalla o panel.
- * - La cuenta de Roblox del Bot envía el código secreto de 6 dígitos a la Galería de Mensajes de Roblox
- *   (roblox.com/messages) o al Chat de Roblox del usuario destino.
- * - Si el usuario destino tiene sus mensajes de Roblox cerrados por privacidad, puede:
- *   a) Abrir sus mensajes en Roblox y reenviar,
- *   b) Enviarle un mensaje en Roblox a la cuenta del Bot, o
- *   c) Poner la etiqueta pública en su Descripción de Roblox (validada en vivo contra users.roblox.com).
- */
+// Registro de verificaciones completadas automáticamente en segundo plano para notificar a la web o Discord
+const recentlyAutoVerifiedRoblox = new Map();
+
 function obtenerVerificacionPendienteRoblox(discordId) {
     const key = String(discordId || 'default_session').trim();
     const pending = pendingRobloxVerifications.get(key);
@@ -1237,6 +1458,12 @@ function cancelarVerificacionCodigoRoblox(discordId) {
     return true;
 }
 
+/**
+ * Inicia el proceso de vinculación rápida en Roblox:
+ * - Si la cuenta del Bot está conectada, le envía una Solicitud de Amistad en Roblox al usuario destino.
+ * - Apenas el usuario acepta la solicitud de amistad, el sistema verifica su cuenta automáticamente y lo elimina de amigos.
+ * - Incluye también el código de respaldo `KORTEX-XXXX` en la descripción por si el usuario prefiere verificar por biografía.
+ */
 async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
     const key = String(discordId || 'default_session').trim();
     const raw = String(robloxInput || '').trim();
@@ -1249,43 +1476,73 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
         return { ok: false, message: `No se encontró ningún usuario de Roblox con "${raw}". Verificá el nombre o ID.` };
     }
 
-    // Código secreto de 6 dígitos que SOLO se envía por dentro de Roblox (JAMAŚ se muestra en Discord ni en la web)
-    const secretInboxCode = String(Math.floor(100000 + Math.random() * 900000));
-    // Etiqueta pública distinta para verificar en Roblox si el usuario tiene su buzón cerrado a desconocidos
     const robloxProfileVerifyPhrase = `KORTEX-${Math.floor(1000 + Math.random() * 9000)}`;
     const createdAt = Date.now();
     const expiresAt = createdAt + 10 * 60 * 1000; // 10 minutos
 
-    // Enviar el código secreto directamente a la Galería de Mensajes / Chat de Roblox usando la Cuenta de Roblox del Bot
-    const delivery = await enviarMensajeVerificacionEnRoblox(resolved, secretInboxCode, robloxProfileVerifyPhrase);
+    const delivery = await enviarSolicitudAmistadEnRoblox(resolved, robloxProfileVerifyPhrase);
     const botAccount = delivery.botAccount || obtenerEstadoCuentaBotRoblox();
+
+    // Si ya eran amigos o tenía solicitud entrante previa, verificar y auto-eliminar de amigos en el acto
+    if (delivery.alreadyFriends) {
+        await eliminarAmigoDeCuentaBotRoblox(resolved.roblox_user_id).catch(() => null);
+        robloxBotAccountState.verified_by_friendship_count = Number(robloxBotAccountState.verified_by_friendship_count || 0) + 1;
+        guardarCuentaBotRobloxEnDisco();
+
+        const saved = await guardarCuentaVinculada(key, {
+            ...resolved,
+            auth_method: 'roblox_friendship',
+            roblox_oauth_verified: false,
+            roblox_access_token: null
+        });
+
+        return {
+            ok: true,
+            step: 'verified',
+            discordId: key,
+            linkedAccount: saved,
+            profile: resolved,
+            robloxMessageDelivered: true,
+            deliveryChannel: 'roblox_friend_instant',
+            message: `✅ ¡Solicitud de amistad detectada! Cuenta **@${saved.roblox_username}** verificada automáticamente y eliminada de la lista de amigos de **@${botAccount.roblox_username}** para mantener limpio el cupo.`
+        };
+    }
+
+    const botProfileUrl = botAccount.roblox_user_id
+        ? `https://www.roblox.com/users/${botAccount.roblox_user_id}/profile`
+        : 'https://www.roblox.com/users/friends#!/friend-requests';
 
     const safePublicMetadata = {
         sender: botAccount.connected
-            ? `Cuenta de Roblox del Bot: @${botAccount.roblox_username} (ID ${botAccount.roblox_user_id})`
+            ? `Bot Verificador en Roblox: @${botAccount.roblox_username} (ID ${botAccount.roblox_user_id})`
             : 'Verificador en Plataforma Roblox',
         recipient: `@${resolved.roblox_username} (ID ${resolved.roblox_user_id})`,
         sentAt: new Date(createdAt).toISOString(),
         expiresInMinutes: 10,
         robloxMessageDelivered: Boolean(delivery.delivered),
+        friendRequestSent: Boolean(delivery.delivered),
         deliveryChannel: delivery.channel,
         botRobloxConnected: Boolean(botAccount.connected),
         botRobloxUsername: botAccount.roblox_username || null,
         botRobloxUserId: botAccount.roblox_user_id || null,
-        robloxMessagesUrl: 'https://www.roblox.com/messages',
+        botProfileUrl,
+        robloxFriendRequestsUrl: 'https://www.roblox.com/users/friends#!/friend-requests',
+        robloxMessagesUrl: 'https://www.roblox.com/users/friends#!/friend-requests',
         robloxProfileUrl: `https://www.roblox.com/users/${resolved.roblox_user_id}/profile`,
-        robloxProfileVerifyPhrase
+        robloxProfileVerifyPhrase,
+        profileChallengePhrase: robloxProfileVerifyPhrase,
+        autoUnfriendAfterVerify: true
     };
 
     const challenge = {
         discordId: key,
-        secretInboxCode, // SECRETO: Jamás se expone en el cliente ni en Discord
         robloxProfileVerifyPhrase,
         profile: resolved,
         createdAt,
         expiresAt,
         attempts: 0,
         robloxMessageDelivered: Boolean(delivery.delivered),
+        friendRequestSent: Boolean(delivery.delivered),
         deliveryChannel: delivery.channel,
         botRobloxConnected: Boolean(botAccount.connected),
         botRobloxUsername: botAccount.roblox_username || null,
@@ -1296,18 +1553,17 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
     pendingRobloxVerifications.set(key, challenge);
 
     let statusMessage = '';
-    if (delivery.delivered && delivery.channel === 'roblox_inbox') {
+    if (delivery.delivered && delivery.channel === 'roblox_friend_request') {
         statusMessage =
-            `📬 La cuenta de Roblox del bot (**@${botAccount.roblox_username}**) le envió un mensaje con el código secreto de 6 dígitos a la **Galería de Mensajes en Roblox (\`roblox.com/messages\`)** de **@${resolved.roblox_username}**. Abrí tus mensajes en Roblox e introducí el código.`;
-    } else if (delivery.delivered && delivery.channel === 'roblox_chat') {
-        statusMessage =
-            `💬 La cuenta de Roblox del bot (**@${botAccount.roblox_username}**) le envió el código secreto de 6 dígitos al **Chat de Roblox** de **@${resolved.roblox_username}**. Revisá tu chat en Roblox e introducí el código.`;
+            `🤝 La cuenta de Roblox del bot (**@${botAccount.roblox_username}**) le envió una **Solicitud de Amistad en Roblox** a **@${resolved.roblox_username}**. ` +
+            `Aceptala en Roblox: apenas la aceptes, el bot **verificará tu cuenta automáticamente y te eliminará de sus amigos** para mantener su lista limpia.`;
     } else if (botAccount.connected) {
         statusMessage =
-            `🔒 Intentamos enviar el código desde **@${botAccount.roblox_username}** a la Galería de Mensajes en Roblox de **@${resolved.roblox_username}**, pero esa cuenta tiene los mensajes privados restringidos en Roblox. Abrí tus mensajes en Roblox (*Privacidad → ¿Quién puede enviarme mensajes? → Todos*) y reintentá, o enviále un mensaje en Roblox a **@${botAccount.roblox_username}** (o colocá \`${robloxProfileVerifyPhrase}\` en tu descripción de Roblox) y tocá Verificar.`;
+            `🤝 Para verificar **@${resolved.roblox_username}**, aceptá la solicitud de **@${botAccount.roblox_username}** en Roblox (o entrá al perfil de **@${botAccount.roblox_username}** y enviale solicitud de amistad). ` +
+            `Apenas se conecten como amigos, el bot verificará tu cuenta automáticamente y se eliminará de tu lista de amigos (también podés usar \`${robloxProfileVerifyPhrase}\` en tu descripción).`;
     } else {
         statusMessage =
-            `🛡️ Verificación en Roblox para **@${resolved.roblox_username}**: Para verificar sin revelar claves en Discord, colocá \`${robloxProfileVerifyPhrase}\` en tu descripción ("Acerca de") en Roblox y tocá Verificar (o conectá la Cuenta de Roblox del Bot en \`/config\` para enviar códigos directo al Buzón de Mensajes de Roblox).`;
+            `🛡️ Verificación en Roblox para **@${resolved.roblox_username}**: Colocá \`${robloxProfileVerifyPhrase}\` en tu descripción ("Acerca de") en Roblox y tocá Comprobar (o conectá la Cuenta de Roblox del Bot en \`/config\` para verificar con Solicitud de Amistad automática + Auto-Unfriend).`;
     }
 
     return {
@@ -1316,17 +1572,32 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
         discordId: key,
         profile: resolved,
         robloxMessageDelivered: Boolean(delivery.delivered),
+        friendRequestSent: Boolean(delivery.delivered),
         deliveryChannel: delivery.channel,
         botInboxMessage: safePublicMetadata,
         message: statusMessage
     };
 }
 
+/**
+ * Comprueba si el usuario ya aceptó la solicitud de amistad del Bot en Roblox (o colocó la frase en su perfil).
+ * Apenas detecta la amistad, verifica la cuenta y ELIMINA AUTOMÁTICAMENTE al usuario de la lista de amigos del bot.
+ */
 async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
     const key = String(discordId || 'default_session').trim();
     const pending = obtenerVerificacionPendienteRoblox(key);
 
     if (!pending) {
+        const autoDone = recentlyAutoVerifiedRoblox.get(key);
+        if (autoDone && Date.now() - autoDone.timestamp < 5 * 60 * 1000) {
+            recentlyAutoVerifiedRoblox.delete(key);
+            return {
+                ok: true,
+                step: 'verified',
+                linkedAccount: autoDone.linkedAccount,
+                message: autoDone.message
+            };
+        }
         return {
             ok: false,
             message: 'No hay una verificación pendiente o ya expiró. Escribí tu usuario o ID de Roblox nuevamente.'
@@ -1334,66 +1605,56 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
     }
 
     pending.attempts = (pending.attempts || 0) + 1;
-    if (pending.attempts > 5) {
+    if (pending.attempts > 15) {
         pendingRobloxVerifications.delete(key);
         return {
             ok: false,
-            message: '❌ Se superó el límite de 5 intentos por seguridad. Solicitá un nuevo envío en Roblox.'
+            message: '❌ La solicitud de verificación expiró por exceso de intentos. Iniciá una nueva solicitud en Roblox.'
         };
     }
 
-    const cleanInput = String(codeInput || '').trim();
-    const onlyDigits = cleanInput.replace(/\D+/g, '');
-
     let verifiedMethodNote = null;
+    let authMethodTag = 'roblox_verified';
 
-    // 1. Validar si introdujo el código secreto de 6 dígitos enviado a su Galería de Mensajes / Chat de Roblox
-    if (onlyDigits && onlyDigits.length === 6 && onlyDigits === pending.secretInboxCode) {
-        if (pending.robloxMessageDelivered) {
-            verifiedMethodNote = 'Verificada por mensaje en la Galería de Mensajes / Chat de Roblox';
+    // 1. Verificar si el usuario aceptó la Solicitud de Amistad del Bot en Roblox (y auto-eliminar de amigos de inmediato)
+    if (pending.botRobloxConnected || robloxBotAccountState.connected) {
+        const friendCheck = await verificarAmistadYEliminarAmigoBotRoblox(pending.profile.roblox_user_id);
+        if (friendCheck.verified) {
+            verifiedMethodNote = friendCheck.methodNote;
+            authMethodTag = 'roblox_friendship';
         }
     }
 
-    // 2. Validar si el usuario le envió un mensaje desde su cuenta de Roblox al Buzón de Roblox del Bot
-    if (!verifiedMethodNote && pending.botRobloxConnected) {
-        const sentToBotOnRoblox = await verificarMensajeRecibidoEnBuzonBotRoblox(
-            pending.profile.roblox_user_id,
-            pending.createdAt,
-            pending.robloxProfileVerifyPhrase,
-            pending.secretInboxCode
-        );
-        if (sentToBotOnRoblox) {
-            verifiedMethodNote = `Verificada por mensaje en Roblox recibido en @${pending.botRobloxUsername}`;
-        }
-    }
-
-    // 3. Validar en vivo en los servidores de Roblox (users.roblox.com) si el usuario colocó la etiqueta en su perfil de Roblox
+    // 2. Respaldo: Validar en vivo en users.roblox.com si el usuario colocó la etiqueta KORTEX-XXXX en la descripción de su perfil
     if (!verifiedMethodNote) {
+        const cleanInput = String(codeInput || '').trim().toUpperCase();
+        const phraseToMatch = pending.robloxProfileVerifyPhrase;
         const hasPhraseOnRobloxProfile = await verificarFraseEnPerfilRoblox(
             pending.profile.roblox_user_id,
-            pending.robloxProfileVerifyPhrase
+            phraseToMatch
         );
-        if (hasPhraseOnRobloxProfile) {
-            verifiedMethodNote = 'Verificada directamente en el perfil oficial de Roblox';
+        if (hasPhraseOnRobloxProfile || (cleanInput && cleanInput === phraseToMatch && hasPhraseOnRobloxProfile)) {
+            verifiedMethodNote = 'Verificada mediante código en descripción del perfil de Roblox';
+            // Si además había aceptado amistad, limpiar amigo por seguridad
+            await eliminarAmigoDeCuentaBotRoblox(pending.profile.roblox_user_id).catch(() => null);
         }
     }
 
     if (!verifiedMethodNote) {
-        if (pending.robloxMessageDelivered) {
+        if (pending.botRobloxConnected || robloxBotAccountState.connected) {
+            const botName = pending.botRobloxUsername || robloxBotAccountState.roblox_username || 'Bot';
             return {
                 ok: false,
                 message:
-                    `❌ El código no coincide con el enviado a la Galería de Mensajes de Roblox de **@${pending.profile.roblox_username}**. ` +
-                    `Abrí \`roblox.com/messages\` en tu cuenta de Roblox, buscá el mensaje de **@${pending.botRobloxUsername}** e introducí los 6 dígitos exactos.`
+                    `⏳ Aún no figura aceptada la solicitud de amistad con **@${botName}** para **@${pending.profile.roblox_username}**. ` +
+                    `Entrá a **Solicitudes de Amistad en Roblox** y aceptá a **@${botName}** (o colocá \`${pending.robloxProfileVerifyPhrase}\` en la descripción de tu perfil de Roblox) y el bot te verificará y borrará de amigos automáticamente.`
             };
         }
         return {
             ok: false,
             message:
-                `❌ Aún no se detectó la verificación en Roblox para **@${pending.profile.roblox_username}**. ` +
-                (pending.botRobloxConnected
-                    ? `Habilitá la recepción de mensajes en tu privacidad de Roblox para recibir el código de **@${pending.botRobloxUsername}** en \`roblox.com/messages\`, enviále un mensaje en Roblox a **@${pending.botRobloxUsername}**, o colocá \`${pending.robloxProfileVerifyPhrase}\` en la descripción de tu perfil en Roblox antes de verificar.`
-                    : `Colocá \`${pending.robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en **Roblox** (\`roblox.com\`) y volvé a tocar Verificar (o conectá la Cuenta de Roblox del Bot desde \`/config\` para enviar códigos al buzón de Roblox).`)
+                `⏳ Aún no se detectó la etiqueta \`${pending.robloxProfileVerifyPhrase}\` en el perfil de **@${pending.profile.roblox_username}**. ` +
+                `Colocá \`${pending.robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en **Roblox** y volvé a tocar Comprobar.`
         };
     }
 
@@ -1401,16 +1662,25 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
 
     const saved = await guardarCuentaVinculada(key, {
         ...pending.profile,
-        auth_method: 'roblox_verified',
+        auth_method: authMethodTag,
         roblox_oauth_verified: false,
         roblox_access_token: null
+    });
+
+    const finalMsg =
+        `✅ Identidad verificada en Roblox (${verifiedMethodNote}). Cuenta **@${saved.roblox_username}** vinculada y lista de amigos del bot depurada automáticamente.`;
+
+    recentlyAutoVerifiedRoblox.set(key, {
+        timestamp: Date.now(),
+        linkedAccount: saved,
+        message: finalMsg
     });
 
     return {
         ok: true,
         step: 'verified',
         linkedAccount: saved,
-        message: `✅ Identidad confirmada en Roblox (${verifiedMethodNote}). Cuenta **@${saved.roblox_username}** vinculada de forma segura.`
+        message: finalMsg
     };
 }
 
@@ -1443,8 +1713,8 @@ async function verificarAutorizacionRobloxOAuth(discordId) {
 }
 
 /**
- * PANEL DE CUENTA DE ROBLOX (Dentro de /roblox):
- * Muestra el estado de la cuenta de Roblox, opciones de conexión (OAuth 2.0 o Verificación en Roblox por Galería de Mensajes)
+ * PANEL DE CUENTA DE ROBLOX (Dentro de /roblox y /config):
+ * Muestra el estado de la cuenta de Roblox autorizada exclusivamente mediante Roblox OAuth 2.0 Oficial
  * y el historial únicamente cuando la cuenta está activa.
  */
 async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
@@ -1461,29 +1731,25 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
 
     const uid = String(discordId);
     const cuenta = await verificarAutorizacionRobloxOAuth(uid).catch(() => null);
-    const pendingVerif = obtenerVerificacionPendienteRoblox(uid);
-    const botRoblox = obtenerEstadoCuentaBotRoblox();
     const hist = obtenerHistorialCuenta(uid).slice(0, 3);
     const baseAppUrl = (process.env.APP_URL || process.env.PUBLIC_GUIDE_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app').replace(/\/+$/, '');
 
     const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
     const tieneCuenta = Boolean(cuenta && cuenta.roblox_user_id);
-    const esOAuth = Boolean(cuenta?.auth_method === 'oauth' || cuenta?.roblox_oauth_verified);
 
     const container = new ContainerBuilder().setAccentColor(tieneCuenta ? COLORES.exito : COLORES.primario);
 
     const fichaEstado = tieneCuenta
         ? (
             `# 🎮 Mi Cuenta de Roblox\n` +
-            `👤 **Jugador:** **${cuenta.display_name || cuenta.roblox_username}** (\`@${cuenta.roblox_username}\`)  •  🆔 **ID:** \`${cuenta.roblox_user_id}\`\n` +
-            `🛡️ **Estado:** ${esOAuth ? '🟢 **Autorizada en Roblox (OAuth 2.0 Persistente)**' : '🔐 **Verificada en la Plataforma de Roblox (Galería de Mensajes / Perfil)**'}\n` +
-            `-# Tu historial se guarda mientras tengas la cuenta activa y se limpia automáticamente si la quitás.`
+            `👤 **Jugador:** **${cuenta.display_name || cuenta.roblox_username}** (\`@${cuenta.roblox_username}\`)\n` +
+            `🟢 **Estado:** Cuenta vinculada`
         )
         : (
             `# 🎮 Vincular Cuenta de Roblox\n` +
-            `⚪ **Estado actual:** *Sin cuenta de Roblox activa*\n` +
-            `-# Elegí cualquiera de las dos opciones seguras en Roblox para conectar tu perfil.`
+            `⚪ **Estado:** Sin cuenta vinculada\n` +
+            `-# Conectá tu cuenta de Roblox para cargar tu avatar automáticamente.`
         );
 
     const headerDisplay = new TextDisplayBuilder().setContent(
@@ -1502,104 +1768,36 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
 
     container.addSeparatorComponents(separador(true));
 
-    // Opción 1: Roblox OAuth 2.0 Oficial
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### 🔐 Opción 1: Conexión Oficial con Roblox OAuth 2.0\n` +
-                `Autorizá tu perfil desde la página oficial de **Roblox**. Tu sesión queda guardada de forma persistente.`
+                `### 🔗 Conexión con Roblox\n` +
+                `Iniciá sesión en Roblox para vincular o cambiar tu perfil.`
             ))
             .setButtonAccessory(
                 new ButtonBuilder()
-                    .setLabel('Autorizar en Roblox')
-                    .setEmoji('🔐')
+                    .setLabel(tieneCuenta ? 'Cambiar Cuenta' : 'Conectar Roblox')
+                    .setEmoji('🎮')
                     .setStyle(ButtonStyle.Link)
                     .setURL(directRobloxOAuthUrl)
             )
     );
 
-    container.addSeparatorComponents(separador());
-
-    // Opción 2: Verificación en 2 Pasos DENTRO DE ROBLOX (Galería de Mensajes de Roblox / Perfil de Roblox — NUNCA muestra el código en Discord)
-    if (pendingVerif) {
-        const targetName = pendingVerif.profile.roblox_username;
-        const targetId = pendingVerif.profile.roblox_user_id;
-
-        let textoVerifRoblox = '';
-        if (pendingVerif.robloxMessageDelivered) {
-            textoVerifRoblox =
-                `### 📬 Verificación en Roblox Enviada a @${targetName}\n` +
-                `🤖 **Cuenta Emisora en Roblox:** \`@${pendingVerif.botRobloxUsername}\`\n` +
-                `📩 **Dónde ver tu código:** Entrá a tu **Galería de Mensajes en Roblox (\`roblox.com/messages\`)** (o Chat de Roblox) con la cuenta **@${targetName}** (ID \`${targetId}\`).\n` +
-                `-# Por seguridad, el código secreto de 6 dígitos solo se envió dentro de Roblox y nunca se muestra acá. Leelo en tu buzón de Roblox e introducilo con el botón de al lado.`;
-        } else if (pendingVerif.botRobloxConnected) {
-            textoVerifRoblox =
-                `### 🔒 Buzón de Roblox Cerrado en @${targetName} (Verificación en Roblox)\n` +
-                `🤖 **Cuenta del Bot en Roblox:** \`@${pendingVerif.botRobloxUsername}\` intentó enviarte el código a \`roblox.com/messages\`, pero **@${targetName}** tiene los mensajes privados cerrados.\n` +
-                `✅ **Cómo verificar en Roblox:**\n` +
-                `1️⃣ Abrí tus mensajes en Roblox (*Privacidad → ¿Quién puede enviarme mensajes? → Todos*) y tocá **Reenviar en Roblox**, **O**\n` +
-                `2️⃣ Enviále un mensaje en Roblox a **@${pendingVerif.botRobloxUsername}** o colocá \`${pendingVerif.robloxProfileVerifyPhrase}\` en tu descripción ("Acerca de") en Roblox y tocá **Comprobar en Roblox**.`;
-        } else {
-            textoVerifRoblox =
-                `### 🛡️ Verificación en Plataforma Roblox para @${targetName}\n` +
-                `Para comprobar en **Roblox** que sos el dueño real de **@${targetName}** (ID \`${targetId}\`) sin exponer claves en Discord:\n` +
-                `• Colocá la etiqueta \`${pendingVerif.robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en **Roblox** (\`roblox.com/users/${targetId}/profile\`) y tocá **Comprobar en Roblox**.\n` +
-                `-# Si sos el propietario del bot, también podés conectar la Cuenta de Roblox del Bot en \`/config\` para enviar códigos directo a la Galería de Mensajes de Roblox.`;
-        }
-
-        container.addSectionComponents(
-            new SectionBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(textoVerifRoblox))
-                .setButtonAccessory(
-                    boton('btn_fastlink_verify_code_modal', 'Introducir Código Roblox', '🔑', ButtonStyle.Success)
-                )
-        );
-    } else {
-        const infoBotEmisor = botRoblox.connected
-            ? `La cuenta de Roblox del bot (**@${botRoblox.roblox_username}**) te enviará un mensaje privado con un código secreto de 6 dígitos directo a tu **Galería de Mensajes en Roblox (\`roblox.com/messages\`)**.`
-            : `Indicá tu **Nombre o ID de Roblox** para verificar tu cuenta directamente dentro de la plataforma **Roblox** (por Galería de Mensajes de Roblox o verificación en tu perfil de Roblox).`;
-
-        container.addSectionComponents(
-            new SectionBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `### 📬 Opción 2: Vincular por Nombre o ID (Verificación en Roblox)\n` +
-                    `${infoBotEmisor}`
-                ))
-                .setButtonAccessory(
-                    boton('btn_fastlink_manual_modal', 'Enviar a mi Roblox', '📬', ButtonStyle.Primary)
-                )
-        );
-    }
-
     if (tieneCuenta && hist.length > 0) {
         container.addSeparatorComponents(separador());
         const lineasHist = hist.map(h => `• **${h.title}** — *${h.detail || 'Registrado'}*`).join('\n');
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### 📋 Historial de tu Cuenta Activa\n${lineasHist}`
+            `### 📋 Actividad Reciente\n${lineasHist}`
         ));
     }
 
     container.addSeparatorComponents(separador(true));
 
-    const bottomButtons = [];
+    const bottomButtons = [
+        boton('btn_fastlink_refresh', 'Actualizar Estado', '🔄', ButtonStyle.Success)
+    ];
 
-    if (pendingVerif) {
-        bottomButtons.push(
-            boton('btn_fastlink_check_roblox', 'Comprobar en Roblox', '✅', ButtonStyle.Success),
-            new ButtonBuilder()
-                .setLabel('Abrir Mensajes de Roblox')
-                .setEmoji('📬')
-                .setStyle(ButtonStyle.Link)
-                .setURL('https://www.roblox.com/messages'),
-            boton('btn_fastlink_manual_modal', 'Reenviar / Cambiar Usuario', '🔄', ButtonStyle.Primary)
-        );
-    } else {
-        bottomButtons.push(
-            boton('btn_fastlink_refresh', 'Comprobar Estado', '🔄', ButtonStyle.Success)
-        );
-    }
-
-    if (tieneCuenta && bottomButtons.length < 4) {
+    if (tieneCuenta) {
         bottomButtons.push(
             new ButtonBuilder()
                 .setLabel('Ver Perfil en Roblox')
@@ -1609,11 +1807,11 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
         );
     }
 
-    bottomButtons.push(boton('btn_nav_main_menu', 'Volver a /roblox', '⬅️', ButtonStyle.Secondary));
+    bottomButtons.push(boton('btn_nav_main_menu', 'Volver Atrás', '⬅️', ButtonStyle.Secondary));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(bottomButtons.slice(0, 5)));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Centro de Cuenta de Roblox • Verificación en plataforma Roblox sin exponer claves en Discord')
+        footer('Cuenta de Roblox')
     ));
 
     return {
@@ -1627,8 +1825,9 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
 /**
  * PANEL DE CONFIGURACIÓN (/config):
  * Estructura por categorías seleccionables:
- * - Categoría 1 (cat_accounts): Cuentas, Conexión e Historial (Para cualquier usuario).
- * - Categoría 2 (cat_owner_bot): Configuración y Moderación del Bot (Exclusivo para el Propietario del Bot).
+ * - Categoría 1 (cat_accounts): Cuentas y Datos Guardados.
+ * - Categoría 2 (cat_preferences): Idioma y Preferencias.
+ * - Categoría 3 (cat_owner_bot): Panel del Propietario.
  */
 async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, categoryKey = 'cat_accounts', client = null) {
     const {
@@ -1655,40 +1854,189 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         ? discordUser.displayAvatarURL({ extension: 'png', size: 256 })
         : null;
 
+    const { obtenerPreferenciasUsuario, TIER_LABELS } = require('./i18n');
+    const prefs = obtenerPreferenciasUsuario(uid);
+    const isEn = prefs.lang === 'en';
+
     const esOwner = await esPropietarioDelBot(uid, client);
-    const activeCat = categoryKey === 'cat_owner_bot' ? 'cat_owner_bot' : 'cat_accounts';
+    const validCats = ['cat_accounts', 'cat_preferences', 'cat_owner_bot'];
+    const activeCat = validCats.includes(categoryKey) ? categoryKey : 'cat_accounts';
 
     const selectOptions = [
         new StringSelectMenuOptionBuilder()
-            .setLabel('Categoría: Cuentas y Conexión')
-            .setDescription('Estado de conexión OAuth2, cuenta de Roblox e historial guardado')
+            .setLabel(isEn ? 'Accounts & Saved Data' : 'Cuentas y Datos Guardados')
+            .setDescription(
+                isEn
+                    ? 'Link your Discord and Roblox accounts'
+                    : 'Vinculá tus cuentas de Discord y Roblox'
+            )
             .setValue('cat_accounts')
             .setEmoji('🔗')
-            .setDefault(activeCat === 'cat_accounts')
+            .setDefault(activeCat === 'cat_accounts'),
+        new StringSelectMenuOptionBuilder()
+            .setLabel(isEn ? 'Language & Preferences' : 'Idioma y Preferencias')
+            .setDescription(
+                isEn
+                    ? 'Switch language (Español / English) and pricing region'
+                    : 'Cambiar idioma (Español / Inglés) y región de precios'
+            )
+            .setValue('cat_preferences')
+            .setEmoji('🌐')
+            .setDefault(activeCat === 'cat_preferences')
     ];
 
     if (esOwner || activeCat === 'cat_owner_bot') {
         selectOptions.push(
             new StringSelectMenuOptionBuilder()
-                .setLabel('Categoría: Configuración y Moderación del Bot (Propietario)')
-                .setDescription('Cuenta de Roblox del Bot, Motor RAM/GPU y control general del bot')
+                .setLabel(
+                    isEn
+                        ? 'Bot Administration (Owner)'
+                        : 'Administración del Bot (Propietario)'
+                )
+                .setDescription(
+                    isEn
+                        ? 'System status, memory cleanup, and maintenance'
+                        : 'Estado del sistema, limpieza de memoria y mantenimiento'
+                )
                 .setValue('cat_owner_bot')
                 .setEmoji('🛡️')
                 .setDefault(activeCat === 'cat_owner_bot')
         );
     }
 
+    const placeholderByCat = {
+        cat_accounts: isEn
+            ? '🔗 Accounts & Saved Data...'
+            : '🔗 Cuentas y Datos Guardados...',
+        cat_preferences: isEn
+            ? '🌐 Language & Preferences...'
+            : '🌐 Idioma y Preferencias...',
+        cat_owner_bot: isEn
+            ? '🛡️ Bot Administration...'
+            : '🛡️ Administración del Bot...'
+    };
+
     const selectConfigCat = new StringSelectMenuBuilder()
         .setCustomId('config_category_select')
-        .setPlaceholder(
-            activeCat === 'cat_owner_bot'
-                ? '🛡️ Categoría actual: Configuración y Moderación del Bot...'
-                : '🔗 Categoría actual: Cuentas y Conexión (Seleccionar categoría)...'
-        )
+        .setPlaceholder(placeholderByCat[activeCat] || placeholderByCat.cat_accounts)
         .addOptions(selectOptions);
 
     // =========================================================
-    // CATEGORÍA 2: CONFIGURACIÓN Y MODERACIÓN DEL BOT (PROPIETARIO)
+    // CATEGORÍA: IDIOMA Y PREFERENCIAS (cat_preferences)
+    // =========================================================
+    if (activeCat === 'cat_preferences') {
+        const container = new ContainerBuilder().setAccentColor(0x5865F2);
+
+        const langActualBadge = isEn
+            ? '🇺🇸 **English**'
+            : '🇪🇸 **Español**';
+
+        const tierMap = TIER_LABELS[isEn ? 'en' : 'es'] || TIER_LABELS.es;
+        const tierActualLabel = tierMap[prefs.default_tier] || tierMap.TIER_100;
+
+        const headerPref = new TextDisplayBuilder().setContent(
+            (isEn
+                ? `# 🌐 Language & Preferences\n` +
+                  `🗣️ **Language:** ${langActualBadge}`
+                : `# 🌐 Idioma y Preferencias\n` +
+                  `🗣️ **Idioma:** ${langActualBadge}`) +
+            (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
+        );
+
+        if (avatarUrl && /^https?:\/\//i.test(String(avatarUrl))) {
+            container.addSectionComponents(
+                new SectionBuilder()
+                    .addTextDisplayComponents(headerPref)
+                    .setThumbnailAccessory(thumb => thumb.setURL(String(avatarUrl)))
+            );
+        } else {
+            container.addTextDisplayComponents(headerPref);
+        }
+
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
+        container.addSeparatorComponents(separador(true));
+
+        // 1. SELECCIÓN DE IDIOMA (SOLO ESPAÑOL E INGLÉS)
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            isEn
+                ? `### 🗣️ 1. Language\nChoose the language for all panels and tools.`
+                : `### 🗣️ 1. Idioma\nElegí el idioma de todos los paneles y herramientas.`
+        ));
+
+        container.addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_lang:es')
+                    .setLabel(isEn ? 'Español' : 'Español (Activo)')
+                    .setEmoji('🇪🇸')
+                    .setStyle(!isEn ? ButtonStyle.Success : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_lang:en')
+                    .setLabel(isEn ? 'English (Active)' : 'English')
+                    .setEmoji('🇺🇸')
+                    .setStyle(isEn ? ButtonStyle.Success : ButtonStyle.Secondary)
+            )
+        );
+
+        container.addSeparatorComponents(separador());
+
+        // 2. REGIÓN DE PRECIOS PREDETERMINADA (TIERS DE ROBLOX)
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            isEn
+                ? `### 🌎 2. Pricing Region\n**Current:** ${tierActualLabel}`
+                : `### 🌎 2. Región de Precios\n**Actual:** ${tierActualLabel}`
+        ));
+
+        const selectPrefTier = new StringSelectMenuBuilder()
+            .setCustomId('select_pref_tier')
+            .setPlaceholder(
+                isEn
+                    ? '🌎 Choose your default pricing region...'
+                    : '🌎 Elegí tu región de precios...'
+            )
+            .addOptions([
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Tier 100% — US, Spain, Global' : 'Tier 100% — EE.UU., España, Global')
+                    .setDescription(isEn ? 'Standard catalog price (0% discount)' : 'Precio estándar (Sin descuento regional)')
+                    .setValue('TIER_100')
+                    .setEmoji('🌐')
+                    .setDefault(prefs.default_tier === 'TIER_100'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Tier 80% — Mexico, Chile, Uruguay' : 'Tier 80% — México, Chile, Uruguay')
+                    .setDescription(isEn ? '20% regional discount' : '20% de descuento regional')
+                    .setValue('TIER_80')
+                    .setEmoji('🇲🇽')
+                    .setDefault(prefs.default_tier === 'TIER_80'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Tier 60% — Argentina, Brazil, Colombia, Peru' : 'Tier 60% — Argentina, Brasil, Colombia, Perú')
+                    .setDescription(isEn ? '40% regional discount' : '40% de descuento regional')
+                    .setValue('TIER_60')
+                    .setEmoji('🇦🇷')
+                    .setDefault(prefs.default_tier === 'TIER_60'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Tier 40% — Venezuela, Bolivia, Paraguay' : 'Tier 40% — Venezuela, Bolivia, Paraguay')
+                    .setDescription(isEn ? '60% regional discount' : '60% de descuento regional')
+                    .setValue('TIER_40')
+                    .setEmoji('🇻🇪')
+                    .setDefault(prefs.default_tier === 'TIER_40')
+            ]);
+
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefTier));
+        container.addSeparatorComponents(separador(true));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            footer(isEn ? 'Settings • /config' : 'Configuración • /config')
+        ));
+
+        return {
+            components: [container],
+            files: [],
+            attachments: [],
+            flags: MessageFlags.IsComponentsV2
+        };
+    }
+
+    // =========================================================
+    // CATEGORÍA: ADMINISTRACIÓN DEL BOT (PROPIETARIO)
     // =========================================================
     if (activeCat === 'cat_owner_bot') {
         if (!esOwner) {
@@ -1696,12 +2044,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                 .setAccentColor(COLORES.error)
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `# 🔒 Acceso Exclusivo del Propietario\n` +
-                    `La categoría **🛡️ Configuración y Moderación del Bot** está reservada exclusivamente para el propietario del bot.`
+                    `Esta sección está reservada para el propietario del bot.`
                 ))
                 .addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat))
                 .addSeparatorComponents(separador())
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    footer('Configuración (/config) • Acceso restringido al propietario')
+                    footer('Configuración • /config')
                 ));
 
             return {
@@ -1728,14 +2076,14 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                 return removed;
             },
             {
-                label: '🔐 Códigos Temporales de Verificación',
-                whatItCleans: 'Solicitudes de códigos de 6 dígitos caducadas (>15 min) sin tocar cuentas vinculadas',
+                label: '🤝 Solicitudes de Verificación',
+                whatItCleans: 'Solicitudes caducadas (>10 min)',
                 inspectFn: () => {
                     const total = pendingRobloxVerifications.size;
                     return {
                         entries: total,
                         approxKB: total * 2,
-                        detail: `${total} solicitud(es) temporal(es) en curso • ${fastLinkCache.size} cuenta(s) protegida(s)`
+                        detail: `${total} activa(s)`
                     };
                 }
             }
@@ -1743,7 +2091,6 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
         const recursos = leerEstadoRecursos();
         const ownerCfg = obtenerConfigPropietario();
-        const botRoblox = obtenerEstadoCuentaBotRoblox();
 
         const colorPanel = ownerCfg.maintenanceMode
             ? COLORES.alerta
@@ -1752,134 +2099,124 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         const container = new ContainerBuilder().setAccentColor(colorPanel);
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🛡️ Configuración y Moderación del Bot\n` +
-            `**👑 Panel Exclusivo del Propietario (${username})**\n` +
-            `Administrá la cuenta emisora de Roblox del bot, el arranque y calibración del motor RAM/GPU, la limpieza transparente de cachés y las mecánicas técnicas del sistema.` +
+            (isEn
+                ? `# 🛡️ Bot Administration\n**👑 Owner:** ${username}`
+                : `# 🛡️ Administración del Bot\n**👑 Propietario:** ${username}`) +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         ));
 
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
         container.addSeparatorComponents(separador(true));
 
-        // 1. SECCIÓN DE LA CUENTA DE ROBLOX DEL BOT PARA ENVIAR VERIFICACIONES EN ROBLOX
-        const estadoBotRobloxTexto = botRoblox.connected
-            ? `🟢 **Conectada en Roblox:** **@${botRoblox.roblox_username}** (\`ID: ${botRoblox.roblox_user_id}\`)\n` +
-              `> 📬 **Envío activo:** El bot usa esta cuenta para enviar los códigos de 6 dígitos directamente a la **Galería de Mensajes de Roblox (\`roblox.com/messages\`)** y **Chat de Roblox** de los usuarios.`
-            : `🟠 **Sin cuenta de Roblox del Bot conectada aún**\n` +
-              `> 💡 **Cómo activarla:** Tocá el botón **🤖 Cuenta Roblox del Bot** abajo y pegá la cookie \`.ROBLOSECURITY\` de la cuenta de Roblox que creaste para el bot. Así enviará los códigos directo al buzón de Roblox de cada usuario.`;
-
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `## 🤖 1. Cuenta Oficial de Roblox del Bot (Verificador en Roblox)\n` +
-            `> 👤 **Estado:** ${estadoBotRobloxTexto}`
-        ));
-
-        container.addSeparatorComponents(separador());
-
-        // 2. SISTEMA DEL OPTIMIZADOR Y DESGLOSE TRANSPARENTE DE QUÉ LIMPIA LA MEMORIA
-        const detalleLimiteHost = recursos.hostLimiteMB
-            ? ` / \`${recursos.hostLimiteMB} MB\` *(${recursos.pctHost}% • Libre: \`${recursos.hostLibreMB} MB\`)*`
-            : '';
-
-        const logsRecientes = Array.isArray(recursos.stats?.lastTerminalLogs) && recursos.stats.lastTerminalLogs.length > 0
-            ? recursos.stats.lastTerminalLogs.join('\n')
-            : '[MOTOR] > Calibración activa: Uso individual detectado (sin sobrecarga)';
-
-        const subsistemasLines = (recursos.inspeccion?.subsistemas || [])
-            .map(s => `> • **${s.label}:** \`${s.detail}\``)
-            .join('\n');
-
-        const httpHits = recursos.inspeccion?.httpStats?.cacheHits || 0;
-        const failovers = recursos.inspeccion?.httpStats?.failoverSuccesses || 0;
-
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `## ⚡ 2. Motor RAM / GPU y Qué Garantiza la Limpieza de Memoria\n` +
-            `> 🛡️ **Estado Calibrado:** **${recursos.etiquetaModo}**\n` +
-            `> 🎛️ **Modo del Motor:** **${recursos.limites.nombreModo}** *(${recursos.limites.descripcionModo})*\n` +
-            `> 💾 **RAM Proceso (Bot):** \`${recursos.rssMB} MB\` *(Heap JS: \`${recursos.heapUsadoMB} MB\` • Buffers Canvas/3D: \`${recursos.nativoCanvasMB} MB\`)*\n` +
-            `> 📦 **RAM Contenedor / Host:** \`${recursos.hostUsadaMB} MB\`${detalleLimiteHost}\n` +
-            `> 🚀 **Red y Velocidad:** \`${httpHits}\` consultas aceleradas en caché • \`${failovers}\` rescates anti-caída RoProxy • Cola GPU: \`${recursos.activeGpuTasks}/${recursos.limites.maxGpu}\`\n\n` +
-            `### 🧹 ¿Qué limpia exactamente el botón «Purgar Caché y Buffers»?\n` +
-            `El botón **descarga únicamente basura temporal acumulada en RAM** tras generar imágenes o consultar APIs:\n` +
-            (subsistemasLines ? `${subsistemasLines}\n` : '') +
-            `> 🔒 **Garantía de Protección:** **Jamás** borra cuentas vinculadas (\`${fastLinkCache.size}\`), ni sesiones OAuth2 (\`${discordConfigCache.size}\`), ni listas de monitoreo.\n\n` +
-            `### 🖥️ Terminal de Diagnóstico y Procedimientos\n` +
-            '```ansi\n' +
-            `kortex@optimizer:~$ status --subsystems --temp-kb=${recursos.inspeccion?.totalApproxKB || 0}KB\n` +
-            `${logsRecientes}\n` +
-            '```'
-        ));
-
-        container.addSeparatorComponents(separador());
-
-        // 3. CONTROL GENERAL DE MECÁNICAS TÉCNICAS DEL SISTEMA (SIN DESACTIVAR CATEGORÍAS DE HERRAMIENTAS)
-        const fmtEstado = (val) => (val ? '🟢 **Activo**' : '🔴 **Pausado**');
         const fmtMant = ownerCfg.maintenanceMode
-            ? '🟠 **ACTIVO (Solo vos como Propietario podés usar comandos)**'
-            : '🟢 **Desactivado (Abierto normalmente a todos los usuarios)**';
+            ? (isEn ? '🟠 Active (Owner Only)' : '🟠 Activo (Solo Propietario)')
+            : (isEn ? '🟢 Disabled' : '🟢 Desactivado');
+        const fmtOAuth = ownerCfg.requireDiscordOAuth
+            ? (isEn ? '🟢 Web OAuth Required' : '🟢 Login Web Requerido')
+            : (isEn ? '🔓 Direct Save (No Web)' : '🔓 Guardado Directo (Sin Web)');
+        const fmtLoading = ownerCfg.dynamicLoadingEnabled
+            ? (isEn ? '🟢 Step-by-Step (Rows 1–4)' : '🟢 Progresiva (Filas 1–4)')
+            : (isEn ? '⚡ Instant Reply' : '⚡ Respuesta Directa');
+        const fmtTycoon = ownerCfg.tycoonEnabled !== false
+            ? (isEn ? '🟢 Active' : '🟢 Activo')
+            : (isEn ? '⏸️ Paused' : '⏸️ Pausado');
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `## ⚙️ 3. Control General de Mecánicas Técnicas del Sistema\n` +
-            `> 🛠️ **Modo Mantenimiento Global:** ${fmtMant}\n` +
-            `> 📋 **Sistema de Procedimientos por Filas (1 a 4) + Terminal:** ${fmtEstado(ownerCfg.dynamicLoadingEnabled)} *(Solo aparece si una tarea demora >650ms)*\n` +
-            `> 🔔 **Monitoreo y Alertas en Segundo Plano:** ${fmtEstado(ownerCfg.backgroundMonitorsEnabled)} *(Escaneo periódico de precios, Robux pendientes y parches)*\n` +
-            `> 🎨 **Motor de Renderizado Pesado (Canvas HD / Exportador 3D .ZIP):** ${fmtEstado(ownerCfg.heavyCanvas3DEnabled)} *(Generación de tarjetas PNG y mallas .OBJ)*\n` +
-            `> ⚡ **Caché Rápida Anti-Rate-Limit (Roblox API):** ${fmtEstado(ownerCfg.smartApiCacheEnabled)} *(Acelera respuestas repetidas y evita bloqueos 429)*\n` +
-            `> 🛡️ **Escudo Failover Automático (\`roblox.com\` ↔ \`roproxy.com\`):** ${fmtEstado(ownerCfg.autoFailoverShieldEnabled)} *(Cambia de ruta automáticamente si Roblox falla)*`
+            isEn
+                ? `### ⚡ Active Mechanics & Parameters\n` +
+                  `• **Performance & RAM:** ${recursos.limites.nombreModo} (\`${recursos.rssMB} MB\`)\n` +
+                  `• **Limits per User:** Watchlist \`${ownerCfg.maxWishlistItems}\` • Sandbox \`${ownerCfg.maxSandboxItems}\` • Patches \`${ownerCfg.maxGameSubs}\`\n` +
+                  `• **Auto-Scan Timers:** Prices every \`${ownerCfg.priceCheckIntervalMinutes} min\` • Robux/Patches every \`${ownerCfg.workersIntervalMinutes} min\`\n` +
+                  `• **Personal Data Saving:** ${fmtOAuth}\n` +
+                  `• **Tycoon Ecosystem (\`/tycoon\`):** ${fmtTycoon}\n` +
+                  `• **Loading Screen:** ${fmtLoading}\n` +
+                  `• **Maintenance Mode:** ${fmtMant}`
+                : `### ⚡ Mecánicas y Parámetros Activos\n` +
+                  `• **Rendimiento y RAM:** ${recursos.limites.nombreModo} (\`${recursos.rssMB} MB\`)\n` +
+                  `• **Límites por Usuario:** Mi Lista \`${ownerCfg.maxWishlistItems}\` • Probador \`${ownerCfg.maxSandboxItems}\` • Parches \`${ownerCfg.maxGameSubs}\`\n` +
+                  `• **Escaneo Automático:** Precios cada \`${ownerCfg.priceCheckIntervalMinutes} min\` • Robux/Parches cada \`${ownerCfg.workersIntervalMinutes} min\`\n` +
+                  `• **Guardado de Datos:** ${fmtOAuth}\n` +
+                  `• **Ecosistema Tycoon (\`/tycoon\`):** ${fmtTycoon}\n` +
+                  `• **Pantalla de Carga:** ${fmtLoading}\n` +
+                  `• **Mantenimiento:** ${fmtMant}`
         ));
 
         const selectOwnerMechanics = new StringSelectMenuBuilder()
             .setCustomId('select_owner_mechanic')
-            .setPlaceholder('⚙️ Seleccioná una mecánica técnica del sistema para ajustar...')
+            .setPlaceholder(isEn ? '⚙️ Select a setting or mechanic to modify...' : '⚙️ Elegí un ajuste o mecánica para modificar...')
             .addOptions([
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(
-                        botRoblox.connected
-                            ? `Cuenta Roblox del Bot (@${botRoblox.roblox_username})`
-                            : 'Conectar Cuenta de Roblox del Bot (Verificador)'
-                    )
-                    .setDescription('Configura la cuenta de Roblox del bot que envía los códigos al buzón de Roblox')
-                    .setValue('owner_config_roblox_bot')
-                    .setEmoji('🤖'),
+                    .setLabel(isEn
+                        ? `Edit User Limits (${ownerCfg.maxWishlistItems} / ${ownerCfg.maxSandboxItems} / ${ownerCfg.maxGameSubs})`
+                        : `Editar Límites por Usuario (${ownerCfg.maxWishlistItems} / ${ownerCfg.maxSandboxItems} / ${ownerCfg.maxGameSubs})`)
+                    .setDescription(isEn
+                        ? 'Open modal to set exact limits for Watchlist, Sandbox, and Patch Alerts'
+                        : 'Abrir ventana para cambiar el tope de Mi Lista, Probador y Parches')
+                    .setValue('owner_modal_limits')
+                    .setEmoji('📏'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(`Modo del Motor RAM/GPU (Actual: ${ownerCfg.engineMode.toUpperCase()})`)
-                    .setDescription('Alterna entre Automático Calibrado, Ahorro Estricto y Alto Rendimiento')
-                    .setValue('owner_cycle_engine')
-                    .setEmoji('🎛️'),
+                    .setLabel(isEn
+                        ? `Edit Scan Intervals (${ownerCfg.priceCheckIntervalMinutes}m / ${ownerCfg.workersIntervalMinutes}m)`
+                        : `Editar Intervalos de Escaneo (${ownerCfg.priceCheckIntervalMinutes}m / ${ownerCfg.workersIntervalMinutes}m)`)
+                    .setDescription(isEn
+                        ? 'Open modal to set exact minutes for price, Robux, and patch checks'
+                        : 'Abrir ventana para ajustar cada cuántos minutos revisa precios y parches')
+                    .setValue('owner_modal_intervals')
+                    .setEmoji('⏱️'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Ejecutar Diagnóstico de Arranque y Calibración')
-                    .setDescription('Verifica fuentes TTF, sincroniza escudos HTTP y barre tokens vencidos')
-                    .setValue('owner_run_boot_diag')
-                    .setEmoji('🚀'),
+                    .setLabel(isEn
+                        ? `Tycoon Module /tycoon (${ownerCfg.tycoonEnabled !== false ? 'Pause' : 'Enable'})`
+                        : `Módulo /tycoon (${ownerCfg.tycoonEnabled !== false ? 'Pausar' : 'Activar'})`)
+                    .setDescription(isEn
+                        ? 'Enable or temporarily pause the /tycoon economy and studio command'
+                        : 'Activar o pausar temporalmente el comando /tycoon')
+                    .setValue('owner_toggle_tycoon')
+                    .setEmoji('🏭'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(`Modo Mantenimiento Global (${ownerCfg.maintenanceMode ? 'Desactivar' : 'Activar'})`)
-                    .setDescription('Restringe temporalmente el uso del bot solo para vos (Propietario)')
-                    .setValue('owner_toggle_maintenance')
-                    .setEmoji('🛠️'),
+                    .setLabel(isEn
+                        ? 'Moderate / Delete Abusive UGC Item (/tycoon)'
+                        : 'Moderar / Eliminar Ítem UGC (/tycoon)')
+                    .setDescription(isEn
+                        ? 'Open modal to remove a community UGC item from the catalog by ID or name'
+                        : 'Abrir ventana para borrar un ítem UGC de la comunidad por ID o nombre')
+                    .setValue('owner_modal_ugc_mod')
+                    .setEmoji('🎨'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(`Sistema de Ejecución por Filas (${ownerCfg.dynamicLoadingEnabled ? 'Pausar' : 'Activar'})`)
-                    .setDescription('Muestra las Filas 1 a 4 y la Terminal cuando un proceso pesado tarda en cargar')
+                    .setLabel(isEn
+                        ? `Discord Web Login (${ownerCfg.requireDiscordOAuth ? 'Switch to Direct Save' : 'Require Web OAuth'})`
+                        : `Login Web Discord (${ownerCfg.requireDiscordOAuth ? 'Permitir Guardado Directo' : 'Exigir Login Web'})`)
+                    .setDescription(isEn
+                        ? 'Allow saving items directly by Discord ID or require web OAuth login'
+                        : 'Permitir guardar en Mi Lista/Parches sin ir a la web o exigir login OAuth')
+                    .setValue('owner_toggle_discord_oauth')
+                    .setEmoji('🔐'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn
+                        ? `Step-by-Step Loading Screen (${ownerCfg.dynamicLoadingEnabled ? 'Disable' : 'Enable'})`
+                        : `Pantalla de Carga por Filas (${ownerCfg.dynamicLoadingEnabled ? 'Desactivar' : 'Activar'})`)
+                    .setDescription(isEn
+                        ? 'Toggle between 4-row progress screen or instant direct response'
+                        : 'Alternar entre el progreso de 4 filas o respuesta directa al instante')
                     .setValue('owner_toggle_loading')
                     .setEmoji('📋'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(`Monitoreo de Alertas en 2do Plano (${ownerCfg.backgroundMonitorsEnabled ? 'Pausar' : 'Activar'})`)
-                    .setDescription('Controla el escaneo automático de precios, Robux pendientes y parches')
-                    .setValue('owner_toggle_monitors')
-                    .setEmoji('🔔'),
+                    .setLabel(isEn
+                        ? `Performance Mode (${ownerCfg.engineMode.toUpperCase()})`
+                        : `Modo de Rendimiento (${ownerCfg.engineMode.toUpperCase()})`)
+                    .setDescription(isEn
+                        ? 'Cycle between Auto, Eco, and High Performance'
+                        : 'Alternar entre Automático, Ahorro y Alto Rendimiento')
+                    .setValue('owner_cycle_engine')
+                    .setEmoji('🎛️'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(`Motor Gráfico Canvas HD y 3D (${ownerCfg.heavyCanvas3DEnabled ? 'Pausar' : 'Activar'})`)
-                    .setDescription('Habilita o pausa la generación de imágenes pesadas y paquetes 3D .ZIP')
-                    .setValue('owner_toggle_canvas3d')
-                    .setEmoji('🎨'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(`Caché Rápida Anti-Rate-Limit (${ownerCfg.smartApiCacheEnabled ? 'Pausar' : 'Activar'})`)
-                    .setDescription('Guarda en RAM por 35s las consultas a Roblox para responder al instante sin error 429')
-                    .setValue('owner_toggle_apicache')
-                    .setEmoji('⚡'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(`Escudo Failover RoProxy (${ownerCfg.autoFailoverShieldEnabled ? 'Pausar' : 'Activar'})`)
-                    .setDescription('Usa respaldo automático si un endpoint directo de Roblox devuelve error')
-                    .setValue('owner_toggle_failover')
-                    .setEmoji('🛡️')
+                    .setLabel(isEn
+                        ? `Maintenance Mode (${ownerCfg.maintenanceMode ? 'Disable' : 'Enable'})`
+                        : `Modo Mantenimiento (${ownerCfg.maintenanceMode ? 'Desactivar' : 'Activar'})`)
+                    .setDescription(isEn
+                        ? 'Temporarily restrict bot commands to the owner only'
+                        : 'Restringir temporalmente el bot solo al propietario')
+                    .setValue('owner_toggle_maintenance')
+                    .setEmoji('🛠️')
             ]);
 
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectOwnerMechanics));
@@ -1887,26 +2224,22 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
         container.addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton(
-                    'btn_owner_bot_roblox_modal',
-                    botRoblox.connected ? `Bot Roblox: @${botRoblox.roblox_username}` : 'Cuenta Roblox del Bot',
-                    '🤖',
-                    ButtonStyle.Success
-                ),
-                boton('btn_owner_optimize_ram', 'Purgar Caché y Buffers', '🧹', ButtonStyle.Primary),
-                boton('btn_owner_boot_diag', 'Calibrar Sistema', '🚀', ButtonStyle.Secondary),
+                boton('btn_owner_scan_now', isEn ? 'Scan Now' : 'Escanear Ahora', '⚡', ButtonStyle.Success),
+                boton('btn_owner_optimize_ram', isEn ? 'Clear Cache' : 'Limpiar Caché', '🧹', ButtonStyle.Primary),
                 boton(
                     'btn_owner_toggle_maintenance',
-                    ownerCfg.maintenanceMode ? 'Salir Mantenimiento' : 'Modo Mantenimiento',
+                    ownerCfg.maintenanceMode
+                        ? (isEn ? 'Exit Maintenance' : 'Salir Mantenimiento')
+                        : (isEn ? 'Maintenance' : 'Mantenimiento'),
                     '🛠️',
                     ownerCfg.maintenanceMode ? ButtonStyle.Danger : ButtonStyle.Secondary
                 ),
-                boton('btn_owner_refresh', 'Actualizar', '🔄', ButtonStyle.Secondary)
+                boton('btn_owner_refresh', isEn ? 'Refresh' : 'Actualizar', '🔄', ButtonStyle.Secondary)
             )
         );
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Configuración y Moderación del Bot (/config) • Diagnóstico transparente y arranque calibrado')
+            footer(isEn ? 'Bot Administration • /config' : 'Administración • /config')
         ));
 
         return {
@@ -1918,91 +2251,166 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     }
 
     // =========================================================
-    // CATEGORÍA 1: CUENTAS, CONEXIÓN E HISTORIAL (USUARIOS)
+    // CATEGORÍA 1: CUENTAS Y DATOS GUARDADOS (USUARIOS)
     // =========================================================
     const cfg = await verificarAutorizacionDiscordOAuth(uid);
     const cuentaRoblox = await verificarAutorizacionRobloxOAuth(uid).catch(() => null);
     const resumen = await obtenerHistorialYEstadoCuenta(uid).catch(() => null);
     const baseAppUrl = (process.env.APP_URL || process.env.PUBLIC_GUIDE_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app').replace(/\/+$/, '');
     const directDiscordOAuthUrl = `${baseAppUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
+    const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
-    const container = new ContainerBuilder().setAccentColor(cfg.oauth_verified ? 0x23A55A : 0x5865F2);
+    const tieneDiscord = Boolean(cfg && cfg.oauth_verified);
+    const tieneRoblox = Boolean(cuentaRoblox && cuentaRoblox.roblox_user_id);
+    const ambasConectadas = tieneDiscord && tieneRoblox;
+    const algunaConectada = tieneDiscord || tieneRoblox;
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# ⚙️ Configuración de Usuario\n` +
-        `**🔗 Categoría: Cuentas y Conexión**\n` +
-        `Seleccioná una categoría en el menú desplegable para gestionar las cuentas, el estado y el historial de tu perfil.` +
+    const colorBorde = ambasConectadas
+        ? 0x23A55A
+        : (algunaConectada ? 0x5865F2 : 0x4E5058);
+
+    const container = new ContainerBuilder().setAccentColor(colorBorde);
+
+    const badgeResumenSuperior = ambasConectadas
+        ? (isEn ? '🟢 **Discord & Roblox connected**' : '🟢 **Discord y Roblox conectadas**')
+        : algunaConectada
+            ? (isEn
+                ? `🟡 **${tieneDiscord ? 'Discord connected • Roblox unlinked' : 'Roblox connected • Discord unlinked'}**`
+                : `🟡 **${tieneDiscord ? 'Discord conectada • Falta Roblox' : 'Roblox conectada • Falta Discord'}**`)
+            : (isEn ? '🔴 **No accounts linked**' : '🔴 **Sin cuentas vinculadas**');
+
+    const headerText = new TextDisplayBuilder().setContent(
+        (isEn
+            ? `# ⚙️ User Settings\n${badgeResumenSuperior}`
+            : `# ⚙️ Configuración\n${badgeResumenSuperior}`) +
         (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
-    ));
+    );
+
+    const thumbCandidata =
+        (tieneRoblox && (cuentaRoblox.avatar_url || cuentaRoblox.avatar_full_url)) ||
+        avatarUrl ||
+        cfg.discord_avatar ||
+        null;
+
+    if (thumbCandidata && /^https?:\/\//i.test(String(thumbCandidata))) {
+        container.addSectionComponents(
+            new SectionBuilder()
+                .addTextDisplayComponents(headerText)
+                .setThumbnailAccessory(thumb => thumb.setURL(String(thumbCandidata)))
+        );
+    } else {
+        container.addTextDisplayComponents(headerText);
+    }
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
     container.addSeparatorComponents(separador(true));
 
-    const estadoOAuth = cfg.oauth_verified
-        ? `🟢 **Conectada y Guardada** (\`@${cfg.discord_username || username}\`)`
-        : `⚪ **Sin sesión OAuth2 guardada aún**`;
-
-    const estadoRoblox = cuentaRoblox && cuentaRoblox.roblox_user_id
-        ? `🟢 **@${cuentaRoblox.roblox_username}** (\`ID ${cuentaRoblox.roblox_user_id}\`)`
-        : `⚪ *No vinculada aún*`;
-
-    const accountDetailText = new TextDisplayBuilder().setContent(
-        `## 🔗 Estado de tus Cuentas\n` +
-        `💬 **Cuenta de Discord:** ${estadoOAuth}\n` +
-        `🎮 **Cuenta de Roblox:** ${estadoRoblox}\n` +
-        `📊 **Datos Guardados:** \`${resumen?.stats?.wishlistCount || 0}\` en Mi Lista • \`${resumen?.stats?.pendingRobuxCount || 0}\` Robux pendientes • \`${resumen?.stats?.gameSubsCount || 0}\` juegos seguidos\n` +
-        `-# Tus sesiones y datos quedan respaldados de forma persistente aunque el bot se actualice.`
-    );
-
-    if (avatarUrl || cfg.discord_avatar) {
-        container.addSectionComponents(
-            new SectionBuilder()
-                .addTextDisplayComponents(accountDetailText)
-                .setThumbnailAccessory(thumb => thumb.setURL(avatarUrl || cfg.discord_avatar))
-        );
-    } else {
-        container.addTextDisplayComponents(accountDetailText);
-    }
-
-    container.addSeparatorComponents(separador());
-
+    // 1. CUENTA DE DISCORD
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### 💬 Conexión Oficial con Discord OAuth2\n` +
-                (cfg.oauth_verified
-                    ? `Tu sesión está guardada y activa. Si deseás revalidar tus permisos con Discord, podés usar el botón al costado.`
-                    : `Conectá y autorizá la aplicación mediante **Discord OAuth2** para guardar tus listas y alertas de forma permanente.`)
+                isEn
+                    ? `### 💬 1. Discord Account\n` +
+                      (tieneDiscord
+                          ? `🟢 **Connected:** \`@${cfg.discord_username || username}\``
+                          : `🔴 **Not connected**\n-# Connect to save your watchlist and alerts.`)
+                    : `### 💬 1. Cuenta de Discord\n` +
+                      (tieneDiscord
+                          ? `🟢 **Conectada:** \`@${cfg.discord_username || username}\``
+                          : `🔴 **Sin conectar**\n-# Conectala para guardar tu lista de precios y alertas.`)
             ))
             .setButtonAccessory(
                 new ButtonBuilder()
-                    .setLabel(cfg.oauth_verified ? 'Revalidar Conexión' : 'Conectar con Discord OAuth2')
+                    .setLabel(
+                        tieneDiscord
+                            ? (isEn ? 'Reconnect Discord' : 'Reconectar Discord')
+                            : (isEn ? 'Connect Discord' : 'Conectar Discord')
+                    )
                     .setEmoji('🔗')
                     .setStyle(ButtonStyle.Link)
                     .setURL(directDiscordOAuthUrl)
             )
     );
 
-    const hist = (resumen?.history || []).slice(0, 3);
-    if (hist.length > 0) {
-        container.addSeparatorComponents(separador());
-        const lineas = hist.map(h => `• **${h.title}** — *${h.detail || 'Guardado'}*`).join('\n');
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### 📋 Historial Reciente de tu Cuenta\n${lineas}`
-        ));
-    }
+    container.addSeparatorComponents(separador());
+
+    // 2. CUENTA DE ROBLOX
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                isEn
+                    ? `### 🎮 2. Roblox Account\n` +
+                      (tieneRoblox
+                          ? `🟢 **Connected:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)`
+                          : `🔴 **Not linked**\n-# Link your account to load your avatar automatically.`)
+                    : `### 🎮 2. Cuenta de Roblox\n` +
+                      (tieneRoblox
+                          ? `🟢 **Conectada:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)`
+                          : `🔴 **Sin vincular**\n-# Vinculala para cargar tu avatar automáticamente.`)
+            ))
+            .setButtonAccessory(
+                new ButtonBuilder()
+                    .setLabel(
+                        tieneRoblox
+                            ? (isEn ? 'Switch Account' : 'Cambiar Cuenta')
+                            : (isEn ? 'Connect Roblox' : 'Conectar Roblox')
+                    )
+                    .setEmoji('🎮')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(directRobloxOAuthUrl)
+            )
+    );
+
+    container.addSeparatorComponents(separador());
+
+    // 3. DATOS GUARDADOS
+    const ownerLimits = obtenerConfigPropietario();
+    const maxWishlist = Number(ownerLimits.maxWishlistItems || MAX_WISHLIST_ITEMS);
+    const maxGameSubs = Number(ownerLimits.maxGameSubs || 3);
+    const wishlistCount = Number(resumen?.stats?.wishlistCount || 0);
+    const pendingCount = Number(resumen?.stats?.pendingRobuxCount || 0);
+    const gameSubsCount = Number(resumen?.stats?.gameSubsCount || 0);
+    const codesCount = Number(resumen?.stats?.redeemedCodesCount || 0);
+
+    const textoBoveda = isEn
+        ? `### 🗂️ 3. Saved Data\n` +
+          `🎯 **Watchlist:** \`${wishlistCount}/${maxWishlist}\`  •  ⏳ **Pending Robux:** \`${pendingCount}\`  •  🔔 **Alerts:** \`${gameSubsCount}/${maxGameSubs}\`  •  🎁 **Codes:** \`${codesCount}\``
+        : `### 🗂️ 3. Datos Guardados\n` +
+          `🎯 **Mi Lista:** \`${wishlistCount}/${maxWishlist}\`  •  ⏳ **Robux Pendientes:** \`${pendingCount}\`  •  🔔 **Alertas:** \`${gameSubsCount}/${maxGameSubs}\`  •  🎁 **Códigos:** \`${codesCount}\``;
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(textoBoveda));
 
     container.addSeparatorComponents(separador(true));
 
-    container.addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-            boton('btn_config_refresh', 'Comprobar Conexión', '🔄', ButtonStyle.Success),
-            boton('btn_fastlink_modal', 'Cuenta de Roblox', '🎮', ButtonStyle.Secondary)
-        )
-    );
+    // 4. BARRA INFERIOR DE CONTROLES
+    const filaBotonesInferior = [
+        boton(
+            'btn_config_refresh',
+            isEn ? 'Refresh Status' : 'Actualizar Estado',
+            '🔄',
+            ButtonStyle.Success
+        ),
+        new ButtonBuilder()
+            .setLabel(isEn ? 'Web Dashboard' : 'Panel Web')
+            .setEmoji('🌐')
+            .setStyle(ButtonStyle.Link)
+            .setURL(baseAppUrl)
+    ];
+
+    if (tieneRoblox) {
+        filaBotonesInferior.push(
+            new ButtonBuilder()
+                .setLabel(isEn ? 'Roblox Profile' : 'Perfil de Roblox')
+                .setEmoji('👤')
+                .setStyle(ButtonStyle.Link)
+                .setURL(`https://www.roblox.com/users/${cuentaRoblox.roblox_user_id}/profile`)
+        );
+    }
+
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(filaBotonesInferior));
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Configuración de Usuario (/config) • Persistencia automática de sesión e historial activa')
+        footer(isEn ? 'Settings • /config' : 'Configuración • /config')
     ));
 
     return {
@@ -2014,7 +2422,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 }
 
 /**
- * PANEL DE DESBLOQUEO DE FUNCIÓN (Cuando una mecánica específica requiere cuenta conectada para funcionar bien):
+ * PANEL DE DESBLOQUEO DE FUNCIÓN:
  */
 function construirPanelDesbloqueoRequerido({
     tipo = 'discord',
@@ -2022,7 +2430,7 @@ function construirPanelDesbloqueoRequerido({
     nombreHerramienta = 'Esta función',
     motivo = '',
     backButtonId = 'btn_nav_main_menu',
-    backLabel = 'Volver a las Herramientas'
+    backLabel = 'Volver Atrás'
 }) {
     const {
         ContainerBuilder,
@@ -2043,45 +2451,33 @@ function construirPanelDesbloqueoRequerido({
         const container = new ContainerBuilder()
             .setAccentColor(0xF0B232)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `# 🔓 Desbloquear Función: ${nombreHerramienta}\n` +
-                `${motivo || 'Para que esta función cargue los datos reales de tu propio personaje sin errores, necesitás tener vinculada tu **Cuenta de Roblox**.'}\n\n` +
-                `-# Podés seguir usando libremente todas las herramientas generales sin registrarte, o vincular tu cuenta de Roblox abajo para desbloquear las funciones de tu avatar.`
+                `# 🔓 Cuenta Requerida: ${nombreHerramienta}\n` +
+                `${motivo || 'Para cargar los datos de tu propio personaje necesitás vincular tu cuenta de Roblox.'}`
             ))
             .addSeparatorComponents(separador(true))
             .addSectionComponents(
                 new SectionBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `### 🔐 Opción 1: Iniciar Sesión con Roblox OAuth 2.0\n` +
-                        `Autorizá tu perfil oficialmente en Roblox para desbloquear al instante tu personaje.`
+                        `### 🎮 Vincular Cuenta de Roblox\n` +
+                        `Conectá tu perfil para usar esta función.`
                     ))
                     .setButtonAccessory(
                         new ButtonBuilder()
-                            .setLabel('Iniciar Sesión en Roblox')
-                            .setEmoji('🔐')
+                            .setLabel('Conectar Roblox')
+                            .setEmoji('🎮')
                             .setStyle(ButtonStyle.Link)
                             .setURL(directRobloxOAuthUrl)
-                    )
-            )
-            .addSeparatorComponents(separador())
-            .addSectionComponents(
-                new SectionBuilder()
-                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                        `### 📬 Opción 2: Vincular por Nombre o ID (Verificación en Roblox)\n` +
-                        `Recibí un código en tu Galería de Mensajes de Roblox para verificar tu cuenta.`
-                    ))
-                    .setButtonAccessory(
-                        boton('btn_fastlink_manual_modal', 'Verificar en Roblox', '📬', ButtonStyle.Primary)
                     )
             )
             .addSeparatorComponents(separador(true))
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton('btn_fastlink_modal', 'Ir al Centro de Cuenta Roblox', '🎮', ButtonStyle.Success),
+                    boton('btn_fastlink_modal', 'Mi Cuenta Roblox', '🎮', ButtonStyle.Success),
                     boton(backButtonId, backLabel, '⬅️', ButtonStyle.Secondary)
                 )
             )
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                footer('Requisito funcional de avatar • Las demás herramientas de consulta siguen disponibles sin registro')
+                footer('También disponible en /config')
             ));
 
         return {
@@ -2096,20 +2492,19 @@ function construirPanelDesbloqueoRequerido({
     const container = new ContainerBuilder()
         .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🔓 Desbloquear Función: ${nombreHerramienta}\n` +
-            `${motivo || 'Para guardar tus datos personales y enviarte alertas automáticas en Discord de forma segura, esta función requiere que inicies sesión con tu **Cuenta de Discord**.'}\n\n` +
-            `-# Todas las herramientas de consulta siguen abiertas sin registrarse. Si querés usar esta mecánica personal, iniciá sesión abajo para desbloquearla.`
+            `# 🔓 Cuenta Requerida: ${nombreHerramienta}\n` +
+            `${motivo || 'Para guardar tus datos y enviarte alertas necesitás conectar tu cuenta de Discord.'}`
         ))
         .addSeparatorComponents(separador(true))
         .addSectionComponents(
             new SectionBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `### 💬 Iniciar Sesión con Discord OAuth 2.0\n` +
-                    `Conectá tu cuenta una sola vez (también disponible desde \`/config\` → *Cuentas y Conexión*) para habilitar el guardado y las notificaciones automáticas.`
+                    `### 💬 Conectar Cuenta de Discord\n` +
+                    `Conectá tu cuenta para habilitar el guardado y las alertas.`
                 ))
                 .setButtonAccessory(
                     new ButtonBuilder()
-                        .setLabel('Iniciar Sesión con Discord')
+                        .setLabel('Conectar Discord')
                         .setEmoji('🔗')
                         .setStyle(ButtonStyle.Link)
                         .setURL(directDiscordOAuthUrl)
@@ -2122,7 +2517,7 @@ function construirPanelDesbloqueoRequerido({
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Requisito funcional de alertas y guardado • También gestionable en /config')
+            footer('También disponible en /config')
         ));
 
     return {
@@ -2149,15 +2544,18 @@ async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemTy
         return { ok: false, motivo: 'Error al consultar tu lista de monitoreo.' };
     }
 
+    const { obtenerConfigPropietario } = require('./performanceManager');
+    const maxItems = Number(obtenerConfigPropietario().maxWishlistItems || MAX_WISHLIST_ITEMS);
+
     const lista = existentes || [];
     if (lista.some(i => String(i.id_objet) === idStr)) {
         return { ok: false, motivo: `El objeto **${itemName}** (ID \`${idStr}\`) ya está en tu **Mi Lista**.` };
     }
 
-    if (lista.length >= MAX_WISHLIST_ITEMS) {
+    if (lista.length >= maxItems) {
         return {
             ok: false,
-            motivo: `Tu **Mi Lista** ya alcanzó el límite máximo de **${MAX_WISHLIST_ITEMS}/${MAX_WISHLIST_ITEMS}** objetos.`
+            motivo: `Tu **Mi Lista** ya alcanzó el límite máximo de **${maxItems}/${maxItems}** objetos.`
         };
     }
 
@@ -2197,7 +2595,7 @@ async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemTy
     return {
         ok: true,
         totalActual: lista.length + 1,
-        maxItems: MAX_WISHLIST_ITEMS,
+        maxItems,
         item: nuevoRegistro
     };
 }
@@ -2208,6 +2606,7 @@ module.exports = {
     discordConfigCache,
     accountHistoryCache,
     pendingRobloxVerifications,
+    recentlyAutoVerifiedRoblox,
     onAccountLinked,
     resolverUsuarioRoblox,
     obtenerCuentaVinculada,
@@ -2216,6 +2615,9 @@ module.exports = {
     eliminarCuentaVinculada,
     obtenerEstadoCuentaBotRoblox,
     conectarCuentaBotRoblox,
+    obtenerListaAmigosBotRoblox,
+    eliminarAmigoDeCuentaBotRoblox,
+    limpiarListaAmigosBotRoblox,
     iniciarVerificacionCodigoRoblox,
     confirmarVerificacionCodigoRoblox,
     cancelarVerificacionCodigoRoblox,

@@ -151,7 +151,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
-            boton('btn_nav_wishlist', 'Volver a la lista', '⬅️', ButtonStyle.Secondary),
+            boton('btn_nav_wishlist', 'Volver Atrás', '⬅️', ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setLabel('Ver en Roblox')
                 .setEmoji('🔗')
@@ -161,7 +161,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = '7d'
     );
 
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(footer(`Variaciones en historial: ${stats.totalRecords}/500  •  Renderizado en RAM`))
+        new TextDisplayBuilder().setContent(footer(`Variaciones en historial: ${stats.totalRecords}/500`))
     );
 
     return {

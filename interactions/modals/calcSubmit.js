@@ -29,14 +29,18 @@ module.exports = {
         }
 
         if (seleccionadas.includes('roblox_regional')) {
+            const { obtenerPreferenciasUsuario } = require('../../src/utils/i18n');
+            const prefs = obtenerPreferenciasUsuario(interaction.user?.id);
+            const defTier = prefs.default_tier || 'TIER_100';
+
             const selectRegion = new StringSelectMenuBuilder()
                 .setCustomId(`select_calc_region:${basePrice}`)
                 .setPlaceholder('🌎 Elegí la región o país...')
                 .addOptions([
-                    new StringSelectMenuOptionBuilder().setLabel('Tier 100% — EE.UU., España, Global').setDescription('Sin descuento regional').setValue('TIER_100').setEmoji('🌐'),
-                    new StringSelectMenuOptionBuilder().setLabel('Tier 80% — México, Chile, Uruguay').setDescription('20% de descuento').setValue('TIER_80').setEmoji('🇲🇽'),
-                    new StringSelectMenuOptionBuilder().setLabel('Tier 60% — Argentina, Brasil, Colombia').setDescription('40% de descuento').setValue('TIER_60').setEmoji('🇦🇷'),
-                    new StringSelectMenuOptionBuilder().setLabel('Tier 40% — Venezuela, Bolivia, Paraguay').setDescription('60% de descuento').setValue('TIER_40').setEmoji('🇻🇪')
+                    new StringSelectMenuOptionBuilder().setLabel('Tier 100% — EE.UU., España, Global').setDescription('Sin descuento regional').setValue('TIER_100').setEmoji('🌐').setDefault(defTier === 'TIER_100'),
+                    new StringSelectMenuOptionBuilder().setLabel('Tier 80% — México, Chile, Uruguay').setDescription('20% de descuento').setValue('TIER_80').setEmoji('🇲🇽').setDefault(defTier === 'TIER_80'),
+                    new StringSelectMenuOptionBuilder().setLabel('Tier 60% — Argentina, Brasil, Colombia').setDescription('40% de descuento').setValue('TIER_60').setEmoji('🇦🇷').setDefault(defTier === 'TIER_60'),
+                    new StringSelectMenuOptionBuilder().setLabel('Tier 40% — Venezuela, Bolivia, Paraguay').setDescription('60% de descuento').setValue('TIER_40').setEmoji('🇻🇪').setDefault(defTier === 'TIER_40')
                 ]);
 
             const containerRegion = new ContainerBuilder()
@@ -44,14 +48,14 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         '## 🌎 Elegí tu región\n' +
-                        `🏷️ Precio base: **\`${basePrice.toLocaleString('es-AR')}\`** ${EMOJI_ROBUX}`
+                        `🏷️ Precio base: **\`${basePrice.toLocaleString('es-AR')} R$\`** ${EMOJI_ROBUX}`
                     )
                 )
                 .addSeparatorComponents(separador())
                 .addActionRowComponents(new ActionRowBuilder().addComponents(selectRegion))
                 .addActionRowComponents(
                     new ActionRowBuilder().addComponents(
-                        boton('btn_quick_calc', 'Volver a Calculadora', '⬅️')
+                        boton('btn_quick_calc', 'Volver Atrás', '⬅️')
                     )
                 );
 

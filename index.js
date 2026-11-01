@@ -99,10 +99,6 @@ const {
     resolverUsuarioRoblox,
     guardarCuentaVinculada,
     eliminarCuentaVinculada,
-    iniciarVerificacionCodigoRoblox,
-    confirmarVerificacionCodigoRoblox,
-    cancelarVerificacionCodigoRoblox,
-    obtenerVerificacionPendienteRoblox,
     guardarConfigDiscord,
     verificarAutorizacionDiscordOAuth,
     verificarAutorizacionRobloxOAuth,
@@ -617,7 +613,6 @@ const server = http.createServer(async (req, res) => {
                 })
                 : null;
             const summary = await obtenerHistorialYEstadoCuenta(targetId).catch(() => null);
-            const pendingVerif = obtenerVerificacionPendienteRoblox(targetId);
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(JSON.stringify({
@@ -627,14 +622,6 @@ const server = http.createServer(async (req, res) => {
                 discordConfig: discordCfg || null,
                 linkedAccount: linkedRoblox || null,
                 hasActiveAccount: Boolean(summary?.hasActiveAccount),
-                pendingVerification: pendingVerif
-                    ? {
-                        profile: pendingVerif.profile,
-                        botInboxMessage: pendingVerif.botInboxMessage,
-                        robloxMessageDelivered: Boolean(pendingVerif.robloxMessageDelivered),
-                        deliveryChannel: pendingVerif.deliveryChannel || null
-                    }
-                    : null,
                 history: summary?.history || [],
                 stats: summary?.stats || { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 },
                 savedItems: summary?.savedItems || { wishlist: [], pendingRobux: [], gameSubs: [] }
@@ -972,77 +959,6 @@ const server = http.createServer(async (req, res) => {
                     payload: { type: 'KORTEX_OAUTH_ERROR', provider: 'roblox' }
                 }));
             }
-        }
-
-        // Vinculación Rápida por Usuario o ID de Roblox protegida en 2 pasos con Código de Seguridad (Bot Verificador por MD / Buzón)
-        if (pathname === '/api/auth/manual-link' && req.method === 'POST') {
-            const body = await readJsonBody(req);
-            const targetDiscordId = resolveActiveSessionDiscordId(body.discordId);
-            const step = String(body.step || (body.verificationCode ? 'verify' : 'request')).trim();
-
-            if (step === 'cancel') {
-                cancelarVerificacionCodigoRoblox(targetDiscordId);
-                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                return res.end(JSON.stringify({ ok: true, step: 'cancelled' }));
-            }
-
-            // PASO 2: Confirmar código de 6 dígitos enviado por el Bot Verificador
-            if (step === 'verify') {
-                const codeInput = String(body.verificationCode || '').trim();
-                const verifyResult = await confirmarVerificacionCodigoRoblox(targetDiscordId, codeInput);
-                if (!verifyResult.ok) {
-                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-                    return res.end(JSON.stringify({
-                        ok: false,
-                        step: 'verify_failed',
-                        message: verifyResult.message
-                    }));
-                }
-
-                if (targetDiscordId !== 'default_session') {
-                    lastActiveDiscordId = targetDiscordId;
-                }
-
-                const summary = await obtenerHistorialYEstadoCuenta(targetDiscordId).catch(() => null);
-
-                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                return res.end(JSON.stringify({
-                    ok: true,
-                    step: 'verified',
-                    discordId: targetDiscordId,
-                    linkedAccount: verifyResult.linkedAccount,
-                    discordConfig: summary?.discordConfig || null,
-                    hasActiveAccount: true,
-                    history: summary?.history || [],
-                    stats: summary?.stats || { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 },
-                    message: verifyResult.message
-                }));
-            }
-
-            // PASO 1: Enviar código de seguridad de 6 dígitos en la Galería de Mensajes de Roblox (roblox.com/messages)
-            const robloxInput = String(body.robloxInput || '').trim();
-            const requestResult = await iniciarVerificacionCodigoRoblox(targetDiscordId, robloxInput);
-
-            if (!requestResult.ok) {
-                res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
-                return res.end(JSON.stringify({
-                    ok: false,
-                    step: 'request_failed',
-                    message: requestResult.message
-                }));
-            }
-
-            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(JSON.stringify({
-                ok: true,
-                step: 'verify_required',
-                discordId: targetDiscordId,
-                profile: requestResult.profile,
-                robloxMessageDelivered: Boolean(requestResult.robloxMessageDelivered),
-                deliveryChannel: requestResult.deliveryChannel || null,
-                botInboxMessage: requestResult.botInboxMessage,
-                message: requestResult.message
-            }));
         }
 
         // Endpoint en vivo para renderizar vistas previas visuales en la guía web

@@ -1,6 +1,7 @@
 // ==========================================
 // ARCHIVO: commands/help.js
 // Centro de Ayuda Interactiva de Comandos, Herramientas y Mecánicas (/help)
+// Soporta Español ('es') e Inglés ('en') sin mencionar /help dentro de sí mismo.
 // ==========================================
 
 const {
@@ -15,139 +16,232 @@ const {
     MessageFlags
 } = require('discord.js');
 const { COLORES, footer, separador } = require('../utils/ui');
+const { obtenerIdiomaUsuario } = require('../src/utils/i18n');
 
 const DOCS_URL = process.env.DOCS_URL || process.env.PUBLIC_GUIDE_URL || process.env.APP_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app';
 
 const DETALLE_SUBCATEGORIAS_ROBLOX = {
-    sub_economy: {
-        titulo: '💰 `/roblox` — Categoría 1: Economía, Mercado y Precios',
-        color: COLORES.primario,
-        contenido:
-            '### 🎯 1.1 Seguimiento de Precios y Mi Lista (`máx. 5`)\n' +
-            '> • **Función:** Seguí hasta 5 activos (Catálogo, Limiteds, Gamepasses, Plugins en USD y Experiencias de Acceso Pago).\n' +
-            '> • **Mecánica:** Genera gráficas históricas de evolución de precio y envía alertas automáticas por Mensaje Directo cuando el artículo baja de precio o alcanza tu meta.\n\n' +
-            '### 🧮 1.2 Calculadoras Financieras (+40% Cashback)\n' +
-            '> • **Función:** Tres calculadoras integradas: **Método del 40% Cashback de grupo**, **Comisiones de Mercado (10% / 20%)** y **Precios Regionales por País**.\n' +
-            '> • **Mecánica:** Calcula al instante cuánto gastás, cuánto recuperás en el grupo y la equivalencia exacta de Robux en tu moneda local.\n\n' +
-            '### 📉 1.3 Monitor de Pisos de Precio Dinámicos (UGC)\n' +
-            '> • **Función:** Rastrea los precios mínimos oficiales de Roblox para Sombreros, Pelo, Cara, Cuello, Hombros, Frente, Espalda y Cintura.\n' +
-            '> • **Mecánica:** Compara el piso actual contra el promedio semanal y renderiza una tabla visual indicando qué categorías bajaron hoy.\n\n' +
-            '### ⏳ 1.4 Agenda y Alerta de Robux Pendientes\n' +
-            '> • **Función:** Registra ventas de pases, ropa, limitados o fondos de grupo en espera de liberación.\n' +
-            '> • **Mecánica:** Calcula la cuenta regresiva exacta de retención de Roblox y te envía una notificación directa apenas los Robux quedan disponibles.\n\n' +
-            '### 🏛️ 1.5 Auditor y Catálogo de Grupos\n' +
-            '> • **Función:** Inspecciona cualquier grupo de Roblox (propietario, miembros, fondos públicos y tienda completa).\n' +
-            '> • **Mecánica:** Ordena las prendas por **Más Vendidas** o **Más Recientes**, muestra la ficha de cada prenda y calcula el ahorro del 40%.'
+    es: {
+        sub_economy: {
+            titulo: '💰 `/roblox` — Categoría 1: Economía y Precios',
+            color: COLORES.primario,
+            contenido:
+                '### 🎯 1.1 Seguimiento de Precios y Mi Lista\n' +
+                '> Monitoreá hasta 5 objetos del catálogo, pases o plugins con gráficas y alertas por mensaje directo.\n\n' +
+                '### 🧮 1.2 Calculadora de Economía\n' +
+                '> Calculá descuentos de grupo, Roblox Plus y precios regionales.\n\n' +
+                '### 📉 1.3 Pisos de Precio del Catálogo\n' +
+                '> Consultá los precios mínimos actuales por categoría de accesorios.\n\n' +
+                '### ⏳ 1.4 Agenda de Robux Pendientes\n' +
+                '> Registrá tus ventas y recibí un aviso cuando se liberen tus Robux.\n\n' +
+                '### 🏛️ 1.5 Auditor y Catálogo de Grupos\n' +
+                '> Explorá cualquier grupo de Roblox, sus estadísticas y su tienda de ropa.'
+        },
+        sub_avatar: {
+            titulo: '👕 `/roblox` — Categoría 2: Avatares y Estudio 3D/2D',
+            color: 0x8B5CF6,
+            contenido:
+                '### 🧪 2.1 Probador de Ropa en Vivo\n' +
+                '> Probate hasta 5 objetos en tu avatar o cotizá el precio total de tu conjunto actual.\n\n' +
+                '### 🔍 2.2 Buscador de Clones y Similares\n' +
+                '> Encontrá alternativas económicas e ítems parecidos en el catálogo.\n\n' +
+                '### 🧬 2.3 Extractor de Texturas y Maniquí 2D\n' +
+                '> Descargá la plantilla `.PNG` de cualquier camisa o pantalón y probala en un maniquí.\n\n' +
+                '### 📦 2.4 Exportador de Modelos 3D\n' +
+                '> Descargá el render PNG y el paquete `.ZIP` con el modelo 3D de cualquier avatar o accesorio.\n\n' +
+                '### 🎨 2.5 Combinador por Color\n' +
+                '> Extraé los colores principales de tu avatar o prenda y buscá accesorios que combinen.'
+        },
+        sub_games: {
+            titulo: '🎮 `/roblox` — Categoría 3: Juegos y Servidores',
+            color: 0x10B981,
+            contenido:
+                '### 👻 3.1 Buscador de Servidores Vacíos\n' +
+                '> Encontrá servidores públicos con pocos jugadores y enlaces de unión directa.\n\n' +
+                '### 🎟️ 3.2 Buscador de Pases de Juego\n' +
+                '> Consultá y ordená por precio todos los pases de cualquier experiencia.\n\n' +
+                '### 🎁 3.3 Bóveda de Códigos Activos\n' +
+                '> Consultá códigos promocionales y marcá los que ya canjeaste.\n\n' +
+                '### 🔔 3.4 Alertas de Actualizaciones\n' +
+                '> Seguí hasta 3 juegos favoritos y recibí un aviso cuando se actualicen.\n\n' +
+                '### 🗺️ 3.5 Explorador de Mapas Conectados\n' +
+                '> Descubrí los sub-lugares y mundos secundarios dentro de cualquier juego.'
+        },
+        sub_account: {
+            titulo: '🎮 `/roblox` — Cuenta de Roblox',
+            color: 0x23A55A,
+            contenido:
+                '### 🔗 Vincular tu Cuenta de Roblox\n' +
+                '> Al pie de `/roblox` o desde `/config` podés conectar tu cuenta de Roblox para cargar automáticamente tu avatar en el Probador de Ropa, el Exportador 3D y el Combinador por Color.'
+        }
     },
-    sub_avatar: {
-        titulo: '👕 `/roblox` — Categoría 2: Taller de Avatares y Estudio 3D/2D',
-        color: 0x8B5CF6,
-        contenido:
-            '### 🧪 2.1 Probador de Combinaciones en Vivo (Outfit Sandbox)\n' +
-            '> • **Función:** Cotiza el valor real de tu avatar actual o permite probarte hasta 5 ítems del catálogo por nombre o ID.\n' +
-            '> • **Mecánica:** Renderiza una tarjeta comparativa con el desglose de precios ítem por ítem y botones para enviar cualquiera a **Mi Lista**.\n\n' +
-            '### 🔍 2.2 Buscador de Clones y Similares (Roblox Oficial + UGC)\n' +
-            '> • **Función:** Encuentra alternativas económicas o versiones similares de cualquier accesorio o prenda.\n' +
-            '> • **Mecánica:** Filtra entre ítems creados por **Roblox Oficial** y creadores **UGC**, calculando el porcentaje exacto de ahorro en Robux.\n\n' +
-            '### 🧬 2.3 Extractor de Texturas + Maniquí 2D\n' +
-            '> • **Función:** Extrae la plantilla `.PNG` original de cualquier camisa o pantalón clásico de Roblox.\n' +
-            '> • **Mecánica:** Proyecta la textura sobre un maniquí 2D de **Frente y Espalda** para revisar costuras y permite descargar el archivo original.\n\n' +
-            '### 📦 2.4 Exportador 3D (Render PNG HD + Archivo `.ZIP`)\n' +
-            '> • **Función:** Exporta el modelo tridimensional de cualquier avatar de Roblox o activo del catálogo.\n' +
-            '> • **Mecánica:** Entrega en el mismo panel el **Render PNG HD** visible en Discord y el paquete `.ZIP` descargable con geometría `.OBJ`, materiales `.MTL` y texturas.\n\n' +
-            '### 🎨 2.5 Emparejador de Accesorios por Color (Color-Match)\n' +
-            '> • **Función:** Extrae la paleta de los 3 colores dominantes de tu avatar, prenda o código HEX.\n' +
-            '> • **Mecánica:** Busca automáticamente en el catálogo accesorios que combinen cromáticamente con tu estilo.'
-    },
-    sub_games: {
-        titulo: '🎮 `/roblox` — Categoría 3: Utilidades de Juego y Servidores',
-        color: 0x10B981,
-        contenido:
-            '### 👻 3.1 Buscador de Servidores Vacíos con Unión Directa\n' +
-            '> • **Función:** Escanea las instancias públicas activas de cualquier juego de Roblox para encontrar servidores casi vacíos.\n' +
-            '> • **Mecánica:** Ordena por menor cantidad de jugadores (1 a 2 personas) y mejor ping, incluyendo botones de unión directa en un clic.\n\n' +
-            '### 🎟️ 3.2 Extractor Completo de Pases de un Juego\n' +
-            '> • **Función:** Lista todos los Gamepasses de una experiencia (tanto de la Tienda Web como de la Tienda Interna).\n' +
-            '> • **Mecánica:** Permite buscar pases por nombre o precio en Robux, ordenarlos y guardarlos en **Mi Lista**.\n\n' +
-            '### 🎁 3.3 Bóveda de Códigos Activos con Checklist Personal\n' +
-            '> • **Función:** Base de datos interactiva de códigos promocionales por juego.\n' +
-            '> • **Mecánica:** Permite marcar qué códigos ya canjeaste en tu cuenta para llevar tu progreso personal o aportar nuevos códigos.\n\n' +
-            '### 🔔 3.4 Avisos de Parches y Actualizaciones de Juegos\n' +
-            '> • **Función:** Sigue hasta 3 experiencias favoritas para detectar cuándo sus desarrolladores suben un parche nuevo.\n' +
-            '> • **Mecánica:** Compara el sello de versión del universo en tiempo real y te notifica apenas se publica una actualización.\n\n' +
-            '### 🗺️ 3.5 Explorador de Sub-Lugares y Mapas Conectados\n' +
-            '> • **Función:** Descubre la arquitectura interna de cualquier universo de Roblox.\n' +
-            '> • **Mecánica:** Identifica el Place raíz y todos los sub-lugares ocultos (lobbies de tradeo, mapas de evento, arenas y servidores VIP).'
-    },
-    sub_account: {
-        titulo: '🔐 `/roblox` — Centro de Vinculación de Cuenta de Roblox',
-        color: 0x23A55A,
-        contenido:
-            '### 🎮 ¿Cómo funciona la Cuenta de Roblox en `/roblox`?\n' +
-            '> Al pie del comando `/roblox` disponés de un botón dedicado exclusivamente a vincular o gestionar tu **Cuenta de Roblox**, la cual se utiliza en las funciones personales de tu avatar.\n\n' +
-            '### 🔐 Opción 1: Conexión Oficial con Roblox OAuth 2.0\n' +
-            '> • Autorizás tu perfil desde la página oficial de Roblox (`apis.roblox.com/oauth`).\n' +
-            '> • El bot sincroniza tu estado en tiempo real con tus **Aplicaciones Autorizadas de Roblox**: si quitás el permiso desde los ajustes de Roblox y presionás **Comprobar Estado**, el bot lo detecta automáticamente.\n\n' +
-            '### ✏️ Opción 2: Vinculación por Nombre o ID (Modo Básico)\n' +
-            '> • Si preferís no usar OAuth, podés escribir directamente tu **Nombre de Usuario, ID numérico o enlace de perfil** de Roblox en un formulario rápido.\n' +
-            '> • El bot resuelve tu perfil y miniatura al instante para autocompletar las herramientas.'
+    en: {
+        sub_economy: {
+            titulo: '💰 `/roblox` — Category 1: Economy & Pricing',
+            color: COLORES.primario,
+            contenido:
+                '### 🎯 1.1 Price Tracker & Watchlist\n' +
+                '> Track up to 5 catalog items, gamepasses, or plugins with price charts and DM alerts.\n\n' +
+                '### 🧮 1.2 Economy Calculator\n' +
+                '> Calculate group discounts, Roblox Plus, and regional pricing.\n\n' +
+                '### 📉 1.3 Catalog Price Floors\n' +
+                '> Check current minimum prices across accessory categories.\n\n' +
+                '### ⏳ 1.4 Pending Robux Schedule\n' +
+                '> Log your sales and get notified when your Robux are released.\n\n' +
+                '### 🏛️ 1.5 Group Auditor & Catalog\n' +
+                '> Explore any Roblox group, its stats, and its clothing store.'
+        },
+        sub_avatar: {
+            titulo: '👕 `/roblox` — Category 2: Avatars & 3D/2D Studio',
+            color: 0x8B5CF6,
+            contenido:
+                '### 🧪 2.1 Live Outfit Sandbox\n' +
+                '> Try up to 5 items on your avatar or price your currently worn outfit.\n\n' +
+                '### 🔍 2.2 Clones & Similar Items Finder\n' +
+                '> Find affordable alternatives and similar items in the catalog.\n\n' +
+                '### 🧬 2.3 Texture Extractor & 2D Mannequin\n' +
+                '> Download the `.PNG` template of any shirt or pants and preview it on a mannequin.\n\n' +
+                '### 📦 2.4 3D Model Exporter\n' +
+                '> Download the PNG render and `.ZIP` package with the 3D model of any avatar or item.\n\n' +
+                '### 🎨 2.5 Color-Match Finder\n' +
+                '> Extract dominant colors from your avatar or garment and find matching accessories.'
+        },
+        sub_games: {
+            titulo: '🎮 `/roblox` — Category 3: Games & Servers',
+            color: 0x10B981,
+            contenido:
+                '### 👻 3.1 Empty Servers Finder\n' +
+                '> Find quiet public servers with direct join links.\n\n' +
+                '### 🎟️ 3.2 Gamepass Finder\n' +
+                '> Browse and sort by price all gamepasses of any experience.\n\n' +
+                '### 🎁 3.3 Active Promo Codes Vault\n' +
+                '> Check promo codes and mark the ones you already redeemed.\n\n' +
+                '### 🔔 3.4 Game Update Alerts\n' +
+                '> Follow up to 3 favorite games and get notified when they update.\n\n' +
+                '### 🗺️ 3.5 Connected Maps Explorer\n' +
+                '> Discover sub-places and secondary worlds inside any game.'
+        },
+        sub_account: {
+            titulo: '🎮 `/roblox` — Roblox Account',
+            color: 0x23A55A,
+            contenido:
+                '### 🔗 Link Your Roblox Account\n' +
+                '> At the bottom of `/roblox` or inside `/config`, you can link your Roblox account to automatically load your avatar in the Outfit Sandbox, 3D Exporter, and Color-Match tools.'
+        }
     }
 };
 
 const SECCIONES_PRINCIPALES_HELP = {
-    cmd_overview: {
-        titulo: '🏠 Resumen General de Comandos y Funciones del Bot',
-        color: COLORES.primario,
-        contenido:
-            'Kortex está organizado en **comandos independientes por función** para que cada panel tenga su propio propósito claro:\n\n' +
-            '### 🎮 Comando `/roblox` (o mención `@Kortex`)\n' +
-            '> • **Qué es:** El panel central de herramientas de Roblox organizado en **3 Categorías seleccionables** con **15 utilidades interactivas**.\n' +
-            '> • **Incluye:** Economía y Precios (`1.1` a `1.5`), Taller de Avatares 3D/2D (`2.1` a `2.5`), Juegos y Servidores (`3.1` a `3.5`) y el **Centro de Vinculación de Cuenta de Roblox**.\n\n' +
-            '### ⚙️ Comando `/config`\n' +
-            '> • **Qué es:** El panel de **Configuración por Categorías**.\n' +
-            '> • **Incluye:** La categoría **🔗 Cuentas y Conexión** (para todos los usuarios, sincronizada con tus *Aplicaciones Autorizadas* de Discord) y la categoría **🛡️ Configuración y Moderación del Bot** (exclusiva para el propietario del bot para controlar el Motor RAM/GPU y las mecánicas generales).\n\n' +
-            '### 🏓 Comando `/ping`\n' +
-            '> • **Qué es:** El monitor técnico en tiempo real del bot y del servidor de alojamiento.\n' +
-            '> • **Incluye:** Latencia de respuesta, ping del WebSocket de Discord, tiempo en línea (Uptime), servidores activos, RAM del proceso (`RSS`, `JS`, `Canvas/Caché`) y **RAM general del Contenedor / Host** de cualquier plataforma.\n\n' +
-            '### 📚 Comando `/help`\n' +
-            '> • **Qué es:** Este centro de documentación interactiva donde podés elegir cada comando arriba para explorar sus categorías y detalles.'
+    es: {
+        cmd_overview: {
+            titulo: '🏠 Comandos Principales',
+            color: COLORES.primario,
+            contenido:
+                '### 🎮 `/roblox` *(o mencionar `@Kortex`)*\n' +
+                '> Abre el panel de herramientas de Roblox dividido en **Economía**, **Avatares 3D/2D** y **Juegos y Servidores**.\n\n' +
+                '### 🏭 `/tycoon`\n' +
+                '> Abrí tu **Estudio Roblox Tycoon en 3ra persona**: Colector de Tix (`🎟️`), Tienda Normal, Taller UGC con regalías del 70%, Bóveda Limited / Limited U numerados, Trading P2P y Pociones.\n\n' +
+                '### ⚙️ `/config`\n' +
+                '> Configurá tus cuentas vinculadas (Discord y Roblox), tus datos guardados, el **idioma** (**Español / English**) y tu región de precios.\n\n' +
+                '### 🏓 `/ping`\n' +
+                '> Muestra la latencia de conexión, el tiempo en línea y el estado del bot.'
+        },
+        cmd_tycoon: {
+            titulo: '🏭 Comando `/tycoon` — Estudio Roblox Tycoon',
+            color: 0x22C55E,
+            contenido:
+                '### 🏗️ 1. Mi Estudio Tycoon y Colector de Tix\n' +
+                '> • Vista gráfica en 3ra persona de tu estudio con tu avatar de Roblox, cinta transportadora, Droppers y placa verde de recolección.\n' +
+                '> • Construí los 6 Pads hasta la Torre Central y hacé **Rebirth** para ganar `+35%` permanente y Llaves de Cofre de Ascensión.\n\n' +
+                '### 🛒 2. Tienda Normal y Equipamiento\n' +
+                '> • Comprá ítems clásicos de Roblox (`+5%` a `+12%` Tix/min) y equipá cualquier accesorio de tu inventario sobre tu avatar.\n\n' +
+                '### 🎨 3. Taller y Mercado UGC\n' +
+                '> • Diseñá y publicá hasta 2 ítems `[🎨 UGC]` propios (`200–1,500 Tix`, bono fijo `+10%`) y cobrá el **70% de regalías** en cada venta.\n\n' +
+                '### 👑 4. Bóveda Limited / Limited U y Trading P2P\n' +
+                '> • Abrí Cofres de Ascensión, reclamá Drops Limited U con número de serie (`#01/15`) e intercambiá en el **Tablero Público** o por **Trade Directo**.\n\n' +
+                '### 🧪 5. Pociones y Beneficios VIP de Comunidad\n' +
+                '> • Activá pociones de 30 minutos y sincronizá **Discord Server Boost (`+50%`)** y **YouTube VIP (`+35%`)**.'
+        },
+        cmd_config: {
+            titulo: '⚙️ Comando `/config` — Configuración',
+            color: 0x5865F2,
+            contenido:
+                '### 🔗 1. Cuentas y Datos Guardados\n' +
+                '> • Vinculá tus cuentas de **Discord** y **Roblox** con los botones a la derecha de cada sección.\n' +
+                '> • Consultá de un vistazo el resumen de tu lista de precios, Robux pendientes, alertas y códigos.\n\n' +
+                '### 🌐 2. Idioma y Preferencias\n' +
+                '> • Cambiá en cualquier momento entre **🇪🇸 Español** y **🇺🇸 English**.\n' +
+                '> • Elegí tu región de precios predeterminada para la calculadora.'
+        },
+        cmd_ping: {
+            titulo: '🏓 Comando `/ping` — Estado y Latencia',
+            color: 0x10B981,
+            contenido:
+                '### ⚡ Estado en Tiempo Real\n' +
+                '> • **Respuesta y WebSocket:** Muestra la velocidad de conexión actual con Discord.\n' +
+                '> • **Uptime y Memoria:** Indica el tiempo activo del bot, la cantidad de servidores y el uso de memoria.'
+        }
     },
-    cmd_config: {
-        titulo: '⚙️ Comando `/config` — Cuentas, Conexión y Moderación del Bot',
-        color: 0x5865F2,
-        contenido:
-            'El comando `/config` funciona como un **Panel de Configuración por Categorías Seleccionables**:\n\n' +
-            '### 🔗 Categoría 1: Cuentas y Conexión (Para Todos los Usuarios)\n' +
-            '> • **Detección de sesión:** Reconoce automáticamente tu usuario de Discord actual.\n' +
-            '> • **Conexión Oficial OAuth2:** Incluye el botón directo para autorizar o revalidar tu cuenta mediante Discord OAuth2.\n' +
-            '> • **Sincronización con Aplicaciones Autorizadas:** Al presionar **🔄 Comprobar Conexión**, el bot consulta en vivo si la aplicación sigue autorizada en tus Ajustes de Discord.\n\n' +
-            '### 🛡️ Categoría 2: Configuración y Moderación del Bot (Exclusivo Propietario)\n' +
-            '> • **Motor de Optimización RAM / GPU:** Permite al propietario liberar memoria y cachés manualmente (**🧹 Optimizar Memoria**) y alternar el modo del motor (`Automático`, `Ahorro Estricto`, `Alto Rendimiento`).\n' +
-            '> • **Control General de Mecánicas y Módulos:** Permite al propietario activar o pausar en tiempo real el **Modo Mantenimiento Global**, el **Sistema de Carga Paso a Paso**, las **Alertas en 2do Plano**, el **Motor Canvas/3D** y cada una de las **3 Categorías de Herramientas**.'
-    },
-    cmd_ping: {
-        titulo: '🏓 Comando `/ping` — Estado, Latencia y Memoria General',
-        color: 0x10B981,
-        contenido:
-            'El comando `/ping` brinda un diagnóstico técnico completo del rendimiento del bot y de la plataforma donde esté alojado:\n\n' +
-            '### ⚡ Indicadores de Latencia y Salud de Conexión\n' +
-            '> • **Respuesta (`ms`):** Tiempo exacto entre tu comando y la respuesta del bot.\n' +
-            '> • **WebSocket API (`ms`):** Latencia en vivo con el Gateway de Discord.\n' +
-            '> • **Semáforo automático:** Clasifica el estado en 🟢 **Excelente** (`< 200ms`), 🟡 **Estable** (`< 400ms`) o 🔴 **Lenta** (`+400ms`).\n\n' +
-            '### 💾 Desglose de Memoria (Proceso + Contenedor / Host General)\n' +
-            '> • **RAM Proceso (Bot):** Muestra la memoria `RSS` total del bot, separando el motor JavaScript (`Heap`) de la memoria nativa usada por renderizados gráficos (`Canvas/Caché`).\n' +
-            '> • **📦 RAM Contenedor / Host (Universal):** Lee automáticamente los límites y consumo real del contenedor Linux (`cgroup v1 / v2`) o del sistema operativo del servidor (`os.totalmem()`), mostrando los `MB` usados, el límite total y el porcentaje (`%`) sin importar en qué plataforma alojes el bot.\n' +
-            '> • **Botón 🔄 Actualizar:** Permite recalcular todas las métricas en vivo dentro del mismo mensaje.'
+    en: {
+        cmd_overview: {
+            titulo: '🏠 Main Commands',
+            color: COLORES.primario,
+            contenido:
+                '### 🎮 `/roblox` *(or mention `@Kortex`)*\n' +
+                '> Opens the Roblox toolkit organized into **Economy**, **3D/2D Avatars**, and **Games & Servers**.\n\n' +
+                '### 🏭 `/tycoon`\n' +
+                '> Open your **3rd-person Roblox Tycoon Studio**: Tix Collector (`🎟️`), Normal Shop, UGC Workshop with 70% royalties, serialized Limited / Limited U Vault, P2P Trading, and Potions.\n\n' +
+                '### ⚙️ `/config`\n' +
+                '> Manage your linked accounts (Discord & Roblox), saved data, **language** (**Español / English**), and pricing region.\n\n' +
+                '### 🏓 `/ping`\n' +
+                '> Displays connection latency, uptime, and bot status.'
+        },
+        cmd_tycoon: {
+            titulo: '🏭 Command `/tycoon` — Roblox Tycoon Studio',
+            color: 0x22C55E,
+            contenido:
+                '### 🏗️ 1. My Tycoon Studio & Tix Collector\n' +
+                '> • Live 3rd-person graphic snapshot of your studio with your Roblox avatar, conveyor belt, Droppers, and green Collector Pad.\n' +
+                '> • Build all 6 Purchase Pads up to the Developer Tower and **Rebirth** for a permanent `+35%` multiplier and Ascension Chest Keys.\n\n' +
+                '### 🛒 2. Normal Shop & Equipment\n' +
+                '> • Buy classic Roblox items (`+5%` to `+12%` Tix/min) and equip any owned item on your avatar.\n\n' +
+                '### 🎨 3. UGC Workshop & Marketplace\n' +
+                '> • Design and publish up to 2 custom `[🎨 UGC]` items (`200–1,500 Tix`, fixed `+10%` boost) and earn **70% royalties** on every sale.\n\n' +
+                '### 👑 4. Limited / Limited U Vault & P2P Trading\n' +
+                '> • Unbox Ascension Chests, mint serialized Limited U drops (`#01/15`), and trade on the **Public Board** or via **Direct Trade**.\n\n' +
+                '### 🧪 5. Potions & Community VIP Perks\n' +
+                '> • Activate 30-minute potions and sync **Discord Server Boost (`+50%`)** and **YouTube VIP (`+35%`)**.'
+        },
+        cmd_config: {
+            titulo: '⚙️ Command `/config` — Settings',
+            color: 0x5865F2,
+            contenido:
+                '### 🔗 1. Accounts & Saved Data\n' +
+                '> • Link your **Discord** and **Roblox** accounts using the buttons on the right of each section.\n' +
+                '> • View a quick summary of your watchlist, pending Robux, alerts, and codes.\n\n' +
+                '### 🌐 2. Language & Preferences\n' +
+                '> • Switch anytime between **🇪🇸 Español** and **🇺🇸 English**.\n' +
+                '> • Select your default pricing region for the calculator.'
+        },
+        cmd_ping: {
+            titulo: '🏓 Command `/ping` — Status & Latency',
+            color: 0x10B981,
+            contenido:
+                '### ⚡ Live Status\n' +
+                '> • **Response & WebSocket:** Shows current connection speed with Discord.\n' +
+                '> • **Uptime & Memory:** Displays bot uptime, server count, and memory usage.'
+        }
     }
 };
 
 /**
- * Construye el panel interactivo de /help.
- * @param {string} mainCategory 'cmd_overview' | 'cmd_roblox' | 'cmd_config' | 'cmd_ping'
- * @param {string} robloxSubCategory 'sub_economy' | 'sub_avatar' | 'sub_games' | 'sub_account'
+ * Construye el panel interactivo de /help en el idioma del usuario ('es' o 'en'),
+ * sin autorreferenciar el propio comando /help.
  */
-function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = 'sub_economy') {
-    // Compatibilidad si se pasa directamente 'cat_economy', 'cat_avatar', 'cat_games'
+function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = 'sub_economy', lang = 'es') {
+    const isEn = lang === 'en';
+    const langKey = isEn ? 'en' : 'es';
+
     if (mainCategory === 'cat_economy') {
         mainCategory = 'cmd_roblox';
         robloxSubCategory = 'sub_economy';
@@ -159,49 +253,97 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
         robloxSubCategory = 'sub_games';
     }
 
-    const validMainKeys = ['cmd_overview', 'cmd_roblox', 'cmd_config', 'cmd_ping'];
+    const validMainKeys = ['cmd_overview', 'cmd_roblox', 'cmd_tycoon', 'cmd_config', 'cmd_ping'];
     const activeMain = validMainKeys.includes(mainCategory) ? mainCategory : 'cmd_overview';
 
     const validSubKeys = ['sub_economy', 'sub_avatar', 'sub_games', 'sub_account'];
     const activeSub = validSubKeys.includes(robloxSubCategory) ? robloxSubCategory : 'sub_economy';
 
     const vistaActual = activeMain === 'cmd_roblox'
-        ? DETALLE_SUBCATEGORIAS_ROBLOX[activeSub]
-        : SECCIONES_PRINCIPALES_HELP[activeMain];
+        ? DETALLE_SUBCATEGORIAS_ROBLOX[langKey][activeSub]
+        : SECCIONES_PRINCIPALES_HELP[langKey][activeMain];
 
     const container = new ContainerBuilder().setAccentColor(vistaActual.color);
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        '# 📚 Centro de Ayuda y Documentación — Kortex\n' +
-        'Seleccioná un **comando del bot** en el menú desplegable para consultar sus herramientas, categorías y funciones.'
+        isEn
+            ? '# 📚 Help Center — Kortex\n' +
+              'Select a command below to view its tools and options.'
+            : '# 📚 Centro de Ayuda — Kortex\n' +
+              'Seleccioná un comando abajo para ver sus herramientas y opciones.'
     ));
 
-    // Menú desplegable 1: Selección de Comando del Bot
     const selectMainHelp = new StringSelectMenuBuilder()
         .setCustomId('help_category_select')
-        .setPlaceholder('📂 Elegí un comando del bot para ver sus detalles...')
+        .setPlaceholder(
+            isEn
+                ? '📂 Select a command...'
+                : '📂 Seleccioná un comando...'
+        )
         .addOptions([
             new StringSelectMenuOptionBuilder()
-                .setLabel('Resumen General de Comandos del Bot')
-                .setDescription('Vista general de /roblox, /config, /ping, /help y mención @Kortex')
+                .setLabel(isEn ? 'Main Commands Overview' : 'Resumen de Comandos')
+                .setDescription(
+                    isEn
+                        ? 'Overview of /roblox, /tycoon, /config, and /ping'
+                        : 'Vista general de /roblox, /tycoon, /config y /ping'
+                )
                 .setValue('cmd_overview')
                 .setEmoji('🏠')
                 .setDefault(activeMain === 'cmd_overview'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Comando /roblox — 15 Herramientas y Cuenta Roblox')
-                .setDescription('Economía, Avatares 3D/2D, Juegos y Vinculación de Cuenta de Roblox')
+                .setLabel(
+                    isEn
+                        ? 'Command /roblox — Tools & Categories'
+                        : 'Comando /roblox — Herramientas y Categorías'
+                )
+                .setDescription(
+                    isEn
+                        ? 'Economy, 3D/2D Avatars, Games & Roblox Account'
+                        : 'Economía, Avatares 3D/2D, Juegos y Cuenta de Roblox'
+                )
                 .setValue('cmd_roblox')
                 .setEmoji('🎮')
                 .setDefault(activeMain === 'cmd_roblox'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Comando /config — Configuración de Usuario y Conexión')
-                .setDescription('Categoría Cuentas y Conexión, autorización Discord OAuth2 y estado')
+                .setLabel(
+                    isEn
+                        ? 'Command /tycoon — 3rd-Person Tycoon Studio'
+                        : 'Comando /tycoon — Estudio Roblox Tycoon'
+                )
+                .setDescription(
+                    isEn
+                        ? 'Collector Pad, Normal Shop, UGC Workshop, Limited U & P2P Trading'
+                        : 'Colector de Tix, Tienda, Taller UGC, Limited U y Trading P2P'
+                )
+                .setValue('cmd_tycoon')
+                .setEmoji('🏭')
+                .setDefault(activeMain === 'cmd_tycoon'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel(
+                    isEn
+                        ? 'Command /config — Accounts & Language'
+                        : 'Comando /config — Cuentas e Idioma'
+                )
+                .setDescription(
+                    isEn
+                        ? 'Linked accounts, saved data, and language (Español/English)'
+                        : 'Cuentas vinculadas, datos guardados e idioma (Español/Inglés)'
+                )
                 .setValue('cmd_config')
                 .setEmoji('⚙️')
                 .setDefault(activeMain === 'cmd_config'),
             new StringSelectMenuOptionBuilder()
-                .setLabel('Comando /ping — Latencia, Estado y RAM del Host')
-                .setDescription('Medición de respuesta, WebSocket, RAM del bot y memoria del contenedor')
+                .setLabel(
+                    isEn
+                        ? 'Command /ping — Status & Latency'
+                        : 'Comando /ping — Estado y Latencia'
+                )
+                .setDescription(
+                    isEn
+                        ? 'Connection latency, uptime, and memory usage'
+                        : 'Latencia de conexión, tiempo activo y memoria'
+                )
                 .setValue('cmd_ping')
                 .setEmoji('🏓')
                 .setDefault(activeMain === 'cmd_ping')
@@ -209,35 +351,70 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMainHelp));
 
-    // Si el usuario seleccionó el comando /roblox, mostramos el segundo selector para explorar sus 3 categorías + vinculación
     if (activeMain === 'cmd_roblox') {
         const selectRobloxSub = new StringSelectMenuBuilder()
             .setCustomId('help_roblox_subcat_select')
-            .setPlaceholder('🎮 Elegí qué categoría de /roblox querés inspeccionar...')
+            .setPlaceholder(
+                isEn
+                    ? '🎮 Select a /roblox category...'
+                    : '🎮 Seleccioná una categoría de /roblox...'
+            )
             .addOptions([
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Categoría 1: Economía, Mercado y Precios (5 herramientas)')
-                    .setDescription('1.1 Precios y Mi Lista, 1.2 Calculadoras, 1.3 Pisos UGC, 1.4 Pendientes, 1.5 Grupos')
+                    .setLabel(
+                        isEn
+                            ? 'Category 1: Economy & Pricing'
+                            : 'Categoría 1: Economía y Precios'
+                    )
+                    .setDescription(
+                        isEn
+                            ? 'Price Tracker, Calculator, Price Floors, Pending Robux & Groups'
+                            : 'Precios y Mi Lista, Calculadora, Pisos, Robux Pendientes y Grupos'
+                    )
                     .setValue('sub_economy')
                     .setEmoji('💰')
                     .setDefault(activeSub === 'sub_economy'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Categoría 2: Taller de Avatares y Estudio 3D/2D (5 herramientas)')
-                    .setDescription('2.1 Sandbox, 2.2 Similares, 2.3 Texturas 2D, 2.4 Exportador 3D, 2.5 Color-Match')
+                    .setLabel(
+                        isEn
+                            ? 'Category 2: Avatars & 3D/2D Studio'
+                            : 'Categoría 2: Avatares y Estudio 3D/2D'
+                    )
+                    .setDescription(
+                        isEn
+                            ? 'Sandbox, Clones, 2D Textures, 3D Exporter & Color-Match'
+                            : 'Probador, Clones, Texturas 2D, Exportador 3D y Color-Match'
+                    )
                     .setValue('sub_avatar')
                     .setEmoji('👕')
                     .setDefault(activeSub === 'sub_avatar'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Categoría 3: Utilidades de Juego y Servidores (5 herramientas)')
-                    .setDescription('3.1 Servidores Vacíos, 3.2 Pases, 3.3 Códigos, 3.4 Parches, 3.5 Sub-Lugares')
+                    .setLabel(
+                        isEn
+                            ? 'Category 3: Games & Servers'
+                            : 'Categoría 3: Juegos y Servidores'
+                    )
+                    .setDescription(
+                        isEn
+                            ? 'Empty Servers, Gamepasses, Codes, Update Alerts & Maps'
+                            : 'Servidores Vacíos, Pases, Códigos, Alertas y Mapas'
+                    )
                     .setValue('sub_games')
                     .setEmoji('🎮')
                     .setDefault(activeSub === 'sub_games'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Centro de Vinculación de Cuenta de Roblox')
-                    .setDescription('Cómo conectar tu cuenta con Roblox OAuth 2.0 o por Nombre/ID en /roblox')
+                    .setLabel(
+                        isEn
+                            ? 'Roblox Account'
+                            : 'Cuenta de Roblox'
+                    )
+                    .setDescription(
+                        isEn
+                            ? 'How to link your Roblox account'
+                            : 'Cómo vincular tu cuenta de Roblox'
+                    )
                     .setValue('sub_account')
-                    .setEmoji('🔐')
+                    .setEmoji('🔗')
                     .setDefault(activeSub === 'sub_account')
             ]);
 
@@ -255,7 +432,7 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setLabel('Guía Web Oficial')
+                .setLabel(isEn ? 'Web Guide' : 'Guía Web')
                 .setEmoji('🌐')
                 .setStyle(ButtonStyle.Link)
                 .setURL(DOCS_URL)
@@ -264,7 +441,7 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
 
     container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Comandos: /roblox • /config • /ping • /help')
+        footer(isEn ? 'Commands: /roblox • /config • /ping' : 'Comandos: /roblox • /config • /ping')
     ));
 
     return {
@@ -278,11 +455,12 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Muestra la guía interactiva de comandos (/roblox, /config, /ping), herramientas y mecánicas del bot.'),
+        .setDescription('Muestra la guía interactiva de comandos (/roblox, /config, /ping) y herramientas del bot.'),
 
     construirPanelHelp,
 
     async execute(interaction) {
-        await interaction.reply(construirPanelHelp('cmd_overview'));
+        const lang = obtenerIdiomaUsuario(interaction.user?.id);
+        await interaction.reply(construirPanelHelp('cmd_overview', 'sub_economy', lang));
     }
 };

@@ -28,7 +28,6 @@ const DATA_DIR = path.join(__dirname, '../../data');
 const OWNER_CONFIG_FILE = path.join(DATA_DIR, 'bot_owner_config.json');
 
 // Configuración persistente controlada exclusivamente por el propietario del bot desde /config
-// (Sin interruptores innecesarios de desactivar categorías principales; enfocado 100% en mecánicas reales del motor)
 const defaultOwnerConfig = {
     engineMode: 'auto', // 'auto' | 'ahorro' | 'maximo'
     dynamicLoadingEnabled: true,
@@ -36,13 +35,43 @@ const defaultOwnerConfig = {
     heavyCanvas3DEnabled: true,
     smartApiCacheEnabled: true,
     autoFailoverShieldEnabled: true,
+    requireDiscordOAuth: true,
+    tycoonEnabled: true,
+    maxWishlistItems: 5,
+    maxSandboxItems: 5,
+    maxGameSubs: 3,
+    priceCheckIntervalMinutes: 5,
+    workersIntervalMinutes: 15,
     maintenanceMode: false,
     registeredOwnerId: null,
     bootTimestamp: new Date().toISOString(),
     updatedAt: null
 };
 
-let botOwnerConfig = { ...defaultOwnerConfig };
+function normalizarEnteroRango(val, defVal, minVal, maxVal) {
+    const n = parseInt(val, 10);
+    if (isNaN(n)) return defVal;
+    return Math.max(minVal, Math.min(maxVal, n));
+}
+
+function normalizarConfigPropietario(cfg = {}) {
+    return {
+        ...defaultOwnerConfig,
+        ...cfg,
+        backgroundMonitorsEnabled: true,
+        heavyCanvas3DEnabled: true,
+        dynamicLoadingEnabled: cfg.dynamicLoadingEnabled !== undefined ? Boolean(cfg.dynamicLoadingEnabled) : true,
+        requireDiscordOAuth: cfg.requireDiscordOAuth !== undefined ? Boolean(cfg.requireDiscordOAuth) : true,
+        tycoonEnabled: cfg.tycoonEnabled !== undefined ? Boolean(cfg.tycoonEnabled) : true,
+        maxWishlistItems: normalizarEnteroRango(cfg.maxWishlistItems, 5, 1, 25),
+        maxSandboxItems: normalizarEnteroRango(cfg.maxSandboxItems, 5, 1, 15),
+        maxGameSubs: normalizarEnteroRango(cfg.maxGameSubs, 3, 1, 15),
+        priceCheckIntervalMinutes: normalizarEnteroRango(cfg.priceCheckIntervalMinutes, 5, 1, 60),
+        workersIntervalMinutes: normalizarEnteroRango(cfg.workersIntervalMinutes, 15, 2, 120)
+    };
+}
+
+let botOwnerConfig = normalizarConfigPropietario(defaultOwnerConfig);
 
 function sincronizarFlagsMotorHttp() {
     setHttpEngineFlags({
@@ -60,11 +89,10 @@ function cargarConfigPropietario() {
             const raw = fs.readFileSync(OWNER_CONFIG_FILE, 'utf8');
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
-                botOwnerConfig = {
-                    ...defaultOwnerConfig,
+                botOwnerConfig = normalizarConfigPropietario({
                     ...parsed,
                     bootTimestamp: defaultOwnerConfig.bootTimestamp
-                };
+                });
             }
         }
     } catch {
@@ -75,11 +103,11 @@ function cargarConfigPropietario() {
 
 function guardarConfigPropietario(partial = {}) {
     try {
-        botOwnerConfig = {
+        botOwnerConfig = normalizarConfigPropietario({
             ...botOwnerConfig,
             ...partial,
             updatedAt: new Date().toISOString()
-        };
+        });
         sincronizarFlagsMotorHttp();
         if (!fs.existsSync(DATA_DIR)) {
             fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -94,7 +122,7 @@ function guardarConfigPropietario(partial = {}) {
 cargarConfigPropietario();
 
 function obtenerConfigPropietario() {
-    return { ...botOwnerConfig };
+    return normalizarConfigPropietario(botOwnerConfig);
 }
 
 // Caché en memoria de los IDs de propietario de la aplicación de Discord
@@ -670,11 +698,18 @@ function construirPanelAvisoModeracion({ titulo, descripcion, pie = 'Configuraci
 function esInteraccionNavegacionRapida(customId = '') {
     const cid = String(customId);
     if (!cid) return true;
+    if (cid.startsWith('btn_welcome_open_')) return true;
+    if (cid.startsWith('btn_nav_')) return true;
+    if (cid.startsWith('btn_lang_first_pick:')) return true;
+    if (cid.startsWith('btn_pref_')) return true;
+    if (cid.startsWith('tycoon_')) return true;
     const prefijosRapidos = [
         'roblox_category_select',
         'help_category_select',
         'help_roblox_subcat_select',
         'config_category_select',
+        'select_pref_tier',
+        'welcome_tour_select',
         'select_owner_mechanic',
         'btn_owner_cycle_engine',
         'btn_owner_toggle_maintenance',
@@ -687,8 +722,11 @@ function esInteraccionNavegacionRapida(customId = '') {
         'btn_nav_main_menu',
         'btn_quick_calc',
         'btn_nav_calc',
+        'btn_econ_group',
         'btn_ava_textures',
-        'btn_ava_clones'
+        'btn_ava_clones',
+        'btn_ava_export3d',
+        'btn_ava_colormatch'
     ];
     return prefijosRapidos.includes(cid);
 }
@@ -839,9 +877,9 @@ function resolverPlanDeCarga(customId = '') {
                     cmd: 'catalog.group_store.scan --sort=popular'
                 },
                 {
-                    titulo: 'Cálculo de Presupuesto con 40% de Ahorro en Grupo',
-                    detalle: 'Determinando retorno de Robux y costo real por prenda',
-                    cmd: 'finance.calc_cashback --rate=0.40'
+                    titulo: 'Valuación del Catálogo Completo en Robux',
+                    detalle: 'Sumando precios de las prendas en venta y ordenando el catálogo',
+                    cmd: 'finance.sum_catalog --currency=R$'
                 },
                 {
                     titulo: 'Armado del Explorador Interactivo de Prendas',

@@ -87,7 +87,7 @@ async function procesarItem(client, item, stats) {
         const signo = bajoPrecio ? '-' : '+';
         const difTexto = esUSD
             ? `\`${signo}$${difAbs.toFixed(2)} USD\``
-            : `\`${signo}${difAbs.toLocaleString('es-AR')}\` ${EMOJI_ROBUX}`;
+            : `\`${signo}${difAbs.toLocaleString('es-AR')} R$\` ${EMOJI_ROBUX}`;
         const difTextoPlano = `${signo}${formatearPrecioTexto(difAbs, esUSD)}`;
 
         let porcentajeStr = '';
@@ -280,18 +280,17 @@ async function procesarItem(client, item, stats) {
 let escaneoEnCurso = false;
 let intervaloMonitoreo = null;
 let intervaloWorkers15m = null;
+let activeDiscordClient = null;
 
 const { revisarRobuxPendientesWorker } = require('../src/modules/economyModule');
 const { revisarParchesJuegosWorker } = require('../src/modules/gamesModule');
 const { obtenerConfigPropietario } = require('../src/utils/performanceManager');
 
 async function revisarPrecios(client) {
-    if (!obtenerConfigPropietario().backgroundMonitorsEnabled) {
-        return;
-    }
+    const targetClient = client || activeDiscordClient;
     if (escaneoEnCurso) {
         logger.warn('El escaneo anterior sigue en curso. Salteando este ciclo.');
-        return;
+        return { enCurso: true, total: 0, cambios: 0, alertas: 0 };
     }
     escaneoEnCurso = true;
     const inicio = Date.now();
@@ -304,12 +303,12 @@ async function revisarPrecios(client) {
 
         if (error) {
             logger.error('MONITOREO SUPABASE', error.message);
-            return;
+            return { total: 0, cambios: 0, alertas: 0, error: error.message };
         }
 
         if (!items || items.length === 0) {
             logger.sniper('Escaneo omitido: no hay objetos activos en seguimiento.');
-            return;
+            return { total: 0, cambios: 0, alertas: 0 };
         }
 
         const stats = {
@@ -325,7 +324,7 @@ async function revisarPrecios(client) {
         const lotes = dividirEnLotes(items, CHUNK_SIZE);
 
         for (const lote of lotes) {
-            await Promise.allSettled(lote.map(item => procesarItem(client, item, stats)));
+            await Promise.allSettled(lote.map(item => procesarItem(targetClient, item, stats)));
             await delay(1200);
         }
 
@@ -340,30 +339,67 @@ async function revisarPrecios(client) {
             (stats.sinVendedores > 0 ? ` │ Sin stock: ${stats.sinVendedores}` : '') +
             (stats.errores > 0 ? ` │ ${c.red}Errores: ${stats.errores}${c.reset}` : '')
         );
+        return stats;
     } catch (err) {
         logger.error('PRICE TRACKER FATAL', err);
+        return { total: 0, cambios: 0, alertas: 0 };
     } finally {
         escaneoEnCurso = false;
     }
 }
 
-function iniciarMonitoreo(client, intervaloMinutos = 5) {
+function programarTemporizadoresActivos(client) {
+    if (client) activeDiscordClient = client;
+    const cfg = obtenerConfigPropietario();
+    const minPrecios = Number(cfg.priceCheckIntervalMinutes) > 0 ? Number(cfg.priceCheckIntervalMinutes) : 5;
+    const minWorkers = Number(cfg.workersIntervalMinutes) > 0 ? Number(cfg.workersIntervalMinutes) : 15;
+
+    if (intervaloMonitoreo) {
+        clearInterval(intervaloMonitoreo);
+        intervaloMonitoreo = null;
+    }
+    if (intervaloWorkers15m) {
+        clearInterval(intervaloWorkers15m);
+        intervaloWorkers15m = null;
+    }
+
+    intervaloMonitoreo = setInterval(() => revisarPrecios(activeDiscordClient), minPrecios * 60 * 1000);
+    intervaloWorkers15m = setInterval(async () => {
+        await revisarRobuxPendientesWorker(activeDiscordClient).catch(() => null);
+        await revisarParchesJuegosWorker(activeDiscordClient).catch(() => null);
+    }, minWorkers * 60 * 1000);
+
+    return { minPrecios, minWorkers };
+}
+
+function iniciarMonitoreo(client, intervaloMinutos = null) {
+    if (client) activeDiscordClient = client;
     if (intervaloMonitoreo) return;
 
-    const minutos = Number(intervaloMinutos) > 0 ? Number(intervaloMinutos) : 5;
-    const ms = minutos * 60 * 1000;
-    revisarPrecios(client);
-    intervaloMonitoreo = setInterval(() => revisarPrecios(client), ms);
+    const cfg = obtenerConfigPropietario();
+    const minInicial = Number(cfg.priceCheckIntervalMinutes) || Number(intervaloMinutos) || 5;
+    revisarPrecios(activeDiscordClient);
+    programarTemporizadoresActivos(activeDiscordClient);
+    return minInicial;
+}
 
-    // Worker cada 15 minutos para Agenda de Robux Pendientes y Suscriptor de Parches Silenciosos
-    if (!intervaloWorkers15m) {
-        const ms15 = 15 * 60 * 1000;
-        intervaloWorkers15m = setInterval(async () => {
-            if (!obtenerConfigPropietario().backgroundMonitorsEnabled) return;
-            await revisarRobuxPendientesWorker(client).catch(() => null);
-            await revisarParchesJuegosWorker(client).catch(() => null);
-        }, ms15);
-    }
+function actualizarIntervalosMonitoreo(client = null) {
+    return programarTemporizadoresActivos(client || activeDiscordClient);
+}
+
+async function ejecutarEscaneoManualCompleto(client = null) {
+    const targetClient = client || activeDiscordClient;
+    const [priceStats] = await Promise.all([
+        revisarPrecios(targetClient).catch(() => ({ total: 0, cambios: 0, alertas: 0 })),
+        revisarRobuxPendientesWorker(targetClient).catch(() => null),
+        revisarParchesJuegosWorker(targetClient).catch(() => null)
+    ]);
+    return {
+        totalItems: Number(priceStats?.total || 0),
+        cambios: Number(priceStats?.cambios || 0),
+        alertas: Number(priceStats?.alertas || 0),
+        enCurso: Boolean(priceStats?.enCurso)
+    };
 }
 
 /**
@@ -517,4 +553,10 @@ async function enviarAlertaPrueba(client, item) {
     }
 }
 
-module.exports = { iniciarMonitoreo, revisarPrecios, enviarAlertaPrueba };
+module.exports = {
+    iniciarMonitoreo,
+    revisarPrecios,
+    enviarAlertaPrueba,
+    actualizarIntervalosMonitoreo,
+    ejecutarEscaneoManualCompleto
+};

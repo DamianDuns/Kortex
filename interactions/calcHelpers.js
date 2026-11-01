@@ -99,7 +99,7 @@ function construirPanelCalculadoraLimpio(opcionesSeleccionadas = OPCIONES_DEFAUL
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
                 boton('btn_calc_execute_modal', 'Calcular', '🧮', ButtonStyle.Primary),
-                boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️')
+                boton('btn_nav_cat:cat_economy', 'Volver Atrás', '⬅️')
             )
         );
 
@@ -113,12 +113,12 @@ function construirPanelCalculadoraLimpio(opcionesSeleccionadas = OPCIONES_DEFAUL
 
 function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') {
     let precioAjustadoRobux = basePrice;
-    const lineas = [`🏷️ **Precio base:** \`${fmt(basePrice)}\` ${EMOJI_ROBUX}`];
+    const lineas = [`🏷️ **Precio base:** \`${fmt(basePrice)} R$\` ${EMOJI_ROBUX}`];
 
     if (seleccionadas.includes('roblox_regional')) {
         const tierConfig = TIERS_ROBLOX[tierKey] || TIERS_ROBLOX.TIER_100;
         precioAjustadoRobux = Math.floor(basePrice * tierConfig.factor);
-        lineas.push(`🌎 **Precio regional:** \`${fmt(precioAjustadoRobux)}\` ${EMOJI_ROBUX}`);
+        lineas.push(`🌎 **Precio regional:** \`${fmt(precioAjustadoRobux)} R$\` ${EMOJI_ROBUX}`);
         lineas.push(`-# ${tierConfig.nombre} — ${tierConfig.desc}`);
     }
 
@@ -128,19 +128,19 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
     if (seleccionadas.includes('grupo_40')) {
         cashbackGrupoMonto = Math.floor(precioAjustadoRobux * 0.40);
         totalAhorroRobux += cashbackGrupoMonto;
-        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupoMonto)}\` ${EMOJI_ROBUX}`);
+        lineas.push(`👥 **Cashback de grupo (40%):** \`+${fmt(cashbackGrupoMonto)} R$\` ${EMOJI_ROBUX}`);
     }
 
     if (seleccionadas.includes('plus_10')) {
         const descPlus10 = Math.floor(precioAjustadoRobux * 0.10);
         totalAhorroRobux += descPlus10;
-        lineas.push(`⭐ **Roblox Plus (10%):** \`-${fmt(descPlus10)}\` ${EMOJI_ROBUX}`);
+        lineas.push(`⭐ **Roblox Plus (10%):** \`-${fmt(descPlus10)} R$\` ${EMOJI_ROBUX}`);
     }
 
     if (seleccionadas.includes('plus_20')) {
         const descPlus20 = Math.floor(precioAjustadoRobux * 0.20);
         totalAhorroRobux += descPlus20;
-        lineas.push(`🌟 **Roblox Plus 2+ meses (20%):** \`-${fmt(descPlus20)}\` ${EMOJI_ROBUX}`);
+        lineas.push(`🌟 **Roblox Plus 2+ meses (20%):** \`-${fmt(descPlus20)} R$\` ${EMOJI_ROBUX}`);
     }
 
     const precioFinalEfectivo = Math.max(0, precioAjustadoRobux - totalAhorroRobux);
@@ -154,15 +154,15 @@ function calcularEmbedResultado(basePrice, seleccionadas, tierKey = 'TIER_100') 
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas.join('\n')))
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ✨ Precio final efectivo: \`${fmt(precioFinalEfectivo)}\` ${EMOJI_ROBUX}\n` +
-            `Ahorrás **\`${fmt(ahorroTotalVsBase)}\`** ${EMOJI_ROBUX} (${porcentaje}%)\n` +
+            `### ✨ Precio final efectivo: \`${fmt(precioFinalEfectivo)} R$\` ${EMOJI_ROBUX}\n` +
+            `Ahorrás **\`${fmt(ahorroTotalVsBase)} R$\`** ${EMOJI_ROBUX} (${porcentaje}%)\n` +
             `\`${barraProgreso(porcentaje)}\``
         ))
         .addSeparatorComponents(separador());
 
     const rowBotones = [
         boton('btn_quick_calc', 'Nuevo Cálculo', '🧮', ButtonStyle.Primary),
-        boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️', ButtonStyle.Secondary)
+        boton('btn_nav_cat:cat_economy', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
     ];
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(rowBotones));

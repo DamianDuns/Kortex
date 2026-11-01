@@ -132,7 +132,7 @@ module.exports = {
                     .addActionRowComponents(
                         new ActionRowBuilder().addComponents(
                             boton(`btn_action_open_channel_modal:${dbId}`, 'Ingresar ID manual', '🔢', ButtonStyle.Secondary),
-                            boton(`btn_action_open_config:${dbId}`, 'Volver al objeto', '⬅️', ButtonStyle.Secondary)
+                            boton(`btn_action_open_config:${dbId}`, 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
                         )
                     )
                     .addTextDisplayComponents(

@@ -73,7 +73,7 @@ const EMOJI_TIPO = {
 
 const NOMBRE_TIPO = {
     catalog: 'Catálogo',
-    gamepass: 'Gamepass',
+    gamepass: 'Pase de Juego',
     plugin: 'Plugin',
     paid_access: 'Acceso Pago'
 };
@@ -119,16 +119,16 @@ function formatearUptime(ms) {
 
 const EMOJI_ROBUX = '<:Robux:1547677277590913114>';
 
-/** Formatea un precio con Markdown y el emoji de Robux para paneles y mensajes de Discord. */
+/** Formatea un precio con Markdown, R$ (Robux) o USD (Dólares) y el emoji de Robux para paneles y mensajes de Discord. */
 function formatearPrecio(valor, esUSD) {
     const n = Number(valor || 0);
-    return esUSD ? `\`$${n.toFixed(2)} USD\`` : `\`${n.toLocaleString('es-AR')}\` ${EMOJI_ROBUX}`;
+    return esUSD ? `\`$${n.toFixed(2)} USD\`` : `\`${n.toLocaleString('es-AR')} R$\` ${EMOJI_ROBUX}`;
 }
 
-/** Formatea un precio en texto plano (para descripciones de menús desplegables o consola). */
+/** Formatea un precio en texto plano con R$ o USD (para descripciones de menús desplegables o consola). */
 function formatearPrecioTexto(valor, esUSD) {
     const n = Number(valor || 0);
-    return esUSD ? `$${n.toFixed(2)} USD` : `${n.toLocaleString('es-AR')} Robux`;
+    return esUSD ? `$${n.toFixed(2)} USD` : `${n.toLocaleString('es-AR')} R$`;
 }
 
 module.exports = {

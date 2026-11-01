@@ -16,8 +16,9 @@ const robloxClient = axios.create({
 
 // Caché en memoria de respuestas GET de Roblox API para acelerar herramientas y evitar errores 429 (Rate Limit)
 const httpResponseCache = new Map();
-const MAX_HTTP_CACHE_ENTRIES = 240;
-const DEFAULT_HTTP_CACHE_TTL_MS = 35 * 1000; // 35 segundos para datos de catálogo/miniaturas
+const inFlightRequests = new Map();
+const MAX_HTTP_CACHE_ENTRIES = 320;
+const DEFAULT_HTTP_CACHE_TTL_MS = 45 * 1000;
 
 let smartCacheActive = true;
 let failoverShieldActive = true;
@@ -25,8 +26,11 @@ let failoverShieldActive = true;
 const httpStats = {
     totalRequests: 0,
     cacheHits: 0,
+    coalescedHits: 0,
     failoverSuccesses: 0,
-    rateLimitsAvoided: 0
+    rateLimitsAvoided: 0,
+    lastLatencyMs: 38,
+    avgLatencyMs: 42
 };
 
 function setHttpEngineFlags({ smartCache, failoverShield } = {}) {
@@ -44,17 +48,28 @@ function toRoProxyUrl(url) {
     return String(url).replace(/\.roblox\.com/gi, '.roproxy.com');
 }
 
+function getAdaptiveCacheTtl(url, customTtl) {
+    if (customTtl && Number(customTtl) > 0) return Number(customTtl);
+    const u = String(url || '').toLowerCase();
+    if (u.includes('thumbnails.roblox.com')) return 120 * 1000; // 2 min para miniaturas
+    if (u.includes('users.roblox.com/v1/users/')) return 60 * 1000;
+    if (u.includes('groups.roblox.com') || u.includes('games.roblox.com/v1/games')) return 55 * 1000;
+    if (u.includes('catalog.roblox.com') || u.includes('economy.roblox.com')) return 45 * 1000;
+    return DEFAULT_HTTP_CACHE_TTL_MS;
+}
+
 function isCacheableGetRequest(url, options = {}) {
     if (!smartCacheActive) return false;
     if (options.bypassCache) return false;
     const method = String(options.method || 'get').toLowerCase();
     if (method !== 'get') return false;
-    if (options.headers && (options.headers.Cookie || options.headers.Authorization)) return false;
+    if (options.headers && (options.headers.Cookie || options.headers.Authorization || options.headers['Cache-Control'] === 'no-cache')) return false;
 
     const u = String(url || '').toLowerCase();
-    // No cachear endpoints de autenticación ni servidores en vivo que cambian segundo a segundo
+    // No cachear endpoints de autenticación, amigos en vivo ni servidores activos que cambian segundo a segundo
     if (
         u.includes('/users/authenticated') ||
+        u.includes('friends.roblox.com') ||
         u.includes('privatemessages.') ||
         u.includes('chat.roblox.com') ||
         u.includes('/servers/public')
@@ -81,8 +96,8 @@ function purgeHttpCache(aggressive = false) {
         }
     }
 
-    // Si sigue por encima del 70% de capacidad, liberar la mitad más antigua
-    if (httpResponseCache.size > Math.floor(MAX_HTTP_CACHE_ENTRIES * 0.7)) {
+    // Si sigue por encima del 75% de capacidad, liberar la mitad más antigua
+    if (httpResponseCache.size > Math.floor(MAX_HTTP_CACHE_ENTRIES * 0.75)) {
         const toDelete = Math.ceil(httpResponseCache.size / 2);
         let i = 0;
         for (const k of httpResponseCache.keys()) {
@@ -101,12 +116,17 @@ function getHttpCacheStats() {
     for (const entry of httpResponseCache.values()) {
         approxBytes += entry.approxBytes || 512;
     }
+    const hitRatePct = httpStats.totalRequests > 0
+        ? Math.min(100, Math.round(((httpStats.cacheHits + httpStats.coalescedHits) / httpStats.totalRequests) * 100))
+        : 0;
     return {
         entries: httpResponseCache.size,
+        inFlight: inFlightRequests.size,
         maxEntries: MAX_HTTP_CACHE_ENTRIES,
         approxKB: Math.round(approxBytes / 1024),
         smartCacheActive,
         failoverShieldActive,
+        hitRatePct,
         ...httpStats
     };
 }
@@ -128,6 +148,13 @@ async function fetchWithRetry(url, options = {}, retries = 2, backoff = 650) {
             return { data: cached.data, status: 200, headers: cached.headers || {}, fromCache: true };
         }
         httpResponseCache.delete(cacheKey);
+    }
+
+    // Deduplicación de peticiones idénticas en vuelo (evita ráfagas 429)
+    if (cacheKey && inFlightRequests.has(cacheKey)) {
+        httpStats.coalescedHits++;
+        httpStats.rateLimitsAvoided++;
+        return inFlightRequests.get(cacheKey);
     }
 
     const storeInCacheIfEligible = (res) => {
@@ -152,7 +179,7 @@ async function fetchWithRetry(url, options = {}, retries = 2, backoff = 650) {
                 data: res.data,
                 headers: res.headers,
                 timestamp: Date.now(),
-                ttlMs: options.cacheTtlMs || DEFAULT_HTTP_CACHE_TTL_MS,
+                ttlMs: getAdaptiveCacheTtl(primaryUrl, options.cacheTtlMs),
                 approxBytes
             });
         } catch {
@@ -160,37 +187,54 @@ async function fetchWithRetry(url, options = {}, retries = 2, backoff = 650) {
         }
     };
 
-    try {
-        const res = await robloxClient({ url: primaryUrl, method, ...options });
-        storeInCacheIfEligible(res);
-        return res;
-    } catch (primaryError) {
-        const status = primaryError.response?.status;
+    const executeNetworkCall = async () => {
+        const t0 = Date.now();
+        try {
+            const res = await robloxClient({ url: primaryUrl, method, ...options });
+            const elapsed = Math.max(5, Date.now() - t0);
+            httpStats.lastLatencyMs = elapsed;
+            httpStats.avgLatencyMs = Math.round(httpStats.avgLatencyMs * 0.75 + elapsed * 0.25);
+            storeInCacheIfEligible(res);
+            return res;
+        } catch (primaryError) {
+            const status = primaryError.response?.status;
 
-        // Si el endpoint directo devolvió error de red, 403, 429 o 5xx y el escudo failover está activo, probar roproxy
-        if (
-            failoverShieldActive &&
-            fallbackUrl !== primaryUrl &&
-            (!status || status === 401 || status === 403 || status === 429 || status >= 500)
-        ) {
-            try {
-                const fallbackRes = await robloxClient({ url: fallbackUrl, method, timeout: 4800, ...options });
-                httpStats.failoverSuccesses++;
-                storeInCacheIfEligible(fallbackRes);
-                return fallbackRes;
-            } catch {
-                // Continuar con reintento sobre primaryUrl
+            // Si el endpoint directo devolvió error de red, 403, 429 o 5xx y el escudo failover está activo, probar roproxy
+            if (
+                failoverShieldActive &&
+                fallbackUrl !== primaryUrl &&
+                (!status || status === 401 || status === 403 || status === 429 || status >= 500)
+            ) {
+                try {
+                    const fallbackRes = await robloxClient({ url: fallbackUrl, method, timeout: 4800, ...options });
+                    httpStats.failoverSuccesses++;
+                    httpStats.rateLimitsAvoided++;
+                    storeInCacheIfEligible(fallbackRes);
+                    return fallbackRes;
+                } catch {
+                    // Continuar con reintento sobre primaryUrl
+                }
             }
-        }
 
-        if (retries > 0 && (!status || status === 429 || status >= 500)) {
-            const waitMs = status === 429 ? Math.max(1150, backoff) : backoff;
-            await new Promise(res => setTimeout(res, waitMs));
-            return fetchWithRetry(primaryUrl, options, retries - 1, Math.min(2600, Math.round(waitMs * 1.75)));
-        }
+            if (retries > 0 && (!status || status === 429 || status >= 500)) {
+                const waitMs = status === 429 ? Math.max(1150, backoff) : backoff;
+                await new Promise(res => setTimeout(res, waitMs));
+                return fetchWithRetry(primaryUrl, { ...options, bypassCache: true }, retries - 1, Math.min(2600, Math.round(waitMs * 1.75)));
+            }
 
-        throw primaryError;
+            throw primaryError;
+        }
+    };
+
+    if (cacheKey) {
+        const promise = executeNetworkCall().finally(() => {
+            inFlightRequests.delete(cacheKey);
+        });
+        inFlightRequests.set(cacheKey, promise);
+        return promise;
     }
+
+    return executeNetworkCall();
 }
 
 module.exports = {

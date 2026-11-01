@@ -111,7 +111,7 @@ async function renderizarPanelConfig(item) {
     container.addSeparatorComponents(separador());
 
     const navButtons = [
-        boton(`roblox_chart_${item.id}_7d`, 'Volver', '⬅️', ButtonStyle.Secondary)
+        boton(`roblox_chart_${item.id}_7d`, 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
     ];
 
     if (tieneMeta) {
@@ -259,8 +259,8 @@ module.exports = {
                     .addSeparatorComponents(separador())
                     .addActionRowComponents(
                         new ActionRowBuilder().addComponents(
-                            boton('btn_nav_wishlist', 'Volver a Mi Lista', '⬅️', ButtonStyle.Secondary),
-                            boton('btn_nav_sniper', 'Ir al Sniper', '🎯', ButtonStyle.Primary)
+                            boton('btn_nav_wishlist', 'Volver Atrás', '⬅️', ButtonStyle.Secondary),
+                            boton('btn_nav_sniper', 'Seguimiento de Precios', '🎯', ButtonStyle.Primary)
                         )
                     )
                     .addTextDisplayComponents(

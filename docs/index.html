@@ -2043,7 +2043,7 @@
                 </div>
             </div>
 
-            <!-- 2. Roblox OAuth 2.0 + Quick Username Link Card -->
+            <!-- 2. Roblox OAuth 2.0 Card -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
@@ -2063,37 +2063,8 @@
                     </button>
                 </div>
 
-                <div class="popover-quick-box">
-                    <span class="popover-quick-label">¿Preferís vincular sin iniciar sesión? (Verificación en la Plataforma de Roblox)</span>
-
-                    <!-- PASO 1: Solicitar que el Bot envíe el código a tu Galería de Mensajes en Roblox -->
-                    <div class="popover-quick-form" id="quick-roblox-step-request">
-                        <input type="text" id="quick-roblox-input" class="popover-quick-input" placeholder="Tu usuario o ID de Roblox" onkeydown="if(event.key==='Enter') requestQuickRobloxCode()">
-                        <button type="button" class="popover-quick-submit" onclick="requestQuickRobloxCode()">Enviar a Roblox</button>
-                    </div>
-
-                    <!-- PASO 2: Revisar Galería de Mensajes en Roblox (roblox.com/messages) e introducir el código recibido en Roblox -->
-                    <div class="verifier-bot-inbox" id="quick-roblox-step-verify" style="display: none;">
-                        <div class="verifier-bot-top">
-                            <span class="verifier-bot-badge">📬 Verificador en Roblox (Galería de Mensajes)</span>
-                            <button type="button" class="verifier-bot-cancel" onclick="cancelQuickRobloxCode()">Cambiar usuario ✕</button>
-                        </div>
-                        <div class="verifier-bot-msg">
-                            <span id="verifier-bot-text">Revisá tu Galería de Mensajes en Roblox (roblox.com/messages) para ver el código de 6 dígitos enviado por el Bot a tu cuenta de Roblox:</span>
-                            <div class="verifier-code-row" style="flex-wrap: wrap; gap: 6px; margin-top: 6px;">
-                                <a href="https://www.roblox.com/messages" target="_blank" rel="noopener noreferrer" class="verifier-copy-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">📬 Abrir Mensajes en Roblox</a>
-                                <button type="button" class="verifier-copy-btn" id="verifier-phrase-btn" style="display: none;" onclick="copyRobloxProfilePhrase()">📋 Copiar Frase Alternativa</button>
-                            </div>
-                        </div>
-                        <div class="popover-quick-form">
-                            <input type="text" id="quick-roblox-code-input" class="popover-quick-input" maxlength="24" placeholder="Código de 6 dígitos recibido en Roblox" onkeydown="if(event.key==='Enter') verifyQuickRobloxCode()">
-                            <button type="button" class="popover-quick-submit" style="background: var(--brand-emerald); border-color: transparent; color: #fff;" onclick="verifyQuickRobloxCode()">Verificar</button>
-                        </div>
-                    </div>
-                </div>
-
                 <div id="roblox-feedback" class="popover-feedback">
-                    Protegido con código de verificación para evitar que terceros tomen datos de tu cuenta.
+                    Autorización oficial con Roblox OAuth 2.0. Tu sesión e historial quedan guardados de forma segura.
                 </div>
             </div>
         </div>
@@ -2996,8 +2967,7 @@
                     if (sub === 'sub_account') {
                         detailHtml = `
                             <div class="v2-section-list">
-                                <div class="v2-section-row"><div class="v2-section-text"><strong>🔐 Opción 1: Roblox OAuth 2.0 Oficial</strong><span>Autorizás tu cuenta en la página oficial de Roblox sin copiar IDs.</span></div></div>
-                                <div class="v2-section-row"><div class="v2-section-text"><strong>⚡ Opción 2: Modo Básico (Nombre o ID)</strong><span>Escribís tu usuario o ID en un modal rápido de Discord.</span></div></div>
+                                <div class="v2-section-row"><div class="v2-section-text"><strong>🔐 Autorización Oficial con Roblox OAuth 2.0</strong><span>Autorizás tu cuenta directamente en la página oficial de Roblox y se conserva tu sesión de forma segura.</span></div></div>
                             </div>
                         `;
                     } else {
@@ -3134,7 +3104,7 @@
                     box.innerHTML = `
                         <div>
                             <div class="v2-title">🛡️ Configuración y Moderación del Bot (Propietario)</div>
-                            <div class="v2-subtitle">Panel exclusivo del propietario: Optimizador calibrado y control general de mecánicas.</div>
+                            <div class="v2-subtitle">Panel exclusivo del propietario: Cola Anti-429, Telemetría Real y Optimizador RAM/GPU.</div>
                         </div>
                         <div class="v2-select-wrap">
                             <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
@@ -3147,8 +3117,8 @@
                         <div class="v2-section-list">
                             <div class="v2-section-row">
                                 <div class="v2-section-text">
-                                    <strong>⚡ Sistema del Optimizador RAM / GPU (${simState.ownerEngineMode})</strong>
-                                    <span>🟢 Estable (Uso Individual Calibrado — En Reposo) · RAM Bot: 94.2 MB</span>
+                                    <strong>⚡ Optimizador RAM/GPU (${simState.ownerEngineMode}) &amp; Cola Anti-429</strong>
+                                    <span>🟢 Estable · RAM Bot: 94.2 MB · Caché Anti-429: Hit-Rate 92% · In-Flight: 0</span>
                                 </div>
                             </div>
                             <div class="v2-section-row">
@@ -3159,9 +3129,9 @@
                             </div>
                         </div>
                         <div class="v2-terminal">
-                            <div><span class="term-prompt">kortex@optimizer:~$</span> status --calibration</div>
+                            <div><span class="term-prompt">kortex@optimizer:~$</span> status --subsystems --anti429</div>
                             <div>[MOTOR]   &gt; <span class="term-ok">Calibración activa:</span> Uso individual detectado (sin sobrecarga)</div>
-                            <div>[MEMORIA] &gt; Vigilante en espera pasiva (solo actúa ante falta real de RAM)</div>
+                            <div>[ANTI429] &gt; Coalescencia de peticiones concurrentes + Caché inteligente activa</div>
                         </div>
                         <div class="v2-separator"></div>
                         <div class="v2-btn-row">
@@ -3602,50 +3572,6 @@
             `).join('');
         }
 
-        let currentPendingRobloxPhrase = '';
-
-        function renderPendingVerificationUI(pendingVerif) {
-            const stepRequest = document.getElementById('quick-roblox-step-request');
-            const stepVerify = document.getElementById('quick-roblox-step-verify');
-            const msgText = document.getElementById('verifier-bot-text');
-            const phraseBtn = document.getElementById('verifier-phrase-btn');
-
-            if (!stepRequest || !stepVerify) return;
-
-            if (pendingVerif && pendingVerif.profile && pendingVerif.botInboxMessage) {
-                stepRequest.style.display = 'none';
-                stepVerify.style.display = 'flex';
-                const info = pendingVerif.botInboxMessage;
-                currentPendingRobloxPhrase = info.profileChallengePhrase || '';
-                if (msgText) {
-                    if (pendingVerif.robloxMessageDelivered) {
-                        msgText.textContent = `📩 El Bot (@${info.botRobloxUsername || 'Bot'}) envió un mensaje privado a la Galería de Mensajes en Roblox de @${pendingVerif.profile.roblox_username}. Abrí roblox.com/messages e introducí el código de 6 dígitos recibido allá (nunca se muestra aquí por seguridad):`;
-                    } else {
-                        msgText.textContent = `🔒 Para proteger a @${pendingVerif.profile.roblox_username}, el código secreto nunca se muestra fuera de Roblox. Revisá tu Galería de Mensajes en Roblox (roblox.com/messages)${currentPendingRobloxPhrase ? ` o colocá "${currentPendingRobloxPhrase}" en tu Descripción de Roblox y tocá Verificar` : ''}:`;
-                    }
-                }
-                if (phraseBtn) {
-                    phraseBtn.style.display = currentPendingRobloxPhrase ? 'inline-flex' : 'none';
-                }
-            } else {
-                currentPendingRobloxPhrase = '';
-                stepRequest.style.display = 'flex';
-                stepVerify.style.display = 'none';
-            }
-        }
-
-        function copyRobloxProfilePhrase() {
-            if (!currentPendingRobloxPhrase) return;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(currentPendingRobloxPhrase).catch(() => {});
-            }
-            const rFeedback = document.getElementById('roblox-feedback');
-            if (rFeedback) {
-                rFeedback.style.color = '#818CF8';
-                rFeedback.textContent = `📋 Frase "${currentPendingRobloxPhrase}" copiada. Pegala en tu Descripción de perfil en Roblox.com y luego tocá el botón Verificar.`;
-            }
-        }
-
         /**
          * Verifica el estado en el servidor y, si el bot fue actualizado o reiniciado perdiendo la memoria volátil,
          * restaura automáticamente las sesiones activas desde el respaldo local del navegador.
@@ -3701,7 +3627,6 @@
 
                 renderRobloxAccountUI(data.linkedAccount || null);
                 renderDiscordConfigUI(data.discordConfig || null, data.discordSession || null);
-                renderPendingVerificationUI(data.pendingVerification || null);
                 renderAccountHistoryUI(data.history || [], data.stats || {}, serverHasDiscord || serverHasRoblox);
 
                 if (serverHasDiscord || serverHasRoblox) {
@@ -3739,9 +3664,6 @@
 
                     renderDiscordConfigUI(remainingDiscord, null);
                     renderRobloxAccountUI(remainingRoblox);
-                    if (provider === 'roblox') {
-                        renderPendingVerificationUI(null);
-                    }
                     renderAccountHistoryUI(stillHasActive ? (data.history || []) : [], data.stats || {}, stillHasActive);
 
                     if (stillHasActive) {
@@ -3758,152 +3680,6 @@
                 }
             } catch {
                 // Silencioso
-            }
-        }
-
-        /**
-         * PASO 1: Solicita un código de seguridad de 6 dígitos al Bot Verificador (MD / Buzón)
-         * para el usuario o ID de Roblox indicado (evitando que cualquiera vincule cuentas ajenas).
-         */
-        async function requestQuickRobloxCode() {
-            const inputEl = document.getElementById('quick-roblox-input');
-            const rFeedback = document.getElementById('roblox-feedback');
-            if (!inputEl) return;
-            const robloxInput = inputEl.value.trim();
-            if (!robloxInput) {
-                if (rFeedback) {
-                    rFeedback.style.color = '#F0B232';
-                    rFeedback.textContent = 'Escribí tu nombre de usuario o ID de Roblox primero para enviarte el código.';
-                }
-                return;
-            }
-
-            if (rFeedback) {
-                rFeedback.style.color = '#9BA5BA';
-                rFeedback.textContent = 'Contactando al Bot Verificador y enviando código de seguridad...';
-            }
-
-            try {
-                const res = await fetch(apiUrl('/api/auth/manual-link'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        step: 'request',
-                        discordId: getActiveDiscordId(),
-                        robloxInput
-                    })
-                });
-                const data = await res.json();
-                if (!data.ok) {
-                    if (rFeedback) {
-                        rFeedback.style.color = '#F23F43';
-                        rFeedback.textContent = data.message || 'No se encontró ese usuario en Roblox.';
-                    }
-                    return;
-                }
-
-                renderPendingVerificationUI({
-                    profile: data.profile,
-                    botInboxMessage: data.botInboxMessage,
-                    robloxMessageDelivered: data.robloxMessageDelivered,
-                    deliveryChannel: data.deliveryChannel
-                });
-
-                if (rFeedback) {
-                    rFeedback.style.color = '#818CF8';
-                    rFeedback.textContent = data.message || 'Revisá tu Galería de Mensajes en Roblox (roblox.com/messages) e introducí el código recibido.';
-                }
-            } catch {
-                if (rFeedback) {
-                    rFeedback.style.color = '#F23F43';
-                    rFeedback.textContent = 'No se pudo conectar con el Verificador de Roblox en este momento.';
-                }
-            }
-        }
-
-        /**
-         * PASO 2: Verifica el código recibido en la Galería de Mensajes de Roblox
-         * o comprueba la verificación en vivo en los servidores de Roblox.
-         */
-        async function verifyQuickRobloxCode() {
-            const codeInputEl = document.getElementById('quick-roblox-code-input');
-            const userInputEl = document.getElementById('quick-roblox-input');
-            const rFeedback = document.getElementById('roblox-feedback');
-            if (!codeInputEl) return;
-
-            const verificationCode = codeInputEl.value.trim();
-
-            if (rFeedback) {
-                rFeedback.style.color = '#9BA5BA';
-                rFeedback.textContent = 'Verificando titularidad en la plataforma de Roblox...';
-            }
-
-            try {
-                const res = await fetch(apiUrl('/api/auth/manual-link'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        step: 'verify',
-                        discordId: getActiveDiscordId(),
-                        verificationCode
-                    })
-                });
-                const data = await res.json();
-                if (!data.ok) {
-                    if (rFeedback) {
-                        rFeedback.style.color = '#F23F43';
-                        rFeedback.textContent = data.message || 'El código de seguridad es incorrecto.';
-                    }
-                    return;
-                }
-
-                if (data.discordId && data.discordId !== 'default_session') {
-                    setActiveDiscordId(data.discordId);
-                }
-                codeInputEl.value = '';
-                if (userInputEl) userInputEl.value = '';
-                renderPendingVerificationUI(null);
-                renderRobloxAccountUI(data.linkedAccount);
-                renderAccountHistoryUI(data.history || [], data.stats || {}, true);
-                saveLocalAccountBackup({
-                    discordId: data.discordId,
-                    linkedAccount: data.linkedAccount,
-                    discordConfig: data.discordConfig,
-                    history: data.history,
-                    stats: data.stats
-                });
-                if (rFeedback) {
-                    rFeedback.style.color = '#23A55A';
-                    rFeedback.textContent = `✅ Código verificado: Cuenta @${data.linkedAccount.roblox_username} conectada de forma segura.`;
-                }
-            } catch {
-                if (rFeedback) {
-                    rFeedback.style.color = '#F23F43';
-                    rFeedback.textContent = 'No se pudo verificar el código en este momento.';
-                }
-            }
-        }
-
-        async function cancelQuickRobloxCode() {
-            const codeInputEl = document.getElementById('quick-roblox-code-input');
-            const rFeedback = document.getElementById('roblox-feedback');
-            if (codeInputEl) codeInputEl.value = '';
-            renderPendingVerificationUI(null);
-            try {
-                await fetch(apiUrl('/api/auth/manual-link'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        step: 'cancel',
-                        discordId: getActiveDiscordId()
-                    })
-                });
-            } catch {
-                // Silencioso
-            }
-            if (rFeedback) {
-                rFeedback.style.color = 'var(--text-muted)';
-                rFeedback.textContent = 'Verificación cancelada. Podés escribir otro usuario o ID de Roblox.';
             }
         }
 

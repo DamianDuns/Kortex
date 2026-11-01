@@ -5,6 +5,7 @@
 
 const {
     ContainerBuilder,
+    SectionBuilder,
     TextDisplayBuilder,
     MediaGalleryBuilder,
     MediaGalleryItemBuilder,
@@ -69,7 +70,8 @@ const SUBCATEGORIAS_UGC = [
 ];
 
 const ORIGEN_LABELS = {
-    cashback_40:   '👥 Cashback de Grupo (40%)',
+    cashback_40:   '👥 Fondos de Grupo',
+    group_funds:   '👥 Fondos de Grupo',
     gamepass_sale: '🎟️ Venta de Gamepass',
     clothing_sale: '👕 Venta de Ropa 2D',
     limited_sale:  '💎 Venta de Limited UGC'
@@ -191,8 +193,8 @@ async function construirPanelPisosPrecios(forzar = false) {
     const container = new ContainerBuilder()
         .setAccentColor(COLORES.sniper)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            '# 📉 Precios Mínimos de Accesorios en la Tienda\n' +
-            '> 💡 **¿Cómo funciona?** Roblox cambia todos los días el precio mínimo al que se pueden vender los accesorios. Acá ves de forma clara cuánto cuesta como mínimo cada tipo de accesorio hoy y cuánto bajó respecto a la semana pasada.'
+            '# 📉 1.3 Pisos de Precio del Catálogo\n' +
+            'Precios mínimos actuales por categoría de accesorios comparados con la semana anterior.'
         ))
         .addSeparatorComponents(separador(true))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -213,12 +215,12 @@ async function construirPanelPisosPrecios(forzar = false) {
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_econ_floors_refresh', 'Actualizar Precios en Vivo', '🔄', ButtonStyle.Primary),
-                boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️')
+                boton('btn_econ_floors_refresh', 'Actualizar Precios', '🔄', ButtonStyle.Primary),
+                boton('btn_nav_cat:cat_economy', 'Volver Atrás', '⬅️')
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Comparativa de precios mínimos actuales frente a la semana anterior')
+            footer('Pisos de Precio del Catálogo')
         ));
 
     return {
@@ -231,7 +233,7 @@ async function construirPanelPisosPrecios(forzar = false) {
 // ==========================================
 // HERRAMIENTA 1.4: ⏳ Agenda y Alerta de Robux Pendientes
 // ==========================================
-async function registrarRobuxPendientes(discordId, { sourceType = 'cashback_40', amountRobux, sourceLabel = null }) {
+async function registrarRobuxPendientes(discordId, { sourceType = 'group_funds', amountRobux, sourceLabel = null }) {
     const monto = Math.max(1, Math.round(Number(amountRobux || 0)));
     const ahora = Date.now();
     const minHoras = sourceType === 'limited_sale' ? 120 : 72;
@@ -292,16 +294,16 @@ async function construirPanelRobuxPendientes(discordId, mensajeAviso = null) {
     const container = new ContainerBuilder()
         .setAccentColor(COLORES.calc)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            '# ⏳ Agenda y Alerta de Robux Pendientes\n' +
-            'Controlá la fecha y hora estimada de liberación de tus ventas de pases, ropa, artículos limitados y retornos de grupo. Recibirás un aviso automático por mensaje directo cuando tus Robux entren en ventana de acreditación.' +
+            '# ⏳ 1.4 Agenda de Robux Pendientes\n' +
+            'Registrá tus ventas o pases para recibir un aviso cuando tus Robux se liberen.' +
             (mensajeAviso ? `\n\n> ✅ ${mensajeAviso}` : '')
         ))
         .addSeparatorComponents(separador());
 
     if (registros.length === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            '### 📭 No tenés lotes de Robux pendientes activos\n' +
-            '> Presioná **➕ Registrar Operación** abajo para agendar tus Robux en retención (de 3 a 7 días según el tipo de operación).'
+            '### 📭 No tenés Robux pendientes registrados\n' +
+            '> Presioná **➕ Registrar Operación** abajo para agendar tus Robux.'
         ));
     } else {
         const lineas = registros.slice(0, 8).map((r, i) => {
@@ -317,7 +319,7 @@ async function construirPanelRobuxPendientes(discordId, mensajeAviso = null) {
         });
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### 💰 Total Acumulado por Cobrar: ${formatearPrecio(totalAcumulado, false)}  (\`${registros.length}\` lote/s)\n\n` +
+            `### 💰 Total Acumulado: ${formatearPrecio(totalAcumulado, false)}  (\`${registros.length}\` lote/s)\n\n` +
             lineas.join('\n\n')
         ));
     }
@@ -331,11 +333,11 @@ async function construirPanelRobuxPendientes(discordId, mensajeAviso = null) {
     if (registros.length > 0) {
         botones.push(boton('btn_econ_pending_clear', 'Limpiar Agenda', '🧹', ButtonStyle.Secondary));
     }
-    botones.push(boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️'));
+    botones.push(boton('btn_nav_cat:cat_economy', 'Volver Atrás', '⬅️'));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botones));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Avisos automáticos por mensaje directo al liberarse tus Robux')
+        footer('Agenda de Robux Pendientes')
     ));
 
     return {
@@ -400,7 +402,26 @@ async function revisarRobuxPendientesWorker(client) {
 // HERRAMIENTA 1.5: 🏛️ Auditor y Catálogo de Grupos
 // ==========================================
 async function auditarGrupoRoblox(groupInput, sortType = '2') {
-    const groupId = extractIdFromInput(groupInput);
+    const raw = String(groupInput || '').trim();
+    if (!raw) return null;
+
+    let groupId = extractIdFromInput(raw);
+
+    // Si el usuario escribió el nombre de un grupo en lugar de un ID o URL, buscarlo en Roblox Groups API
+    if (!groupId) {
+        try {
+            const searchRes = await fetchWithRetry(
+                `https://groups.roblox.com/v1/groups/search/lookup?groupName=${encodeURIComponent(raw)}`
+            ).catch(() => null);
+            const firstMatch = (searchRes?.data?.data || [])[0];
+            if (firstMatch && firstMatch.id) {
+                groupId = String(firstMatch.id);
+            }
+        } catch {
+            // Silencioso
+        }
+    }
+
     if (!groupId) return null;
 
     let groupInfo = null;
@@ -415,12 +436,29 @@ async function auditarGrupoRoblox(groupInput, sortType = '2') {
 
     if (!groupInfo || !groupInfo.id) return null;
 
-    try {
-        const catUrl = `https://catalog.roblox.com/v2/search/items/details?Category=3&CreatorType=2&CreatorTargetId=${groupId}&SortType=${sortType}&Limit=30`;
-        const catRes = await fetchWithRetry(catUrl);
-        catalogItems = (catRes.data?.data || []).filter(i => i && i.id);
-    } catch {
-        catalogItems = [];
+    // 1. Buscar prendas y accesorios del grupo usando CreatorType=Group en v1/search/items/details
+    const endpointsToTry = [
+        `https://catalog.roblox.com/v1/search/items/details?Category=All&CreatorType=Group&CreatorTargetId=${groupId}&SortType=${sortType}&Limit=28`,
+        `https://catalog.roblox.com/v1/search/items/details?Category=3&CreatorType=Group&CreatorTargetId=${groupId}&SortType=${sortType}&Limit=28`
+    ];
+
+    if (groupInfo.name) {
+        endpointsToTry.push(
+            `https://catalog.roblox.com/v1/search/items/details?Category=All&CreatorName=${encodeURIComponent(groupInfo.name)}&SortType=${sortType}&Limit=28`
+        );
+    }
+
+    for (const catUrl of endpointsToTry) {
+        try {
+            const catRes = await fetchWithRetry(catUrl).catch(() => null);
+            const found = (catRes?.data?.data || []).filter(i => i && i.id);
+            if (found.length > 0) {
+                catalogItems = found;
+                break;
+            }
+        } catch {
+            // Intentar siguiente endpoint
+        }
     }
 
     return {
@@ -432,15 +470,11 @@ async function auditarGrupoRoblox(groupInput, sortType = '2') {
         hasVerifiedBadge: Boolean(groupInfo.hasVerifiedBadge),
         sortType: String(sortType),
         items: catalogItems.map(item => {
-            const listPrice = Number(item.price || item.lowestPrice || 5);
-            const cashback = Math.floor(listPrice * 0.40);
-            const netPrice = Math.max(0, listPrice - cashback);
+            const listPrice = Number(item.price ?? item.lowestPrice ?? item.lowestResalePrice ?? 0);
             return {
                 id: item.id,
                 name: item.name || `Prenda ${item.id}`,
                 listPrice,
-                cashback,
-                netPrice,
                 favoriteCount: Number(item.favoriteCount || 0)
             };
         })
@@ -451,20 +485,20 @@ function construirPanelAuditorGrupoInicial(aviso = null) {
     const container = new ContainerBuilder()
         .setAccentColor(COLORES.calc)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            '# 🏛️ Auditor y Catálogo de Grupos (Cashback 40%)\n' +
-            'Inspeccioná cualquier grupo de Roblox por ID o enlace, consultá sus prendas más vendidas o más recientes, calculá el carrito neto aplicando el **40% de retorno** e inspeccioná cualquier prenda en detalle.' +
+            '# 🏛️ 1.5 Auditor y Catálogo de Grupos\n' +
+            'Explorá cualquier grupo de Roblox por nombre, ID o enlace y consultá las prendas de su tienda.' +
             (aviso ? `\n\n> ⚠️ ${aviso}` : '')
         ))
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
                 boton('btn_econ_group_modal', 'Inspeccionar Grupo de Roblox', '🔍', ButtonStyle.Primary),
-                boton('btn_econ_group_demo:7', 'Probar con Grupo Oficial Roblox', '🏛️', ButtonStyle.Secondary),
-                boton('btn_nav_cat:cat_economy', 'Volver a Economía', '⬅️')
+                boton('btn_econ_group_demo:14768857', 'Probar Grupo de Ejemplo', '🏛️', ButtonStyle.Secondary),
+                boton('btn_nav_cat:cat_economy', 'Volver Atrás', '⬅️')
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Soporta IDs numéricos o enlaces de roblox.com/groups/...')
+            footer('Auditor y Catálogo de Grupos')
         ));
 
     return {
@@ -480,43 +514,44 @@ function construirPanelResultadoGrupo(userId, auditData, feedbackMsg = null) {
 
     const topItems = auditData.items.slice(0, 8);
     const sumaLista = topItems.reduce((acc, i) => acc + i.listPrice, 0);
-    const sumaCashback = topItems.reduce((acc, i) => acc + i.cashback, 0);
-    const sumaNeta = Math.max(0, sumaLista - sumaCashback);
     const sortTitle = auditData.sortType === '3' ? 'Recién Actualizadas' : 'Más Vendidas';
 
     const container = new ContainerBuilder()
         .setAccentColor(COLORES.calc)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# 🏛️ ${auditData.name} ${auditData.hasVerifiedBadge ? '☑️' : ''}\n` +
-            `👑 **Dueño:** \`@${auditData.ownerName}\`  •  👥 **Miembros:** \`${auditData.memberCount.toLocaleString('es-AR')}\`  •  👕 **Prendas en catálogo:** \`${auditData.items.length}\`` +
+            `👑 **Dueño:** \`@${auditData.ownerName}\`  •  👥 **Miembros:** \`${auditData.memberCount.toLocaleString('es-AR')}\`  •  👕 **Artículos:** \`${auditData.items.length}\`` +
             (feedbackMsg ? `\n\n${feedbackMsg}` : '')
         ))
         .addSeparatorComponents(separador());
 
     if (topItems.length === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            '> 📭 Este grupo no tiene prendas públicas en venta dentro del catálogo actual.'
+            '> 📭 Este grupo no tiene prendas públicas en venta.'
         ));
     } else {
-        const listado = topItems.map((it, idx) =>
-            `**${idx + 1}. [${it.name}](https://www.roblox.com/catalog/${it.id})**\n` +
-            `-# 🏷️ Lista: ${formatearPrecio(it.listPrice, false)}  ➔  ✨ **Neto (40% Cashback):** ${formatearPrecio(it.netPrice, false)} *(Recuperás \`+${it.cashback}\` R$ • ⭐ ${it.favoriteCount.toLocaleString('es-AR')} favs)*`
-        ).join('\n\n');
+        const listado = topItems.map((it, idx) => {
+            const precioStr = it.listPrice > 0 ? formatearPrecio(it.listPrice, false) : '`Gratis / Fuera de venta`';
+            return (
+                `**${idx + 1}. [${it.name}](https://www.roblox.com/catalog/${it.id})**\n` +
+                `-# 🏷️ **Precio:** ${precioStr}  •  ⭐ **Favoritos:** \`${it.favoriteCount.toLocaleString('es-AR')}\``
+            );
+        }).join('\n\n');
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### 🛒 Carrito Rápido (Top ${topItems.length} Prendas ${sortTitle})\n` +
-            `> 💵 **Costo de Lista Lote:** ${formatearPrecio(sumaLista, false)}  •  ♻️ **Retorno 40%:** \`+${sumaCashback.toLocaleString('es-AR')} R$\`  •  ✅ **Costo Neto Final:** ${formatearPrecio(sumaNeta, false)}\n\n` +
+            `### 🛍️ Catálogo (${sortTitle})\n` +
+            `> 💵 **Valor del lote (${topItems.length} artículos):** ${formatearPrecio(sumaLista, false)}\n\n` +
             listado
         ));
 
         const selectInspect = new StringSelectMenuBuilder()
             .setCustomId('select_econ_group_inspect')
-            .setPlaceholder('👕 Seleccioná una prenda del grupo para ver su desglose individual...')
+            .setPlaceholder('👕 Seleccioná una prenda para ver sus detalles...')
             .addOptions(
                 topItems.map((it, idx) =>
                     new StringSelectMenuOptionBuilder()
                         .setLabel(`${idx + 1}. ${it.name}`.substring(0, 95))
-                        .setDescription(`Lista: ${it.listPrice} R$ • Neto 40%: ${it.netPrice} R$ • ⭐ ${it.favoriteCount} favs`.substring(0, 95))
+                        .setDescription(`Precio: ${it.listPrice > 0 ? `${it.listPrice} R$` : 'Gratis / Offsale'} • ⭐ ${it.favoriteCount} favs`.substring(0, 95))
                         .setValue(String(it.id))
                         .setEmoji('👕')
                 )
@@ -537,11 +572,11 @@ function construirPanelResultadoGrupo(userId, auditData, feedbackMsg = null) {
                 .setEmoji('🌐')
                 .setStyle(ButtonStyle.Link)
                 .setURL(`https://www.roblox.com/groups/${auditData.id}`),
-            boton('btn_nav_cat:cat_economy', 'Volver', '⬅️')
+            boton('btn_econ_group', 'Volver Atrás', '⬅️')
         )
     );
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer(`Grupo ID ${auditData.id} • Auditoría en vivo con desglose de 40% Cashback`)
+        footer(`Grupo: ${auditData.name}`)
     ));
 
     return {
@@ -593,10 +628,10 @@ async function handleEconomyInteraction(interaction) {
 
         const inputType = new TextInputBuilder()
             .setCustomId('pending_type')
-            .setLabel('Origen (cashback/gamepass/ropa/limited)')
+            .setLabel('Origen (grupo/gamepass/ropa/limited)')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('cashback, gamepass, ropa o limited')
-            .setValue('cashback')
+            .setPlaceholder('grupo, gamepass, ropa o limited')
+            .setValue('grupo')
             .setRequired(true);
 
         modal.addComponents(
@@ -618,7 +653,7 @@ async function handleEconomyInteraction(interaction) {
             });
         }
 
-        let sourceType = 'cashback_40';
+        let sourceType = 'group_funds';
         if (rawType.includes('gamepass') || rawType.includes('pase')) sourceType = 'gamepass_sale';
         else if (rawType.includes('ropa') || rawType.includes('shirt') || rawType.includes('cloth')) sourceType = 'clothing_sale';
         else if (rawType.includes('limited') || rawType.includes('ugc')) sourceType = 'limited_sale';
@@ -651,7 +686,7 @@ async function handleEconomyInteraction(interaction) {
     }
 
     if (cid.startsWith('btn_econ_group_demo:')) {
-        const demoId = cid.split(':')[1];
+        const demoId = cid.split(':')[1] || '14768857';
         await interaction.deferUpdate();
         const audit = await auditarGrupoRoblox(demoId);
         if (!audit) {
@@ -664,7 +699,7 @@ async function handleEconomyInteraction(interaction) {
         const sortType = cid.split(':')[1] || '2';
         await interaction.deferUpdate();
         const cached = groupInspectCache.get(String(interaction.user.id));
-        const targetGroupId = cached?.id || '7';
+        const targetGroupId = cached?.id || '14768857';
         const audit = await auditarGrupoRoblox(targetGroupId, sortType);
         if (!audit) {
             return await interaction.editReply(construirPanelAuditorGrupoInicial('No se pudo reordenar el catálogo del grupo.'));
@@ -679,9 +714,9 @@ async function handleEconomyInteraction(interaction) {
 
         const inputGroup = new TextInputBuilder()
             .setCustomId('group_input')
-            .setLabel('ID o enlace del Grupo de Roblox')
+            .setLabel('ID, Nombre o enlace del Grupo de Roblox')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Ej: 7 o https://www.roblox.com/groups/7')
+            .setPlaceholder('Ej: 14768857, Roblox o https://www.roblox.com/groups/7')
             .setRequired(true);
 
         modal.addComponents(new ActionRowBuilder().addComponents(inputGroup));
@@ -694,7 +729,7 @@ async function handleEconomyInteraction(interaction) {
         const audit = await auditarGrupoRoblox(groupInput);
         if (!audit) {
             return await interaction.editReply(
-                construirPanelAuditorGrupoInicial(`No se encontró ningún grupo válido con \`${groupInput}\`. Verificá el ID o enlace.`)
+                construirPanelAuditorGrupoInicial(`No se encontró ningún grupo válido con \`${groupInput}\`. Verificá el ID, nombre o enlace.`)
             );
         }
         return await interaction.editReply(construirPanelResultadoGrupo(interaction.user.id, audit));
@@ -712,7 +747,7 @@ async function handleEconomyInteraction(interaction) {
 
         const fichaPrenda =
             `> 👕 **Ficha de Prenda Inspeccionada:** **[${itemObj.name}](https://www.roblox.com/catalog/${itemObj.id})** (ID \`${itemObj.id}\`)\n` +
-            `> 🏷️ **Precio de Lista:** ${formatearPrecio(itemObj.listPrice, false)}  •  ♻️ **Retorno al Grupo (40%):** \`+${itemObj.cashback} R$\`  •  ✅ **Costo Neto Real:** ${formatearPrecio(itemObj.netPrice, false)}  •  ⭐ **Favoritos:** \`${itemObj.favoriteCount.toLocaleString('es-AR')}\``;
+            `> 🏷️ **Precio en Tienda:** ${itemObj.listPrice > 0 ? formatearPrecio(itemObj.listPrice, false) : '`Gratis / Fuera de venta`'}  •  ⭐ **Favoritos:** \`${itemObj.favoriteCount.toLocaleString('es-AR')}\``;
 
         return await interaction.editReply(construirPanelResultadoGrupo(interaction.user.id, audit, fichaPrenda));
     }

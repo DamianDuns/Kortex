@@ -36,6 +36,23 @@ const RANGO_TEXTO = {
     'all': 'HISTÓRICO TOTAL'
 };
 
+const RANGO_TEXTO_EN = {
+    '24h': '24 HOURS',
+    '7d': '7 DAYS',
+    '30d': '30 DAYS',
+    'all': 'ALL-TIME HISTORY'
+};
+
+function getCurrentLang(explicitLang) {
+    if (explicitLang === 'en' || explicitLang === 'es') return explicitLang;
+    try {
+        const { obtenerIdiomaActual } = require('./i18n');
+        return obtenerIdiomaActual();
+    } catch {
+        return 'es';
+    }
+}
+
 const chartCache = new Map();
 const MAX_CACHE_ENTRIES = 80;
 const remoteImageBufferCache = new Map();
@@ -159,8 +176,11 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         itemId = itemName || 'item',
         daysRange = '7d',
         esUSD = false,
-        targetPrice = null
+        targetPrice = null,
+        lang: explicitLang = null
     } = options;
+    const lang = getCurrentLang(explicitLang);
+    const isEn = lang === 'en';
 
     let puntos = Array.isArray(historyData) ? [...historyData] : [];
 
@@ -186,8 +206,8 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const firstPrice = Number(puntos[0].price || 0);
     const lastPrice = Number(puntos[historyLength - 1].price || 0);
 
-    const cacheKey = `${itemId}_${daysRange}_${historyLength}`;
-    const signature = `v3_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
+    const cacheKey = `${itemId}_${daysRange}_${historyLength}_${lang}`;
+    const signature = `v4_${lang}_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
     const cachedEntry = chartCache.get(cacheKey);
     if (cachedEntry && cachedEntry.signature === signature) {
         return cachedEntry.buffer;
@@ -236,10 +256,18 @@ async function generatePriceChart(historyData, itemName, options = {}) {
             c.restore();
 
             c.save();
-            const rangoLabel = RANGO_TEXTO[daysRange] || String(daysRange).toUpperCase();
+            const rangoLabel = isEn
+                ? (RANGO_TEXTO_EN[daysRange] || String(daysRange).toUpperCase())
+                : (RANGO_TEXTO[daysRange] || String(daysRange).toUpperCase());
             c.fillStyle = '#949ba4';
             c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            c.fillText(`EVOLUCIÓN DE PRECIO  •  ${rangoLabel}  (${historyLength} PTS)`, 20, 24);
+            c.fillText(
+                isEn
+                    ? `PRICE HISTORY  •  ${rangoLabel}  (${historyLength} PTS)`
+                    : `EVOLUCIÓN DE PRECIO  •  ${rangoLabel}  (${historyLength} PTS)`,
+                20,
+                24
+            );
 
             const textoActual = fmtMoneda(lastPrice, esUSD);
             c.fillStyle = '#ffffff';
@@ -250,7 +278,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
             const signo = diff > 0 ? '+' : '';
             const pctStr = `${signo}${pctChange.toFixed(1).replace('.0', '')}%`;
             const varTexto = diff === 0
-                ? '0% (Estable)'
+                ? (isEn ? '0% (Stable)' : '0% (Estable)')
                 : `${signo}${fmtMoneda(diff, esUSD)} (${pctStr})`;
 
             c.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
@@ -278,9 +306,9 @@ async function generatePriceChart(historyData, itemName, options = {}) {
             c.textBaseline = 'alphabetic';
 
             const cards = [
-                { label: 'INICIAL', value: fmtMoneda(firstPrice, esUSD), color: '#b5bac1' },
-                { label: 'MÍNIMO', value: fmtMoneda(minPrice, esUSD), color: '#23a55a' },
-                { label: 'MÁXIMO', value: fmtMoneda(maxPrice, esUSD), color: '#f23f43' }
+                { label: isEn ? 'INITIAL' : 'INICIAL', value: fmtMoneda(firstPrice, esUSD), color: '#b5bac1' },
+                { label: isEn ? 'LOWEST' : 'MÍNIMO', value: fmtMoneda(minPrice, esUSD), color: '#23a55a' },
+                { label: isEn ? 'HIGHEST' : 'MÁXIMO', value: fmtMoneda(maxPrice, esUSD), color: '#f23f43' }
             ];
 
             const cardW = 112;
@@ -393,7 +421,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
             if (tieneMeta) {
                 const yPos = yScale.getPixelForValue(metaNum);
                 if (yPos >= chartArea.top - 6 && yPos <= chartArea.bottom + 6) {
-                    const textoMeta = `Meta: ${fmtMoneda(metaNum, esUSD)}`;
+                    const textoMeta = `${isEn ? 'Target' : 'Meta'}: ${fmtMoneda(metaNum, esUSD)}`;
 
                     c.save();
                     c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
@@ -501,11 +529,28 @@ async function generatePriceChart(historyData, itemName, options = {}) {
 /**
  * 2. Herramienta 1.1: Gráfica Comparativa de Pisos de Precios Dinámicos UGC (#2b2d31)
  */
-async function generatePriceFloorsChart(floorsList) {
+async function generatePriceFloorsChart(floorsList, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
     const canvas = createCanvas(CHART_WIDTH, 390);
     const ctx = canvas.getContext('2d');
 
-    const labels = floorsList.map(f => f.shortName || f.subcategory_name.split(' ')[0]);
+    const EN_SHORT_FLOOR_NAMES = {
+        'Sombreros': 'Hats',
+        'Cabello': 'Hair',
+        'Rostro': 'Face',
+        'Cuello': 'Neck',
+        'Hombros': 'Shoulder',
+        'Frente': 'Front',
+        'Espalda': 'Back',
+        'Cintura': 'Waist',
+        'Camisas': 'Shirts',
+        'Pantalones': 'Pants'
+    };
+
+    const labels = floorsList.map(f => {
+        const rawLabel = f.shortName || f.subcategory_name.split(' ')[0];
+        return isEn ? (EN_SHORT_FLOOR_NAMES[rawLabel] || rawLabel) : rawLabel;
+    });
     const currentPrices = floorsList.map(f => Number(f.floor_price || 0));
     const prevPrices = floorsList.map(f => Number(f.previous_floor_price || 0));
 
@@ -522,24 +567,36 @@ async function generatePriceFloorsChart(floorsList) {
             c.save();
             c.fillStyle = '#949ba4';
             c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            c.fillText('MONITOR DE PISOS DE PRECIOS UGC  •  ACTUAL VS SEMANA ANTERIOR', 20, 24);
+            c.fillText(
+                isEn
+                    ? 'UGC DYNAMIC PRICE FLOORS MONITOR  •  CURRENT VS LAST WEEK'
+                    : 'MONITOR DE PISOS DE PRECIOS UGC  •  ACTUAL VS SEMANA ANTERIOR',
+                20,
+                24
+            );
 
             c.fillStyle = '#ffffff';
             c.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
-            c.fillText('Evolución de Pisos Oficiales de Roblox (R$)', 20, 52);
+            c.fillText(
+                isEn
+                    ? 'Official Roblox Price Floors Evolution (R$)'
+                    : 'Evolución de Pisos Oficiales de Roblox (R$)',
+                20,
+                52
+            );
 
             c.fillStyle = '#23a55a';
             drawRoundedRect(c, width - 250, 22, 12, 12, 3);
             c.fill();
             c.fillStyle = '#dbdee1';
             c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            c.fillText('Piso Actual (R$)', width - 232, 32);
+            c.fillText(isEn ? 'Current Floor (R$)' : 'Piso Actual (R$)', width - 232, 32);
 
             c.fillStyle = '#5865F2';
-            drawRoundedRect(c, width - 125, 22, 12, 12, 3);
+            drawRoundedRect(c, width - 120, 22, 12, 12, 3);
             c.fill();
             c.fillStyle = '#949ba4';
-            c.fillText('Semana Ant.', width - 107, 32);
+            c.fillText(isEn ? 'Last Week' : 'Semana Ant.', width - 102, 32);
 
             c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
             c.beginPath();
@@ -556,7 +613,7 @@ async function generatePriceFloorsChart(floorsList) {
             labels,
             datasets: [
                 {
-                    label: 'Piso Actual',
+                    label: isEn ? 'Current Floor' : 'Piso Actual',
                     data: currentPrices,
                     backgroundColor: floorsList.map(f => f.floor_price <= f.previous_floor_price ? 'rgba(35, 165, 90, 0.85)' : 'rgba(242, 63, 67, 0.85)'),
                     borderColor: floorsList.map(f => f.floor_price <= f.previous_floor_price ? '#23a55a' : '#f23f43'),
@@ -564,7 +621,7 @@ async function generatePriceFloorsChart(floorsList) {
                     borderRadius: 6
                 },
                 {
-                    label: 'Semana Anterior',
+                    label: isEn ? 'Last Week' : 'Semana Anterior',
                     data: prevPrices,
                     backgroundColor: 'rgba(88, 101, 242, 0.35)',
                     borderColor: '#5865F2',
@@ -649,26 +706,26 @@ function getOpaqueBounds(img) {
 /**
  * Determina el slot anatómico de un objeto de Roblox según su assetTypeId, URL de miniatura o nombre.
  */
-function resolveAnatomicalSlot(item) {
+function resolveAnatomicalSlot(item, isEn = false) {
     const typeId = Number(item.assetTypeId || 0);
     const urlStr = String(item.highResUrl || item.imageUrl || '').toLowerCase();
     const nameStr = String(item.name || '').toLowerCase();
     const typeNameStr = String(item.assetTypeName || '').toLowerCase();
 
     if (typeId === 43 || urlStr.includes('/neckaccessory/') || typeNameStr.includes('neck') || typeNameStr.includes('cuello') || /\b(neck|scarf|collar|chain|choker|tie|bufanda|collar)\b/i.test(nameStr)) {
-        return { key: 'neck', label: 'Cuello', layer: 'front' };
+        return { key: 'neck', label: isEn ? 'Neck' : 'Cuello', layer: 'front' };
     }
     if (typeId === 42 || typeId === 18 || urlStr.includes('/faceaccessory/') || typeNameStr.includes('face') || typeNameStr.includes('cara') || /\b(glasses|shades|mask|goggles|visor|monocle|blush|lentes|mascara)\b/i.test(nameStr)) {
-        return { key: 'face', label: 'Cara / Rostro', layer: 'front' };
+        return { key: 'face', label: isEn ? 'Face' : 'Cara / Rostro', layer: 'front' };
     }
     if (typeId === 41 || urlStr.includes('/hairaccessory/') || typeNameStr.includes('hair') || typeNameStr.includes('pelo') || /\b(hair|pelo|cabello|ponytail|braids|mullet|bangs|messy|wolfcut)\b/i.test(nameStr)) {
-        return { key: 'hair', label: 'Pelo / Cabello', layer: 'front' };
+        return { key: 'hair', label: isEn ? 'Hair' : 'Pelo / Cabello', layer: 'front' };
     }
     if (typeId === 46 || urlStr.includes('/backaccessory/') || typeNameStr.includes('back') || typeNameStr.includes('espalda') || /\b(wings|cape|back|backpack|katana|sword|greatsword|halo|scythe|guitar|alas|capa|mochila)\b/i.test(nameStr)) {
-        return { key: 'back', label: 'Espalda', layer: 'back' };
+        return { key: 'back', label: isEn ? 'Back' : 'Espalda', layer: 'back' };
     }
     if (typeId === 44 || urlStr.includes('/shoulderaccessory/') || typeNameStr.includes('shoulder') || typeNameStr.includes('hombro') || /\b(shoulder|pauldron|epaulette|hombro|pet)\b/i.test(nameStr)) {
-        return { key: 'shoulder', label: 'Hombros', layer: 'front' };
+        return { key: 'shoulder', label: isEn ? 'Shoulders' : 'Hombros', layer: 'front' };
     }
     if (
         [45, 11, 2, 64, 65, 67, 68].includes(typeId) ||
@@ -679,7 +736,7 @@ function resolveAnatomicalSlot(item) {
         typeNameStr.includes('jacket') ||
         /\b(vest|armor|chest|torso|shirt|hoodie|jacket|sweater|cardigan|suit|tuxedo|camisa|pecho)\b/i.test(nameStr)
     ) {
-        return { key: 'front', label: 'Torso / Camisa', layer: 'front', isClassicShirt: typeId === 11 };
+        return { key: 'front', label: isEn ? 'Torso / Shirt' : 'Torso / Camisa', layer: 'front', isClassicShirt: typeId === 11 };
     }
     if (
         [47, 12, 66, 69, 72].includes(typeId) ||
@@ -689,12 +746,12 @@ function resolveAnatomicalSlot(item) {
         typeNameStr.includes('pants') ||
         /\b(waist|belt|tail|skirt|pants|jeans|shorts|trousers|cargo|cintura|pantalon)\b/i.test(nameStr)
     ) {
-        return { key: 'waist', label: 'Cintura / Pantalón', layer: 'front', isClassicPants: typeId === 12 };
+        return { key: 'waist', label: isEn ? 'Waist / Pants' : 'Cintura / Pantalón', layer: 'front', isClassicPants: typeId === 12 };
     }
     if (typeId === 19 || urlStr.includes('/gear/') || typeNameStr.includes('gear')) {
-        return { key: 'gear', label: 'Mano / Gear', layer: 'front' };
+        return { key: 'gear', label: isEn ? 'Hand / Gear' : 'Mano / Equipamiento', layer: 'front' };
     }
-    return { key: 'hat', label: 'Cabeza / Sombrero', layer: 'front' };
+    return { key: 'hat', label: isEn ? 'Head / Hat' : 'Cabeza / Sombrero', layer: 'front' };
 }
 
 /**
@@ -855,7 +912,8 @@ function drawEquippedItemOnAvatar(ctx, itemImg, slotObj, charBox, isZoomed = fal
  * 3. Herramienta 2.1: Tarjeta Visual del Probador de Combinaciones en Vivo (Outfit Sandbox)
  * Equipa visualmente las piezas agregadas sobre el avatar del usuario en su región anatómica real.
  */
-async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, totalCashback) {
+async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, totalCashback, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
     const width = 760;
     const height = 435;
     const canvas = createCanvas(width, height);
@@ -870,14 +928,22 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     ctx.fillStyle = '#949ba4';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        `KORTEX OUTFIT SANDBOX  •  VISTA PREVIA CON OBJETOS EQUIPADOS (${isZoomed ? 'ZOOM CABEZA Y CUELLO' : 'CUERPO COMPLETO'})`,
+        isEn
+            ? `KORTEX OUTFIT SANDBOX  •  LIVE EQUIPPED PREVIEW (${isZoomed ? 'HEAD & NECK ZOOM' : 'FULL BODY'})`
+            : `PROBADOR DE ROPA KORTEX  •  VISTA PREVIA CON OBJETOS EQUIPADOS (${isZoomed ? 'ZOOM CABEZA Y CUELLO' : 'CUERPO COMPLETO'})`,
         22,
         26
     );
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`Personaje: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`, 22, 52);
+    ctx.fillText(
+        isEn
+            ? `Character: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`
+            : `Personaje: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`,
+        22,
+        52
+    );
 
     // Panel Izquierdo: Visor en Vivo del Avatar con los ítems equipados encima
     const vpX = 22;
@@ -910,7 +976,13 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
 
     ctx.fillStyle = '#8B5CF6';
     ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(isZoomed ? '🔍 CÁMARA: ROSTRO / CUELLO / CABEZA' : '🧍 CÁMARA: CUERPO COMPLETO', vpX + 14, vpY + 22);
+    ctx.fillText(
+        isZoomed
+            ? (isEn ? '🔍 CAMERA: FACE / NECK / HEAD' : '🔍 CÁMARA: ROSTRO / CUELLO / CABEZA')
+            : (isEn ? '🧍 CAMERA: FULL BODY' : '🧍 CÁMARA: CUERPO COMPLETO'),
+        vpX + 14,
+        vpY + 22
+    );
 
     const activeAvatarUrl = isZoomed
         ? (avatarInfo.avatarHeadshotUrl || avatarInfo.avatarFullUrl || avatarInfo.avatarUrl)
@@ -924,7 +996,7 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     const equippedList = addedItems.slice(0, 5).map((it, idx) => ({
         item: it,
         img: itemImages[idx],
-        slot: resolveAnatomicalSlot(it),
+        slot: resolveAnatomicalSlot(it, isEn),
         isCustomTryOn: !it.isWorn
     }));
 
@@ -968,7 +1040,7 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     } else {
         ctx.fillStyle = '#949ba4';
         ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText('Cargando Avatar...', vpX + 68, vpY + 150);
+        ctx.fillText(isEn ? 'Loading Avatar...' : 'Cargando Avatar...', vpX + 68, vpY + 150);
     }
 
     // 3. Capa Frontal: Accesorios equipados en prueba
@@ -987,22 +1059,38 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
 
     ctx.fillStyle = equippedList.length > 0 ? '#23a55a' : '#dbdee1';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    const statusText = customTryOnCount > 0
-        ? `[OK] ${customTryOnCount} en prueba${wornCount > 0 ? ` + ${wornCount} puesto(s)` : ''}`
-        : (wornCount > 0 ? `[OK] ${wornCount} prenda(s) equipada(s)` : 'Probá un conjunto o accesorio abajo');
+    const statusText = isEn
+        ? (customTryOnCount > 0
+            ? `[OK] ${customTryOnCount} trying on${wornCount > 0 ? ` + ${wornCount} worn` : ''}`
+            : (wornCount > 0 ? `[OK] ${wornCount} item(s) equipped` : 'Try on an outfit or accessory below'))
+        : (customTryOnCount > 0
+            ? `[OK] ${customTryOnCount} en prueba${wornCount > 0 ? ` + ${wornCount} puesto(s)` : ''}`
+            : (wornCount > 0 ? `[OK] ${wornCount} prenda(s) equipada(s)` : 'Probá un conjunto o accesorio abajo'));
     ctx.fillText(statusText, vpX + 18, vpY + vpH - 60);
 
     ctx.fillStyle = '#23a55a';
     ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`Con 40% Grupo: ${fmtMoneda(totalCashback)}`, vpX + 14, vpY + vpH - 30);
+    ctx.fillText(
+        `${isEn ? 'Total Outfit' : 'Total Conjunto'}: ${fmtMoneda(totalNormal)}`,
+        vpX + 14,
+        vpY + vpH - 28
+    );
 
     ctx.fillStyle = '#949ba4';
     ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`Precio Lista: ${fmtMoneda(totalNormal)}`, vpX + 14, vpY + vpH - 12);
+    ctx.fillText(
+        isEn ? `${addedItems.length} of 5 active slots` : `${addedItems.length} de 5 espacios activos`,
+        vpX + 14,
+        vpY + vpH - 11
+    );
 
     ctx.fillStyle = '#dbdee1';
     ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`OBJETOS EN EL PROBADOR (${addedItems.length}/5)`, 296, 84);
+    ctx.fillText(
+        isEn ? `ITEMS IN SANDBOX (${addedItems.length}/5)` : `OBJETOS EN EL PROBADOR (${addedItems.length}/5)`,
+        296,
+        84
+    );
 
     if (addedItems.length === 0) {
         ctx.fillStyle = HUD_CARD_BG;
@@ -1010,13 +1098,24 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         ctx.fill();
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold 15px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText('Probate cualquier accesorio o ropa sobre el avatar', 332, 190);
+        ctx.fillText(
+            isEn ? 'Try on any accessory or clothing on the avatar' : 'Probate cualquier accesorio o ropa sobre el avatar',
+            332,
+            190
+        );
         ctx.fillStyle = '#949ba4';
         ctx.font = `12px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText('1. Tocá "+ Probar Accesorio" o "⚡ Conjunto Demo" abajo.', 332, 222);
-        ctx.fillText('2. También podés escribir @usuario para cambiar de personaje.', 332, 246);
-        ctx.fillText('3. Kortex detecta el slot anatómico (Cabeza, Pelo, Cara, Cuello,', 332, 270);
-        ctx.fillText('   Espalda, Torso) y calcula el ahorro del 40% en grupo.', 332, 292);
+        if (isEn) {
+            ctx.fillText('1. Click "+ Try Accessory" or "⚡ Demo Outfit" below.', 332, 222);
+            ctx.fillText('2. You can also enter @username to switch characters.', 332, 246);
+            ctx.fillText('3. Kortex detects the anatomical slot (Head, Hair, Face, Neck,', 332, 270);
+            ctx.fillText('   Back, Torso) and quotes the real price of each item.', 332, 292);
+        } else {
+            ctx.fillText('1. Tocá "+ Probar Accesorio" o "⚡ Conjunto Demo" abajo.', 332, 222);
+            ctx.fillText('2. También podés escribir @usuario para cambiar de personaje.', 332, 246);
+            ctx.fillText('3. Kortex detecta la zona anatómica (Cabeza, Pelo, Cara, Cuello,', 332, 270);
+            ctx.fillText('   Espalda, Torso) y cotiza el valor real de cada pieza.', 332, 292);
+        }
     } else {
         equippedList.forEach((eq, idx) => {
             const it = eq.item;
@@ -1032,29 +1131,46 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
                 ctx.drawImage(eq.img, 304, rowY + 6, 44, 44);
             }
 
-            const tagStr = eq.isCustomTryOn ? '[PRUEBA]' : '[PUESTO]';
+            const tagStr = eq.isCustomTryOn
+                ? (isEn ? '[TRY-ON]' : '[PRUEBA]')
+                : (isEn ? '[WORN]' : '[PUESTO]');
             ctx.fillStyle = eq.isCustomTryOn ? '#23a55a' : '#5865F2';
             ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
             ctx.fillText(tagStr, 356, rowY + 18);
 
             ctx.fillStyle = '#ffffff';
             ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
-            const cleanName = String(it.name || `Asset ${it.id}`).substring(0, 24);
-            ctx.fillText(`${cleanName}`, 412, rowY + 18);
+            const cleanName = String(it.name || `ID ${it.id}`).substring(0, 24);
+            ctx.fillText(`${cleanName}`, 416, rowY + 18);
 
             ctx.fillStyle = '#a78bfa';
             ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(`Slot: ${eq.slot.label}  •  ID ${it.id}`, 356, rowY + 41);
+            ctx.fillText(
+                `${isEn ? 'Slot' : 'Zona'}: ${eq.slot.label}  •  ID ${it.id}`,
+                356,
+                rowY + 41
+            );
 
             const itemPrice = Number(it.price || 0);
-            const netPrice = Math.ceil(itemPrice * 0.6);
             ctx.fillStyle = '#23a55a';
             ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(itemPrice > 0 ? `${fmtMoneda(netPrice)} (40%)` : 'Gratis / Offsale', 596, rowY + 22);
+            ctx.fillText(
+                itemPrice > 0
+                    ? `${fmtMoneda(itemPrice)}`
+                    : (isEn ? 'Free / Off-sale' : 'Gratis / Fuera de venta'),
+                588,
+                rowY + 24
+            );
 
             ctx.fillStyle = '#949ba4';
             ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(`Lista: ${fmtMoneda(itemPrice)}`, 596, rowY + 42);
+            ctx.fillText(
+                itemPrice > 0
+                    ? (isEn ? 'Catalog Price' : 'Precio Catálogo')
+                    : (isEn ? 'No cost' : 'Sin costo'),
+                588,
+                rowY + 42
+            );
         });
     }
 
@@ -1064,7 +1180,8 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
 /**
  * 4. Herramienta 2.2: Lienzo Comparativo de Clones UGC e Ítems Oficiales de Roblox Similares
  */
-async function generateClonesComparisonCanvas(originalItem, alternatives) {
+async function generateClonesComparisonCanvas(originalItem, alternatives, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
     const width = 760;
     const height = 420;
     const canvas = createCanvas(width, height);
@@ -1075,11 +1192,21 @@ async function generateClonesComparisonCanvas(originalItem, alternatives) {
 
     ctx.fillStyle = '#949ba4';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('BUSCADOR DE SIMILARES (ROBLOX OFICIAL + CLONES UGC BARATOS)', 22, 26);
+    ctx.fillText(
+        isEn
+            ? 'SIMILAR ITEMS FINDER (OFFICIAL ROBLOX + CHEAP UGC CLONES)'
+            : 'BUSCADOR DE SIMILARES (ROBLOX OFICIAL + CLONES UGC BARATOS)',
+        22,
+        26
+    );
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`Referencia: ${String(originalItem.name || 'Accesorio').substring(0, 42)}`, 22, 52);
+    ctx.fillText(
+        `${isEn ? 'Reference' : 'Referencia'}: ${String(originalItem.name || (isEn ? 'Accessory' : 'Accesorio')).substring(0, 42)}`,
+        22,
+        52
+    );
 
     // Izquierda: Ítem Original
     ctx.fillStyle = HUD_CARD_BG;
@@ -1091,7 +1218,7 @@ async function generateClonesComparisonCanvas(originalItem, alternatives) {
 
     ctx.fillStyle = '#5865F2';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('ÍTEM DE REFERENCIA', 36, 90);
+    ctx.fillText(isEn ? 'REFERENCE ITEM' : 'ÍTEM DE REFERENCIA', 36, 90);
 
     const origImg = await fetchImageSafe(originalItem.imageUrl);
     if (origImg) {
@@ -1104,12 +1231,22 @@ async function generateClonesComparisonCanvas(originalItem, alternatives) {
 
     ctx.fillStyle = '#f59e0b';
     ctx.font = `bold 17px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(originalItem.price > 0 ? fmtMoneda(originalItem.price) : 'Offsale / N/A', 34, 328);
+    ctx.fillText(
+        originalItem.price > 0
+            ? fmtMoneda(originalItem.price)
+            : (isEn ? 'Off-sale / N/A' : 'Fuera de venta'),
+        34,
+        328
+    );
 
     ctx.fillStyle = '#949ba4';
     ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(`ID: ${originalItem.id}`, 34, 350);
-    ctx.fillText(`Por: ${String(originalItem.creatorName || 'Roblox').substring(0, 20)}`, 34, 370);
+    ctx.fillText(
+        `${isEn ? 'By' : 'Por'}: ${String(originalItem.creatorName || 'Roblox').substring(0, 20)}`,
+        34,
+        370
+    );
 
     // Derecha: Hasta 4 Alternativas (Roblox Oficial + Clones UGC)
     const itemsToShow = alternatives.slice(0, 4);
@@ -1129,7 +1266,9 @@ async function generateClonesComparisonCanvas(originalItem, alternatives) {
             ctx.drawImage(altThumbs[idx], 274, y + 8, 60, 60);
         }
 
-        const tagText = isOfficial ? '[ROBLOX OFICIAL]' : '[CLON UGC]';
+        const tagText = isOfficial
+            ? (isEn ? '[OFFICIAL ROBLOX]' : '[ROBLOX OFICIAL]')
+            : (isEn ? '[UGC CLONE]' : '[CLON UGC]');
         ctx.fillStyle = isOfficial ? '#00B8D9' : '#23a55a';
         ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
         ctx.fillText(tagText, 346, y + 20);
@@ -1140,24 +1279,40 @@ async function generateClonesComparisonCanvas(originalItem, alternatives) {
 
         ctx.fillStyle = '#949ba4';
         ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(`ID: ${alt.id} • Por ${String(alt.creatorName || 'UGC').substring(0, 18)}`, 346, y + 58);
+        ctx.fillText(
+            `ID: ${alt.id} • ${isEn ? 'By' : 'Por'} ${String(alt.creatorName || 'UGC').substring(0, 18)}`,
+            346,
+            y + 58
+        );
 
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold 14px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(alt.price > 0 ? fmtMoneda(alt.price) : 'Offsale', 605, y + 32);
+        ctx.fillText(
+            alt.price > 0
+                ? fmtMoneda(alt.price)
+                : (isEn ? 'Off-sale' : 'Fuera de venta'),
+            600,
+            y + 32
+        );
 
         if (originalItem.price > 0 && alt.price > 0 && alt.price < originalItem.price) {
             const ahorroPct = Math.max(1, Math.round(((originalItem.price - alt.price) / originalItem.price) * 100));
             ctx.fillStyle = 'rgba(35, 165, 90, 0.22)';
-            drawRoundedRect(ctx, 605, y + 40, 118, 24, 5);
+            drawRoundedRect(ctx, 600, y + 40, 122, 24, 5);
             ctx.fill();
             ctx.fillStyle = '#23a55a';
             ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(`-${ahorroPct}% Ahorro`, 616, y + 56);
+            ctx.fillText(isEn ? `-${ahorroPct}% Saved` : `-${ahorroPct}% Ahorro`, 612, y + 56);
         } else {
             ctx.fillStyle = '#949ba4';
             ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(`Con 40%: ${fmtMoneda(Math.ceil(alt.price * 0.6))}`, 605, y + 56);
+            ctx.fillText(
+                alt.price > 0
+                    ? (isEn ? 'List Price' : 'Precio Lista')
+                    : (isEn ? 'Off-sale' : 'Fuera de venta'),
+                600,
+                y + 56
+            );
         }
     });
 
@@ -1252,6 +1407,7 @@ function drawStudioCheckerboard(ctx, x, y, w, h, radius = 8, cellSize = 14) {
  * 5. Herramienta 2.3: Probador de Plantillas 2D sobre Maniquí Roblox (Vista Frontal y Trasera R6)
  */
 async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plantilla 2D', options = {}) {
+    const isEn = getCurrentLang(options.lang) === 'en';
     const width = 780;
     const height = 445;
     const canvas = createCanvas(width, height);
@@ -1263,17 +1419,30 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
     const img = await fetchImageSafe(templateImageOrUrl);
     const garmentMode = detectGarmentModeFromImage(img, { ...options, title });
 
-    const modeLabels = {
-        shirt: 'MODO CAMISA (SHIRT R6)',
-        pants: 'MODO PANTALÓN (PANTS R6)',
-        full: 'MODO TRAJE COMPLETO (CAMISA + PANTALÓN)',
-        tshirt: 'MODO T-SHIRT (PECHO FRONTAL)'
-    };
+    const modeLabels = isEn
+        ? {
+            shirt: 'SHIRT MODE (R6 SHIRT)',
+            pants: 'PANTS MODE (R6 PANTS)',
+            full: 'FULL SUIT MODE (SHIRT + PANTS)',
+            tshirt: 'T-SHIRT MODE (FRONT CHEST)'
+        }
+        : {
+            shirt: 'MODO CAMISA (R6)',
+            pants: 'MODO PANTALÓN (R6)',
+            full: 'MODO TRAJE COMPLETO (CAMISA + PANTALÓN)',
+            tshirt: 'MODO CAMISETA (PECHO FRONTAL)'
+        };
 
     // Encabezado
     ctx.fillStyle = '#a78bfa';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`ESTUDIO 2D KORTEX  •  PROBADOR DE COSTURAS UV EN MANIQUÍ R6  •  ${modeLabels[garmentMode] || modeLabels.shirt}`, 22, 25);
+    ctx.fillText(
+        isEn
+            ? `KORTEX 2D STUDIO  •  R6 MANNEQUIN UV SEAM TESTER  •  ${modeLabels[garmentMode] || modeLabels.shirt}`
+            : `ESTUDIO 2D KORTEX  •  PROBADOR DE COSTURAS UV EN MANIQUÍ R6  •  ${modeLabels[garmentMode] || modeLabels.shirt}`,
+        22,
+        25
+    );
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
@@ -1296,7 +1465,11 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
 
     ctx.fillStyle = '#dbdee1';
     ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('PLANTILLA UV EN BRUTO (585×559)', leftX + 14, leftY + 22);
+    ctx.fillText(
+        isEn ? 'RAW UV TEMPLATE (585×559)' : 'PLANTILLA UV EN BRUTO (585×559)',
+        leftX + 14,
+        leftY + 22
+    );
 
     const tplBoxX = leftX + 14;
     const tplBoxY = leftY + 32;
@@ -1334,32 +1507,42 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
                 ctx.restore();
             };
 
-            drawUvGuide(231, 74, 128, 128, '#38bdf8', 'FRENTE');
-            drawUvGuide(427, 74, 128, 128, '#a78bfa', 'ESPALDA');
-            drawUvGuide(217, 355, 64, 128, '#34d399', 'DER');
-            drawUvGuide(308, 355, 64, 128, '#fbbf24', 'IZQ');
+            drawUvGuide(231, 74, 128, 128, '#38bdf8', isEn ? 'FRONT' : 'FRENTE');
+            drawUvGuide(427, 74, 128, 128, '#a78bfa', isEn ? 'BACK' : 'ESPALDA');
+            drawUvGuide(217, 355, 64, 128, '#34d399', isEn ? 'RIGHT' : 'DER');
+            drawUvGuide(308, 355, 64, 128, '#fbbf24', isEn ? 'LEFT' : 'IZQ');
         }
     } else {
         ctx.fillStyle = '#949ba4';
         ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText('No se pudo cargar la imagen PNG', tplBoxX + 42, tplBoxY + 138);
+        ctx.fillText(
+            isEn ? 'Could not load PNG image' : 'No se pudo cargar la imagen PNG',
+            tplBoxX + 42,
+            tplBoxY + 138
+        );
     }
 
     // Leyenda inferior del panel izquierdo
     ctx.fillStyle = '#949ba4';
     ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-    const resTxt = img ? `Resolución fuente: ${img.width}×${img.height} px` : 'Sin textura';
-    ctx.fillText(`${resTxt}  •  Escala UV automática`, leftX + 14, leftY + 326);
+    const resTxt = img
+        ? (isEn ? `Source resolution: ${img.width}×${img.height} px` : `Resolución fuente: ${img.width}×${img.height} px`)
+        : (isEn ? 'No texture' : 'Sin textura');
+    ctx.fillText(
+        `${resTxt}  •  ${isEn ? 'Auto UV scale' : 'Escala UV automática'}`,
+        leftX + 14,
+        leftY + 326
+    );
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('■ Frente', leftX + 14, leftY + 346);
+    ctx.fillText(isEn ? '■ Front' : '■ Frente', leftX + 14, leftY + 346);
     ctx.fillStyle = '#a78bfa';
-    ctx.fillText('■ Espalda', leftX + 74, leftY + 346);
+    ctx.fillText(isEn ? '■ Back' : '■ Espalda', leftX + 74, leftY + 346);
     ctx.fillStyle = '#34d399';
-    ctx.fillText('■ Brazo/Pierna Der.', leftX + 142, leftY + 346);
+    ctx.fillText(isEn ? '■ Right Limb' : '■ Brazo/Pierna Der.', leftX + 142, leftY + 346);
     ctx.fillStyle = '#fbbf24';
-    ctx.fillText('■ Izq.', leftX + 258, leftY + 346);
+    ctx.fillText(isEn ? '■ Left' : '■ Izq.', leftX + 258, leftY + 346);
 
     // =========================================================================
     // PANEL DERECHO: MANIQUÍ R6 DOBLE (VISTA FRONTAL + VISTA TRASERA)
@@ -1378,7 +1561,11 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
 
     ctx.fillStyle = '#dbdee1';
     ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('PREVISUALIZACIÓN EN MANIQUÍ R6 (FRENTE Y ESPALDA)', rightX + 16, rightY + 22);
+    ctx.fillText(
+        isEn ? 'R6 MANNEQUIN PREVIEW (FRONT & BACK)' : 'PREVISUALIZACIÓN EN MANIQUÍ R6 (FRENTE Y ESPALDA)',
+        rightX + 16,
+        rightY + 22
+    );
 
     // Estudio con iluminación de contraste detrás de los maniquíes para que la ropa negra se vea nítida
     const stageX = rightX + 14;
@@ -1433,8 +1620,8 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
         const headY = topY + 20;
         const torsoX = centerX - torsoW / 2;
         const torsoY = headY + headSize + 4;
-        const leftBoxX = torsoX - gap - limbW;   // En Frente: Brazo Derecho del personaje; en Espalda: Brazo Izquierdo
-        const rightBoxX = torsoX + torsoW + gap; // En Frente: Brazo Izquierdo del personaje; en Espalda: Brazo Derecho
+        const leftBoxX = torsoX - gap - limbW;
+        const rightBoxX = torsoX + torsoW + gap;
         const legsY = torsoY + torsoH + 3;
         const leftLegX = torsoX;
         const rightLegX = torsoX + limbW + 4;
@@ -1442,7 +1629,9 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
         // Etiqueta superior (VISTA FRONTAL / VISTA TRASERA)
         ctx.fillStyle = isFront ? '#38bdf8' : '#a78bfa';
         ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-        const viewLabel = isFront ? 'VISTA FRONTAL (FRENTE)' : 'VISTA TRASERA (ESPALDA)';
+        const viewLabel = isFront
+            ? (isEn ? 'FRONT VIEW' : 'VISTA FRONTAL (FRENTE)')
+            : (isEn ? 'BACK VIEW' : 'VISTA TRASERA (ESPALDA)');
         const labelW = ctx.measureText(viewLabel).width;
         ctx.fillText(viewLabel, centerX - labelW / 2, topY + 11);
 
@@ -1594,14 +1783,20 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
     ctx.stroke();
     ctx.restore();
 
-    // Pie de confirmación de costuras UV (sin caracteres Unicode faltantes)
+    // Pie de confirmación de costuras UV
     ctx.fillStyle = 'rgba(35, 165, 90, 0.18)';
     drawRoundedRect(ctx, rightX + 14, rightY + 330, rightW - 28, 22, 6);
     ctx.fill();
 
     ctx.fillStyle = '#23a55a';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('[OK] Costuras UV R6 alineadas (Frente + Espalda) — Podés alternar Camisa / Pantalón abajo', rightX + 22, rightY + 345);
+    ctx.fillText(
+        isEn
+            ? '[OK] R6 UV seams aligned (Front + Back) — Toggle Shirt / Pants below'
+            : '[OK] Costuras UV R6 alineadas (Frente + Espalda) — Podés alternar Camisa / Pantalón abajo',
+        rightX + 22,
+        rightY + 345
+    );
 
     return canvas.toBuffer('image/png');
 }
@@ -1610,7 +1805,8 @@ async function generateMannequinTemplateCanvas(templateImageOrUrl, title = 'Plan
 /**
  * 6. Herramienta 2.4: Tarjeta de Alta Resolución del Exportador 3D (Render HD + Ficha Técnica .OBJ/.MTL)
  */
-async function generate3DShowcaseCard(exportInfo) {
+async function generate3DShowcaseCard(exportInfo, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang || exportInfo?.lang) === 'en';
     const width = 760;
     const height = 420;
     const canvas = createCanvas(width, height);
@@ -1622,11 +1818,17 @@ async function generate3DShowcaseCard(exportInfo) {
     // Header
     ctx.fillStyle = '#949ba4';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('KORTEX 3D STUDIO  •  RENDER PNG DE ALTA RESOLUCIÓN + PAQUETE WAVEFRONT (.OBJ / .MTL)', 22, 26);
+    ctx.fillText(
+        isEn
+            ? 'KORTEX 3D STUDIO  •  HIGH-RES PNG RENDER + WAVEFRONT PACKAGE (.OBJ / .MTL)'
+            : 'ESTUDIO 3D KORTEX  •  RENDER PNG DE ALTA RESOLUCIÓN + PAQUETE WAVEFRONT (.OBJ / .MTL)',
+        22,
+        26
+    );
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(String(exportInfo.displayTitle || 'Modelo 3D Roblox').substring(0, 44), 22, 52);
+    ctx.fillText(String(exportInfo.displayTitle || (isEn ? 'Roblox 3D Model' : 'Modelo 3D Roblox')).substring(0, 44), 22, 52);
 
     // Panel Izquierdo: Render 3D HD con retícula espacial
     ctx.fillStyle = '#1e1f22';
@@ -1666,15 +1868,29 @@ async function generate3DShowcaseCard(exportInfo) {
 
     ctx.fillStyle = '#23a55a';
     ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('✓ RENDER HD + ARCHIVO .ZIP LISTOS PARA DESCARGAR', 390, 96);
+    ctx.fillText(
+        isEn
+            ? '✓ HD RENDER + .ZIP PACKAGE READY FOR DOWNLOAD'
+            : '✓ RENDER HD + ARCHIVO .ZIP LISTOS PARA DESCARGAR',
+        390,
+        96
+    );
 
-    const specs = [
-        { label: 'ARCHIVO ADJUNTO', val: `avatar_3d_export.zip (${exportInfo.sizeKB} KB)` },
-        { label: 'GEOMETRÍA 3D (.OBJ)', val: `${exportInfo.vertexCount.toLocaleString('es-AR')} vértices • ${exportInfo.faceCount.toLocaleString('es-AR')} caras` },
-        { label: 'MALLAS INCLUIDAS', val: `${exportInfo.meshesExtracted} malla(s) 3D reales convertidas` },
-        { label: 'TEXTURAS PNG (.MTL)', val: `${exportInfo.texturesCount} textura(s) PNG + Render 720×720 HD` },
-        { label: 'COMPATIBILIDAD', val: 'Blender • Blockbench • Cinema4D • Maya' }
-    ];
+    const specs = isEn
+        ? [
+            { label: 'ATTACHED FILE', val: `avatar_3d_export.zip (${exportInfo.sizeKB} KB)` },
+            { label: '3D GEOMETRY (.OBJ)', val: `${exportInfo.vertexCount.toLocaleString('en-US')} vertices • ${exportInfo.faceCount.toLocaleString('en-US')} faces` },
+            { label: 'INCLUDED MESHES', val: `${exportInfo.meshesExtracted} real 3D mesh(es) converted` },
+            { label: 'PNG TEXTURES (.MTL)', val: `${exportInfo.texturesCount} PNG texture(s) + 720×720 HD Render` },
+            { label: 'COMPATIBILITY', val: 'Blender • Blockbench • Cinema4D • Maya' }
+        ]
+        : [
+            { label: 'ARCHIVO ADJUNTO', val: `avatar_3d_export.zip (${exportInfo.sizeKB} KB)` },
+            { label: 'GEOMETRÍA 3D (.OBJ)', val: `${exportInfo.vertexCount.toLocaleString('es-AR')} vértices • ${exportInfo.faceCount.toLocaleString('es-AR')} caras` },
+            { label: 'MALLAS INCLUIDAS', val: `${exportInfo.meshesExtracted} malla(s) 3D reales convertidas` },
+            { label: 'TEXTURAS PNG (.MTL)', val: `${exportInfo.texturesCount} textura(s) PNG + Render 720×720 HD` },
+            { label: 'COMPATIBILIDAD', val: 'Blender • Blockbench • Cinema4D • Maya' }
+        ];
 
     specs.forEach((sp, i) => {
         const sy = 114 + i * 54;
@@ -1849,7 +2065,8 @@ async function calculateImageColorMatch(imageUrl, targetColor) {
     return { matchPct, detectedHex: bestTone.hex };
 }
 
-async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Prenda Base', activeToneIdx = 0, categoryLabel = 'Todos los Cosméticos') {
+async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Prenda Base', activeToneIdx = 0, categoryLabel = 'Todos los Cosméticos', explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
     const width = 760;
     const height = 408;
     const canvas = createCanvas(width, height);
@@ -1858,18 +2075,43 @@ async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Pren
     ctx.fillStyle = DISCORD_DARK_BG;
     ctx.fillRect(0, 0, width, height);
 
+    const EN_CATEGORY_LABELS = {
+        'Todos los Cosméticos': 'All Cosmetics',
+        'Sombreros': 'Hats',
+        'Cabello / Pelo': 'Hair',
+        'Rostro / Lentes': 'Face / Glasses',
+        'Cuello': 'Neck',
+        'Espalda': 'Back',
+        'Ropa Clásica': 'Classic Clothing'
+    };
+
+    const translatedCat = isEn ? (EN_CATEGORY_LABELS[categoryLabel] || categoryLabel) : categoryLabel;
+    const translatedTitle = isEn
+        ? String(baseTitle).replace(/^Color Directo:/i, 'Direct Color:').replace(/^Avatar:/i, 'Avatar:').replace(/^Prenda Base$/i, 'Base Item')
+        : String(baseTitle);
+
     // Encabezado izquierdo acotado a x <= 445 para no superponerse jamás con las muestras #1, #2 y #3
     ctx.fillStyle = '#949ba4';
     ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText('COLOR-MATCH ROBLOX  •  AFINIDAD CROMÁTICA (ΔRGB)', 22, 23);
+    ctx.fillText(
+        isEn
+            ? 'ROBLOX COLOR-MATCH  •  CHROMATIC AFFINITY (ΔRGB)'
+            : 'EMPAREJADOR DE COLOR ROBLOX  •  AFINIDAD CROMÁTICA (ΔRGB)',
+        22,
+        23
+    );
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 17px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`${String(baseTitle).substring(0, 32)}`, 22, 45);
+    ctx.fillText(`${translatedTitle.substring(0, 32)}`, 22, 45);
 
     ctx.fillStyle = '#a78bfa';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`Filtro activo: ${String(categoryLabel).substring(0, 38)}`, 22, 63);
+    ctx.fillText(
+        `${isEn ? 'Active filter' : 'Filtro activo'}: ${String(translatedCat).substring(0, 38)}`,
+        22,
+        63
+    );
 
     // Muestras de los 3 colores hexadecimales dominantes arriba a la derecha (resaltando el tono activo)
     palette.slice(0, 3).forEach((col, i) => {
@@ -1901,11 +2143,23 @@ async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Pren
 
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold 15px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText('No se encontraron cosméticos en venta para esta combinación exacta.', 140, 215);
+        ctx.fillText(
+            isEn
+                ? 'No on-sale cosmetics found for this exact combination.'
+                : 'No se encontraron cosméticos en venta para esta combinación exacta.',
+            140,
+            215
+        );
 
         ctx.fillStyle = '#949ba4';
         ctx.font = `12px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText('Probá seleccionando otro Tono (#1, #2, #3) o cambiando el filtro de cosmético abajo.', 150, 242);
+        ctx.fillText(
+            isEn
+                ? 'Try selecting another Tone (#1, #2, #3) or changing the cosmetic filter below.'
+                : 'Probá seleccionando otro Tono (#1, #2, #3) o cambiando el filtro de cosmético abajo.',
+            150,
+            242
+        );
         return canvas.toBuffer('image/png');
     }
 
@@ -1932,11 +2186,19 @@ async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Pren
 
         ctx.fillStyle = '#23a55a';
         ctx.font = `bold 15px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(`${item.matchPct}% Match Cromático`, x + 134, y + 62);
+        ctx.fillText(
+            isEn ? `${item.matchPct}% Color Match` : `${item.matchPct}% Afinidad de Color`,
+            x + 134,
+            y + 62
+        );
 
         ctx.fillStyle = '#dbdee1';
         ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(`Precio: ${fmtMoneda(item.price)}`, x + 134, y + 88);
+        ctx.fillText(
+            `${isEn ? 'Price' : 'Precio'}: ${fmtMoneda(item.price)}`,
+            x + 134,
+            y + 88
+        );
 
         ctx.fillStyle = item.detectedHex || palette[0].hex;
         drawRoundedRect(ctx, x + 134, y + 100, 18, 18, 4);
@@ -1944,7 +2206,11 @@ async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Pren
 
         ctx.fillStyle = '#949ba4';
         ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(`Tono: ${item.detectedHex || palette[0].hex} • ID ${item.id}`, x + 158, y + 113);
+        ctx.fillText(
+            `${isEn ? 'Tone' : 'Tono'}: ${item.detectedHex || palette[0].hex} • ID ${item.id}`,
+            x + 158,
+            y + 113
+        );
     });
 
     return canvas.toBuffer('image/png');

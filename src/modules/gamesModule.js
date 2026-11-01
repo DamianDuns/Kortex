@@ -23,6 +23,7 @@ const supabase = require('../../db');
 const { fetchWithRetry } = require('../../utils/http');
 const { extractIdFromInput } = require('../../utils/roblox');
 const { COLORES, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { obtenerConfigPropietario } = require('../utils/performanceManager');
 
 const COLOR_GAMES = 0x10B981; // Verde Esmeralda para Juegos y Servidores
 
@@ -246,7 +247,7 @@ async function construirPanelServidoresVacios(gameQuery = 'Blox Fruits') {
                 new ActionRowBuilder().addComponents(
                     boton('btn_games_servers_modal', 'Buscar Otro Juego / PlaceId', '🔍', ButtonStyle.Primary),
                     boton('btn_games_servers_q:2753915549', 'Ver Blox Fruits', '🏴‍☠️', ButtonStyle.Secondary),
-                    boton('btn_nav_cat:cat_games', 'Volver a Juegos', '⬅️')
+                    boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️')
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -254,21 +255,21 @@ async function construirPanelServidoresVacios(gameQuery = 'Blox Fruits') {
 
     const lineas = servers.length > 0
         ? servers.map((s, idx) => {
-            const fpsVal = Number(s.fps || 60).toFixed(1);
+            const fpsVal = Number(s.fps || 60).toFixed(0);
             const pingVal = Math.round(Number(s.ping || 0));
             return (
-                `### 👻 Servidor Público Real #${idx + 1} — \`${s.playing}/${s.maxPlayers || game.maxPlayers}\` Jugadores\n` +
-                `> 📡 **Ping del nodo:** \`${pingVal}ms\`  •  ⚡ **FPS:** \`${fpsVal}\`  •  🆔 **JobId:** \`${s.id}\``
+                `### 👻 Servidor #${idx + 1} — \`${s.playing}/${s.maxPlayers || game.maxPlayers}\` Jugadores\n` +
+                `> 📡 **Ping:** \`${pingVal}ms\`  •  ⚡ **FPS:** \`${fpsVal}\``
             );
         }).join('\n\n')
-        : `> 📭 **No hay servidores públicos parcialmente vacíos disponibles en este instante para \`${game.name}\`** (o todos los servidores activos están llenos/cerrados). Presioná **Re-escanear** o probá otro juego.`;
+        : `> 📭 **No hay servidores parcialmente vacíos disponibles ahora para \`${game.name}\`.** Presioná **Re-escanear** o probá otro juego.`;
 
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_GAMES)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 👻 Buscador de Servidores Vacíos — ${game.name}\n` +
-            `📍 **PlaceId:** \`${game.placeId}\`  •  🌌 **UniverseId:** \`${game.universeId}\`  •  🌐 **Jugadores activos ahora:** \`${game.playing.toLocaleString('es-AR')}\`\n` +
-            `Servidores públicos reales con menor cantidad de jugadores y menor ping en \`games.roblox.com\`:`
+            `# 👻 3.1 Servidores Vacíos — ${game.name}\n` +
+            `🌐 **Jugadores activos:** \`${game.playing.toLocaleString('es-AR')}\`\n` +
+            `Servidores públicos con menos jugadores listos para unirse:`
         ))
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas));
@@ -290,17 +291,17 @@ async function construirPanelServidoresVacios(gameQuery = 'Blox Fruits') {
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
                 boton('btn_games_servers_modal', 'Buscar Cualquier Juego', '🔍', ButtonStyle.Primary),
-                boton(`btn_games_servers_q:${game.placeId}`, 'Re-escanear en Vivo', '🔄', ButtonStyle.Success),
+                boton(`btn_games_servers_q:${game.placeId}`, 'Re-escanear', '🔄', ButtonStyle.Success),
                 new ButtonBuilder()
                     .setLabel('Página del Juego')
                     .setEmoji('🌐')
                     .setStyle(ButtonStyle.Link)
                     .setURL(`https://www.roblox.com/games/${game.placeId}`),
-                boton('btn_nav_cat:cat_games', 'Volver', '⬅️')
+                boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️')
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Datos 100% reales en vivo desde games.roblox.com/v1/games/{placeId}/servers/Public')
+            footer(`Servidores Vacíos • ${game.name}`)
         ));
 
     return {
@@ -596,7 +597,7 @@ async function construirPanelExtractorGamepasses(discordId, gameQuery = 'Pet Sim
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
                     boton('btn_games_passes_modal', 'Buscar Otro Juego', '🎮', ButtonStyle.Primary),
-                    boton('btn_nav_cat:cat_games', 'Volver a Juegos', '⬅️')
+                    boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️')
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -651,10 +652,9 @@ async function construirPanelExtractorGamepasses(discordId, gameQuery = 'Pet Sim
     // 1. CABECERA DEL JUEGO CON SU IMAGEN AL COSTADO DERECHO (SectionBuilder)
     // =========================================================================
     const headerText = new TextDisplayBuilder().setContent(
-        `# 🎟️ Pases del Juego — ${game.name}\n` +
+        `# 🎟️ 3.2 Pases del Juego — ${game.name}\n` +
         `👤 **Creador:** \`${game.creatorName}\`  •  🌐 **Jugando ahora:** \`${game.playing.toLocaleString('es-AR')}\`\n` +
-        `🏪 **En Tienda Web:** \`${webPassesCount}\` pases  •  🕹️ **Dentro del Juego (Tienda Interna):** \`${inGamePassesCount}\` pases\n` +
-        `-# 📍 PlaceId: \`${game.placeId}\`  •  🌌 UniverseId: \`${game.universeId}\`` +
+        `🏪 **En Tienda Web:** \`${webPassesCount}\` pases  •  🕹️ **Dentro del Juego:** \`${inGamePassesCount}\` pases` +
         (searchKeyword ? `\n🔎 **Búsqueda activa:** \`${searchKeyword}\` (\`${filtered.length}\` resultado/s)` : '') +
         (feedback ? `\n> ${feedback}` : '')
     );
@@ -684,16 +684,14 @@ async function construirPanelExtractorGamepasses(discordId, gameQuery = 'Pet Sim
             : '`Fuera de venta / Offsale`';
 
         const linkLinea = selectedPass.isWebPass
-            ? `🔗 **Enlace directo:** [Abrir en la Tienda de Roblox](https://www.roblox.com/game-pass/${selectedPass.id})`
-            : `🕹️ **Compra interna:** Disponible directamente dentro de la tienda interna de **${game.name}**`;
+            ? `🔗 **Enlace:** [Abrir en Roblox](https://www.roblox.com/game-pass/${selectedPass.id})`
+            : `🕹️ **Compra interna:** Disponible dentro de **${game.name}**`;
 
         const notaExtra = selectedPass.note ? `\n📝 **Detalle:** *${selectedPass.note}*` : '';
 
         const destacadaText = new TextDisplayBuilder().setContent(
             `## 🌟 PASE SELECCIONADO: __**${selectedPass.name}**__\n` +
-            `💵 **Cuánto cobra:** ${cobroTxt}\n` +
-            `🆔 **ID del Pase:** \`${selectedPass.id}\`${selectedPass.productId && selectedPass.productId !== selectedPass.id ? `  •  ⚙️ **Product ID:** \`${selectedPass.productId}\`` : ''}\n` +
-            `📍 **Ubicación:** ${selectedPass.sourceLabel || '🏪 Tienda'}\n` +
+            `💵 **Precio:** ${cobroTxt}  •  📍 **Ubicación:** ${selectedPass.sourceLabel || '🏪 Tienda'}\n` +
             `${linkLinea}${notaExtra}`
         );
 
@@ -793,13 +791,13 @@ async function construirPanelExtractorGamepasses(discordId, gameQuery = 'Pet Sim
         boton('btn_games_passes_custom_modal', 'Buscar Pase (Nombre / R$)', '🔎', ButtonStyle.Success),
         boton('btn_games_passes_page:prev', 'Anterior', '◀️', ButtonStyle.Secondary).setDisabled(page <= 0),
         boton('btn_games_passes_page:next', 'Siguiente', '▶️', ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
-        boton('btn_nav_cat:cat_games', 'Volver', '⬅️', ButtonStyle.Secondary)
+        boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
     );
 
     container
         .addActionRowComponents(navRow)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer(`${game.name} • Pág. ${page + 1}/${totalPages} • Tienda de Roblox + Tienda Interna del Juego`)
+            footer(`${game.name} • Pág. ${page + 1}/${totalPages}`)
         ));
 
     return {
@@ -950,7 +948,7 @@ async function construirPanelBovedaCodigos(discordId, { universeId = null, soloF
         new ActionRowBuilder().addComponents(
             boton(`btn_games_codes_filter:${savedState.soloFaltantes ? '0' : '1'}`, filtroBtnLabel, '🔎', ButtonStyle.Primary),
             boton('btn_games_codes_add_modal', 'Registrar Código / Juego', '➕', ButtonStyle.Success),
-            boton('btn_nav_cat:cat_games', 'Volver a Juegos', '⬅️')
+            boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️')
         )
     );
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -986,6 +984,7 @@ async function obtenerSuscripcionesParches(discordId) {
 
 async function construirPanelSuscriptorParches(discordId, aviso = null) {
     const subs = await obtenerSuscripcionesParches(discordId);
+    const maxSubs = Number(obtenerConfigPropietario().maxGameSubs || 3);
 
     // Consultar datos en vivo de los juegos suscriptos para mostrar jugadores activos reales y el último timestamp updated real
     const liveGamesMap = new Map();
@@ -1002,16 +1001,16 @@ async function construirPanelSuscriptorParches(discordId, aviso = null) {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_GAMES)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🔔 Avisos de Parches y Actualizaciones de Juegos (\`${subs.length}/3\`)\n` +
-            `Seguí tus experiencias favoritas y recibí un aviso automático apenas los creadores publiquen una nueva actualización en el juego.` +
+            `# 🔔 3.4 Alertas de Actualizaciones (\`${subs.length}/${maxSubs}\`)\n` +
+            `Seguí tus juegos favoritos y recibí un aviso cuando se actualicen.` +
             (aviso ? `\n\n> ${aviso}` : '')
         ))
         .addSeparatorComponents(separador());
 
     if (subs.length === 0) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            '### 📭 No estás suscripto a ningún radar de parches aún\n' +
-            '> Podés suscribir hasta **3 juegos de Roblox** presionando **➕ Suscribir Juego** abajo.'
+            '### 📭 No tenés juegos suscriptos\n' +
+            `> Podés suscribir hasta **${maxSubs} juegos** presionando **➕ Suscribir Juego** abajo.`
         ));
     } else {
         const lineas = subs.map((s, idx) => {
@@ -1019,11 +1018,10 @@ async function construirPanelSuscriptorParches(discordId, aviso = null) {
             const currentUpdatedIso = live?.updated || s.last_updated_iso || new Date().toISOString();
             const ts = Math.floor(new Date(currentUpdatedIso).getTime() / 1000);
             const playingNow = live ? Number(live.playing || 0).toLocaleString('es-AR') : 'N/A';
-            const estado = s.is_paused ? '⏸️ En pausa' : '🟢 Monitoreo activo';
+            const estado = s.is_paused ? '⏸️ En pausa' : '🟢 Activo';
             return (
-                `**${idx + 1}. [${s.game_name}](https://www.roblox.com/games/${s.place_id})** *(Universe \`${s.universe_id}\`)*\n` +
-                `> 🕒 **Último parche en Roblox:** <t:${ts}:R> (<t:${ts}:f>)\n` +
-                `> 👥 **Jugando ahora:** \`${playingNow}\`  •  ${estado}`
+                `**${idx + 1}. [${s.game_name}](https://www.roblox.com/games/${s.place_id})**\n` +
+                `> 🕒 **Última actualización:** <t:${ts}:R>  •  👥 **Jugando:** \`${playingNow}\`  •  ${estado}`
             );
         }).join('\n\n');
 
@@ -1032,13 +1030,13 @@ async function construirPanelSuscriptorParches(discordId, aviso = null) {
 
     container.addSeparatorComponents(separador(true));
     const botones = [];
-    if (subs.length < 3) {
-        botones.push(boton('btn_games_patch_add_modal', 'Suscribir Juego (máx 3)', '➕', ButtonStyle.Primary));
+    if (subs.length < maxSubs) {
+        botones.push(boton('btn_games_patch_add_modal', `Suscribir Juego (máx ${maxSubs})`, '➕', ButtonStyle.Primary));
     }
     if (subs.length > 0) {
         const algunoPausado = subs.some(s => s.is_paused);
         botones.push(
-            boton('btn_games_patch_check_now', 'Verificar Ahora en Vivo', '🔄', ButtonStyle.Success),
+            boton('btn_games_patch_check_now', 'Verificar Ahora', '🔄', ButtonStyle.Success),
             boton(
                 `btn_games_patch_toggle:${algunoPausado ? 'resume' : 'pause'}`,
                 algunoPausado ? 'Reanudar' : 'Pausar',
@@ -1048,11 +1046,11 @@ async function construirPanelSuscriptorParches(discordId, aviso = null) {
             boton('btn_games_patch_clear', 'Vaciar', '🗑️', ButtonStyle.Secondary)
         );
     }
-    botones.push(boton('btn_nav_cat:cat_games', 'Volver', '⬅️'));
+    botones.push(boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️'));
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botones));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Seguimiento automático de nuevas actualizaciones en tus juegos favoritos')
+        footer('Alertas de Actualizaciones')
     ));
 
     return {
@@ -1159,7 +1157,7 @@ async function construirPanelUniverseMapper(gameQuery = 'Blox Fruits') {
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
                     boton('btn_games_mapper_modal', 'Escanear Otro Juego', '🔍', ButtonStyle.Primary),
-                    boton('btn_nav_cat:cat_games', 'Volver a Juegos', '⬅️')
+                    boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️')
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -1169,36 +1167,36 @@ async function construirPanelUniverseMapper(gameQuery = 'Blox Fruits') {
 
     const lineas = places.map((p, i) => {
         const esRoot = String(p.id) === String(game.placeId) || p.isRootPlace;
-        const badge = esRoot ? '🏠 **[RootPlace Principal]**' : '🗺️ **[Sub-Lugar / Mapa Conectado]**';
+        const badge = esRoot ? '🏠 **[Mapa Principal]**' : '🗺️ **[Sub-Lugar]**';
         return (
-            `**${i + 1}. [${p.name || `Place ${p.id}`}](https://www.roblox.com/games/${p.id})** — \`PlaceId: ${p.id}\`\n` +
-            `-# ${badge}  •  Última act. del universo: <t:${tsUpdate}:R>`
+            `**${i + 1}. [${p.name || `Place ${p.id}`}](https://www.roblox.com/games/${p.id})**\n` +
+            `-# ${badge}  •  Actualizado: <t:${tsUpdate}:R>`
         );
     }).join('\n\n');
 
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_GAMES)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🗺️ Explorador de Sub-Lugares y Mapas Conectados — ${game.name}\n` +
-            `🌌 **UniverseId:** \`${game.universeId}\`  •  🏠 **Mapa Principal:** \`${game.placeId}\`  •  🗺️ **Mapas encontrados:** \`${places.length}\`\n` +
-            `Mundos secundarios, lobbies, servidores de intercambio y arenas conectadas dentro de este juego:`
+            `# 🗺️ 3.5 Mapas Conectados — ${game.name}\n` +
+            `🗺️ **Mapas encontrados:** \`${places.length}\`\n` +
+            `Mundos secundarios y servidores conectados dentro de este juego:`
         ))
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas))
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_games_mapper_modal', 'Escanear Otro Juego / Universo', '🔍', ButtonStyle.Primary),
+                boton('btn_games_mapper_modal', 'Escanear Otro Juego', '🔍', ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setLabel('Abrir Juego en Roblox')
                     .setEmoji('🌐')
                     .setStyle(ButtonStyle.Link)
                     .setURL(`https://www.roblox.com/games/${game.placeId}`),
-                boton('btn_nav_cat:cat_games', 'Volver a Juegos', '⬅️')
+                boton('btn_nav_cat:cat_games', 'Volver Atrás', '⬅️')
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Explorador de mapas principales y mundos secundarios conectados')
+            footer(`Mapas Conectados • ${game.name}`)
         ));
 
     return {
@@ -1606,8 +1604,8 @@ async function handleGamesInteraction(interaction) {
         }
 
         const msg = cambios > 0
-            ? `🔔 ¡Se detectaron **${cambios} actualización(es) nueva(s)** y se actualizaron los registros!`
-            : `✅ Verificado en vivo contra \`games.roblox.com\`: los timestamps de tus juegos están al día.`;
+            ? `🔔 ¡Se detectaron **${cambios} actualización(es) nueva(s)**!`
+            : `✅ Verificado: tus juegos están al día.`;
         const panel = await construirPanelSuscriptorParches(interaction.user.id, msg);
         return await interaction.editReply(panel);
     }
@@ -1633,8 +1631,9 @@ async function handleGamesInteraction(interaction) {
         await interaction.deferUpdate();
 
         const subs = await obtenerSuscripcionesParches(interaction.user.id);
-        if (subs.length >= 3) {
-            const panel = await construirPanelSuscriptorParches(interaction.user.id, '⚠️ Ya alcanzaste el máximo de 3 juegos suscriptos.');
+        const maxSubs = Number(obtenerConfigPropietario().maxGameSubs || 3);
+        if (subs.length >= maxSubs) {
+            const panel = await construirPanelSuscriptorParches(interaction.user.id, `⚠️ Ya alcanzaste el máximo de ${maxSubs} juegos suscriptos.`);
             return await interaction.editReply(panel);
         }
 
