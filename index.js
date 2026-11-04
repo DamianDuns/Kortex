@@ -139,7 +139,6 @@ const DOCS_HTML_PATH = path.join(__dirname, 'docs', 'index.html');
 const oauthStates = new Map();
 // Sesiones verificadas de Discord OAuth2 hidratadas desde disco al iniciar el servidor
 const verifiedDiscordSessions = new Map();
-let lastActiveDiscordId = '';
 
 // Hidratar sesiones guardadas en disco y calibrar subsistemas para que el bot arranque de forma óptima
 (function hydratePersistedSessionsOnBoot() {
@@ -152,17 +151,6 @@ let lastActiveDiscordId = '';
                 avatar: cfg.discord_avatar || null,
                 verifiedAt: cfg.verified_at || cfg.updated_at || new Date().toISOString()
             });
-            if (!lastActiveDiscordId && discId !== 'default_session') {
-                lastActiveDiscordId = String(discId);
-            }
-        }
-    }
-    if (!lastActiveDiscordId) {
-        for (const [discId] of fastLinkCache.entries()) {
-            if (discId && discId !== 'default_session') {
-                lastActiveDiscordId = String(discId);
-                break;
-            }
         }
     }
 
@@ -202,18 +190,10 @@ let lastActiveDiscordId = '';
 
 function resolveActiveSessionDiscordId(hintId) {
     const cleanHint = hintId ? String(hintId).trim() : '';
-    if (cleanHint && cleanHint !== 'default_session') return cleanHint;
-    if (lastActiveDiscordId && lastActiveDiscordId !== 'default_session') return lastActiveDiscordId;
-    for (const [k] of verifiedDiscordSessions.entries()) {
-        if (k !== 'default_session') return k;
+    if (cleanHint && cleanHint !== 'default_session' && cleanHint !== 'null' && cleanHint !== 'undefined') {
+        return cleanHint;
     }
-    for (const [k] of discordConfigCache.entries()) {
-        if (k !== 'default_session') return k;
-    }
-    for (const [k] of fastLinkCache.entries()) {
-        if (k !== 'default_session') return k;
-    }
-    return cleanHint || 'default_session';
+    return null;
 }
 
 function getBaseOrigin(req, urlObj = null) {
@@ -457,13 +437,13 @@ function renderOAuthGatewayPage({ provider, discordId, authUrl, callbackUrl, bas
 
     <div class="box">
       <div class="box-title">
-        <span>🛡️ Opción 1: Conexión con Código Alojado en <code>/config</code> (Sin Spam por MD)</span>
+        <span>🛡️ Opción 1: Conexión con Código Alojado en <code>/config</code></span>
         <span class="badge">RECOMENDADO</span>
       </div>
       ${isDiscord ? `
-        <p style="margin-bottom:8px;font-size:0.8rem;">Para no enviar spam a tu buzón de MDs, tu clave personal se aloja en el comando <strong><code>/config</code></strong> dentro de Discord (apartado <strong>1. Cuenta de Discord</strong>). Copiala de ahí y pegala abajo:</p>
+        <p style="margin-bottom:8px;font-size:0.8rem;">Para verificar tu cuenta con total comodidad y privacidad, tu clave personal se aloja en el comando <strong><code>/config</code></strong> dentro de Discord (apartado <strong>1. Cuenta de Discord</strong>). Copiala de ahí y pegala abajo:</p>
         <div class="input-row">
-          <input id="quick-input" type="text" value="${discordId && discordId !== 'default_session' ? discordId : ''}" placeholder="Tu Discord ID (ej: 957207733017387038)" />
+          <input id="quick-input" type="text" value="${discordId && !discordId.startsWith('guest_') && discordId !== 'default_session' ? discordId : ''}" placeholder="Tu Discord ID (ej: 123456789012345678)" />
         </div>
         <div id="verify-step2-box" style="margin-top:8px;">
           <div class="input-row">
@@ -474,7 +454,7 @@ function renderOAuthGatewayPage({ provider, discordId, authUrl, callbackUrl, bas
       ` : `
         <p style="margin-bottom:8px;font-size:0.8rem;">Paso 1: Escribí tu <strong>@Usuario de Roblox</strong> o tu <strong>ID numérico</strong> para generar tu código de propiedad (en Roblox los permisos del bot están en <strong>Configuración → Permisos de la aplicación</strong>):</p>
         <div class="input-row">
-          <input id="quick-input" type="text" placeholder="Ej: damianpro13 o tu ID de Roblox" />
+          <input id="quick-input" type="text" placeholder="Ej: TuUsuarioRoblox o tu ID de Roblox" />
         </div>
         <button type="button" class="btn" id="btn-step1" style="margin-top:8px;" onclick="runQuickLink('start')">🛡️ Paso 1: Generar Código de Propiedad</button>
         <div id="verify-step2-box" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid #22293A;">
@@ -889,10 +869,23 @@ const server = http.createServer(async (req, res) => {
 
         if (pathname === '/api/auth/status') {
             const rawHint = (urlObj.searchParams.get('discord_id') || '').trim();
-            if (rawHint && rawHint !== 'default_session') {
-                lastActiveDiscordId = rawHint;
-            }
             const targetId = resolveActiveSessionDiscordId(rawHint);
+
+            if (!targetId) {
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: true,
+                    authenticated: false,
+                    discordId: null,
+                    discordSession: null,
+                    discordConfig: null,
+                    linkedAccount: null,
+                    hasActiveAccount: false,
+                    history: [],
+                    stats: { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 },
+                    savedItems: { wishlist: [], pendingRobux: [], gameSubs: [] }
+                }));
+            }
 
             const linkedRoblox = await verificarAutorizacionRobloxOAuth(targetId).catch(() => null);
             const discordCfg = await verificarAutorizacionDiscordOAuth(targetId).catch(() => null);
@@ -905,15 +898,17 @@ const server = http.createServer(async (req, res) => {
                 })
                 : null;
             const summary = await obtenerHistorialYEstadoCuenta(targetId).catch(() => null);
+            const hasActive = Boolean((discordCfg && discordCfg.oauth_verified) || (linkedRoblox && linkedRoblox.roblox_user_id));
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(JSON.stringify({
                 ok: true,
+                authenticated: hasActive,
                 discordId: targetId,
                 discordSession,
                 discordConfig: discordCfg || null,
                 linkedAccount: linkedRoblox || null,
-                hasActiveAccount: Boolean(summary?.hasActiveAccount),
+                hasActiveAccount: Boolean(summary?.hasActiveAccount || hasActive),
                 history: summary?.history || [],
                 stats: summary?.stats || { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 },
                 savedItems: summary?.savedItems || { wishlist: [], pendingRobux: [], gameSubs: [] }
@@ -924,8 +919,12 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/auth/restore' && req.method === 'POST') {
             const body = await readJsonBody(req);
             const targetId = resolveActiveSessionDiscordId(body.discordId);
-            if (targetId && targetId !== 'default_session') {
-                lastActiveDiscordId = targetId;
+            if (!targetId) {
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: false,
+                    message: 'No hay identificador de sesión para restaurar.'
+                }));
             }
 
             const restored = await restaurarRespaldoCliente(targetId, body);
@@ -955,6 +954,17 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/auth/disconnect' && req.method === 'POST') {
             const body = await readJsonBody(req);
             const targetId = resolveActiveSessionDiscordId(body.discordId);
+            if (!targetId) {
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: true,
+                    message: 'No hay sesión activa para desconectar.',
+                    discordConfig: null,
+                    linkedAccount: null,
+                    history: [],
+                    stats: { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 }
+                }));
+            }
             const provider = body.provider === 'discord' ? 'discord' : 'roblox';
 
             if (provider === 'discord') {
@@ -1004,7 +1014,6 @@ const server = http.createServer(async (req, res) => {
 
                 const targetId = String(verifyRes.discordId);
                 const savedCfg = verifyRes.discordConfig;
-                lastActiveDiscordId = targetId;
                 verifiedDiscordSessions.set(targetId, {
                     id: targetId,
                     username: savedCfg.discord_username,
@@ -1042,7 +1051,6 @@ const server = http.createServer(async (req, res) => {
             if (startRes.ok && startRes.step === 'verified' && startRes.discordConfig) {
                 const targetId = String(startRes.discordId);
                 const savedCfg = startRes.discordConfig;
-                lastActiveDiscordId = targetId;
                 verifiedDiscordSessions.set(targetId, {
                     id: targetId,
                     username: savedCfg.discord_username,
@@ -1082,7 +1090,7 @@ const server = http.createServer(async (req, res) => {
             const body = await readJsonBody(req);
             const query = String(body.query || body.username || '').trim();
             const action = String(body.action || 'start').trim().toLowerCase();
-            const targetDiscordId = resolveActiveSessionDiscordId(body.discordId);
+            const targetDiscordId = resolveActiveSessionDiscordId(body.discordId) || (body.discordId ? String(body.discordId).trim() : ('guest_' + Date.now().toString(36)));
             const requesterIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').split(',')[0].trim();
 
             if (action === 'verify') {
@@ -1090,10 +1098,6 @@ const server = http.createServer(async (req, res) => {
                 if (!verifyRes.ok) {
                     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
                     return res.end(JSON.stringify(verifyRes));
-                }
-
-                if (targetDiscordId !== 'default_session') {
-                    lastActiveDiscordId = targetDiscordId;
                 }
 
                 const linkedRecord = verifyRes.linkedAccount;
@@ -1245,13 +1249,10 @@ const server = http.createServer(async (req, res) => {
                     ? `https://cdn.discordapp.com/avatars/${verifiedId}/${discordUser.avatar}.png?size=256`
                     : null;
 
-                // Si el usuario había vinculado Roblox primero en default_session o sesión previa, unificar todo bajo su Discord ID real
+                // Si el usuario había vinculado Roblox primero en sesión previa, unificar todo bajo su Discord ID real
                 if (stateData?.discordId && stateData.discordId !== verifiedId) {
                     await migrarDatosDeSesion(stateData.discordId, verifiedId);
                 }
-                await migrarDatosDeSesion('default_session', verifiedId);
-
-                lastActiveDiscordId = verifiedId;
 
                 verifiedDiscordSessions.set(verifiedId, {
                     id: verifiedId,
@@ -1413,10 +1414,7 @@ const server = http.createServer(async (req, res) => {
                 const robloxUsername = rUser.preferred_username || rUser.name || `User_${robloxUserId}`;
                 const fullResolved = await resolverUsuarioRoblox(String(robloxUserId)).catch(() => null);
 
-                const targetDiscordId = resolveActiveSessionDiscordId(stateData?.discordId);
-                if (targetDiscordId !== 'default_session') {
-                    lastActiveDiscordId = targetDiscordId;
-                }
+                const targetDiscordId = resolveActiveSessionDiscordId(stateData?.discordId) || (stateData?.discordId ? String(stateData.discordId).trim() : ('guest_' + Date.now().toString(36)));
 
                 const linkedRecord = await guardarCuentaVinculada(targetDiscordId, {
                     roblox_user_id: robloxUserId,
@@ -1541,7 +1539,7 @@ const server = http.createServer(async (req, res) => {
                 if (sectionParam === 'sec_studio') {
                     pngBuffer = await renderTycoonSnapshot({
                         state: demoState,
-                        username: 'damianpro13',
+                        username: 'PlayerDemo',
                         avatarUrl: null,
                         lang: langParam
                     });
@@ -1549,7 +1547,7 @@ const server = http.createServer(async (req, res) => {
                     const leaderboard = sectionParam === 'sec_perks' ? await getTycoonLeaderboard(5) : [];
                     pngBuffer = await renderTycoonSectionCanvas(sectionParam, {
                         state: demoState,
-                        username: 'damianpro13',
+                        username: 'PlayerDemo',
                         avatarUrl: null,
                         lang: langParam,
                         leaderboard
