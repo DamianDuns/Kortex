@@ -3237,7 +3237,7 @@
                 box.innerHTML = `
                     <div>
                         <div class="v2-title">⚙️ Configuración de Usuario — Kortex</div>
-                        <div class="v2-subtitle">Cuentas y Datos Guardados: Tu código KTX-XXXXXX se aloja aquí sin enviar spam por MD.</div>
+                        <div class="v2-subtitle">Cuentas y Datos Guardados: Conectate con el código alojado en /config o con Autenticador OAuth 2.0.</div>
                     </div>
                     <div class="v2-select-wrap">
                         <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
@@ -3657,7 +3657,7 @@
             } else {
                 currentDiscordName = null;
                 if (dTitle) dTitle.textContent = 'Cuenta de Discord';
-                if (dSub) dSub.textContent = 'Código alojado en el comando /config (Cero spam por MD)';
+                if (dSub) dSub.textContent = 'Verificación con comando /config o Autenticador OAuth 2.0';
                 if (btnLogin) btnLogin.textContent = '🔑 Conectar con Código de /config';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'D';
