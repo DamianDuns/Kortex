@@ -787,22 +787,13 @@ async function obtenerCuentaVinculada(discordId) {
     }
 
     if (cached && cached.roblox_user_id) return cached;
-
-    // Si se consultó con un ID nuevo pero existe una cuenta única en default_session, recuperarla
-    if (key !== 'default_session') {
-        const fallbackDefault = fastLinkCache.get('default_session');
-        if (fallbackDefault && fallbackDefault.roblox_user_id && fastLinkCache.size === 1) {
-            return fallbackDefault;
-        }
-    }
-
     return null;
 }
 
 function obtenerCuentaVinculadaSync(discordId) {
     if (!discordId) return null;
     const key = String(discordId);
-    return fastLinkCache.get(key) || fastLinkCache.get('default_session') || null;
+    return fastLinkCache.get(key) || null;
 }
 
 function obtenerConfigDiscord(discordId) {
@@ -3165,10 +3156,10 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
     // 1. CUENTA DE DISCORD (Aloja aquí mismo el código KTX-XXXXXX para conectar en la Web)
     const webCodeNoteEs = webDiscordChallenge?.code
-        ? `\n🔑 **Tu código de verificación para conectar tu ID (\`${uid}\`) en la Web:** \`${webDiscordChallenge.code}\` *(alojado aquí en \`/config\` para no enviar spam por MD)*`
+        ? `\n🔑 **Tu código de verificación para conectar tu ID (\`${uid}\`) en la Web:** \`${webDiscordChallenge.code}\` *(alojado aquí en \`/config\` para tu comodidad y privacidad)*`
         : '';
     const webCodeNoteEn = webDiscordChallenge?.code
-        ? `\n🔑 **Your verification code to link your ID (\`${uid}\`) on the Web:** \`${webDiscordChallenge.code}\` *(hosted right here in \`/config\` with zero DM spam)*`
+        ? `\n🔑 **Your verification code to link your ID (\`${uid}\`) on the Web:** \`${webDiscordChallenge.code}\` *(hosted right here in \`/config\` for privacy & convenience)*`
         : '';
 
     container.addSectionComponents(
