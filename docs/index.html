@@ -2004,6 +2004,7 @@
             </div>
             <div class="popover-header-actions">
                 <button type="button" class="popover-icon-btn" onclick="checkAccountStatus()" title="Sincronizar y actualizar estado">↻ Sincronizar</button>
+                <button type="button" class="popover-icon-btn" onclick="clearAllSessions()" title="Cerrar todas las sesiones y limpiar navegador">🚪 Salir</button>
                 <button type="button" class="popover-icon-btn" onclick="closeAccountPopover()" title="Cerrar panel">✕</button>
             </div>
         </div>
@@ -2041,7 +2042,7 @@
                 <div class="popover-quick-box">
                     <span class="popover-quick-label">🔑 O conectate con el código alojado en el comando <code>/config</code> de Discord:</span>
                     <div class="popover-quick-form">
-                        <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Tu Discord ID (ej: 957207733017387038)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                        <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Tu Discord ID (ej: 123456789012345678)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
                     </div>
                     <div id="discord-step2-verify" style="margin-top:8px;">
                         <div class="popover-quick-form">
@@ -2077,7 +2078,7 @@
                 <div class="popover-quick-box">
                     <span class="popover-quick-label">🎮 O escribí tu @Usuario / ID de Roblox para verificarte con código en tu biografía:</span>
                     <div class="popover-quick-form">
-                        <input type="text" class="popover-quick-input" id="quick-roblox-input" placeholder="Ej: damianpro13 o tu ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
+                        <input type="text" class="popover-quick-input" id="quick-roblox-input" placeholder="Ej: TuUsuarioRoblox o tu ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
                         <button type="button" class="popover-quick-submit" onclick="quickVerifyRobloxWeb('start')">🔑 Generar Código</button>
                     </div>
                     <div id="roblox-step2-verify" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.12);">
@@ -3250,20 +3251,20 @@
                     <div class="v2-section-list">
                         <div class="v2-section-row">
                             <div class="v2-section-text">
-                                <strong>💬 1. Cuenta de Discord (Código Web Alojado en /config)</strong>
-                                <span>🔑 Tu código de verificación para conectar tu ID en la Web: <code>KTX-482910</code> — También podés usar el Autenticador OAuth 2.0.</span>
+                                <strong>💬 1. Cuenta de Discord (Código en /config o OAuth 2.0)</strong>
+                                <span>🔑 Tu código de verificación para conectar tu ID en la Web: <code>KTX-482910</code> · También podés usar el Autenticador OAuth 2.0.</span>
                             </div>
                         </div>
                         <div class="v2-section-row">
                             <div class="v2-section-text">
-                                <strong>🎮 2. Cuenta de Roblox</strong>
-                                <span>En Roblox, donde está alojado el bot y sus permisos es en <strong>Configuración → Permisos de la aplicación</strong>.</span>
+                                <strong>🎮 2. Cuenta de Roblox (Código en Biografía o OAuth 2.0)</strong>
+                                <span>Vinculá escribiendo tu usuario y colocando el código en tu biografía, o mediante el Autenticador OAuth 2.0.</span>
                             </div>
                         </div>
                     </div>
                     <div class="v2-separator"></div>
                     <div class="v2-btn-row">
-                        <button class="v2-btn blurple" onclick="openAccountPopover()">🔑 Usar mi Código de /config</button>
+                        <button class="v2-btn blurple" onclick="openAccountPopover()">🔑 Conectar Cuentas (Web / OAuth 2.0)</button>
                         <button class="v2-btn green" onclick="checkAccountStatus()">🔄 Actualizar Estado</button>
                     </div>
                 `;
@@ -3647,8 +3648,8 @@
             if (isVerified && username) {
                 currentDiscordName = username;
                 if (dTitle) dTitle.textContent = `Discord: @${currentDiscordName}`;
-                if (dSub) dSub.textContent = '🟢 Sesión activa verificada con código de /config';
-                if (btnLogin) btnLogin.textContent = '🔑 Revalidar con Código de /config';
+                if (dSub) dSub.textContent = '🟢 Sesión activa verificada (/config o OAuth 2.0)';
+                if (btnLogin) btnLogin.textContent = '🔐 Reconectar con Autenticador OAuth 2.0';
                 if (btnDisconnect) btnDisconnect.classList.add('visible');
                 if (avatarUrl) {
                     if (navAvatar) navAvatar.innerHTML = `<img src="${avatarUrl}" alt="Discord" referrerPolicy="no-referrer">`;
@@ -3658,7 +3659,7 @@
                 currentDiscordName = null;
                 if (dTitle) dTitle.textContent = 'Cuenta de Discord';
                 if (dSub) dSub.textContent = 'Verificación con comando /config o Autenticador OAuth 2.0';
-                if (btnLogin) btnLogin.textContent = '🔑 Conectar con Código de /config';
+                if (btnLogin) btnLogin.textContent = '🔐 Autenticador OAuth 2.0 (Discord)';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'D';
                 if (popAvatar) popAvatar.textContent = 'D';
@@ -3680,10 +3681,10 @@
                 if (rTitle) rTitle.textContent = `Roblox: @${acc.roblox_username} (ID ${acc.roblox_user_id})`;
                 if (rSub) {
                     rSub.textContent = isOAuth
-                        ? '🟢 Conectada • Permisos en Configuración → Permisos de la aplicación'
-                        : '🔐 Verificada con Código • Permisos en Configuración → Permisos de la aplicación';
+                        ? '🟢 Conectada con Autenticador OAuth 2.0'
+                        : '🟢 Verificada con código en biografía de Roblox';
                 }
-                if (btnLogin) btnLogin.textContent = '🎮 Cambiar @Usuario / ID de Roblox';
+                if (btnLogin) btnLogin.textContent = '🔐 Reconectar con Autenticador OAuth 2.0';
                 if (btnDisconnect) btnDisconnect.classList.add('visible');
                 if (acc.avatar_url) {
                     if (navAvatar) navAvatar.innerHTML = `<img src="${acc.avatar_url}" alt="Roblox" referrerPolicy="no-referrer">`;
@@ -3692,8 +3693,8 @@
             } else {
                 currentRobloxName = null;
                 if (rTitle) rTitle.textContent = 'Cuenta de Roblox';
-                if (rSub) rSub.textContent = 'Para cargar tu propio avatar en el Probador y 3D';
-                if (btnLogin) btnLogin.textContent = '🎮 Vincular Cuenta de Roblox (@Usuario / ID)';
+                if (rSub) rSub.textContent = 'Verificación con código en biografía o Autenticador OAuth 2.0';
+                if (btnLogin) btnLogin.textContent = '🔐 Autenticador OAuth 2.0 (Roblox)';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'R';
                 if (popAvatar) popAvatar.textContent = 'R';
@@ -3776,6 +3777,30 @@
             `).join('');
         }
 
+        function clearAllSessions() {
+            const discordId = getActiveDiscordId() || readLocalAccountBackup()?.discordId || '';
+            if (discordId && discordId !== 'default_session') {
+                fetch(apiUrl('/api/auth/disconnect'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ discordId, provider: 'discord' })
+                }).catch(() => {});
+                fetch(apiUrl('/api/auth/disconnect'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ discordId, provider: 'roblox' })
+                }).catch(() => {});
+            }
+            localStorage.removeItem(LOCAL_BACKUP_KEY);
+            localStorage.removeItem('kortex_discord_id');
+            localStorage.removeItem('kortex_session_id');
+            currentDiscordName = null;
+            currentRobloxName = null;
+            renderDiscordConfigUI(null, null);
+            renderRobloxAccountUI(null);
+            renderAccountHistoryUI([], {}, false);
+        }
+
         /**
          * Verifica el estado en el servidor y, si el bot fue actualizado o reiniciado perdiendo la memoria volátil,
          * restaura automáticamente las sesiones activas desde el respaldo local del navegador.
@@ -3783,6 +3808,16 @@
         async function checkAccountStatus() {
             const backup = readLocalAccountBackup();
             const discordId = getActiveDiscordId() || backup?.discordId || '';
+
+            // Si no hay ID de usuario guardado localmente, asegurar estado neutral de invitado
+            if (!discordId || discordId === 'default_session') {
+                currentDiscordName = null;
+                currentRobloxName = null;
+                renderDiscordConfigUI(null, null);
+                renderRobloxAccountUI(null);
+                renderAccountHistoryUI([], {}, false);
+                return;
+            }
 
             // 1. Pintar de inmediato el respaldo local si hay una cuenta activa guardada
             if (backup && (backup.discordConfig?.oauth_verified || backup.linkedAccount?.roblox_user_id)) {
@@ -3800,6 +3835,18 @@
                 const backupHasDiscord = Boolean(backup?.discordConfig?.oauth_verified);
                 const backupHasRoblox = Boolean(backup?.linkedAccount?.roblox_user_id);
 
+                // Si ninguna cuenta está activa ni en el servidor ni en el backup para este ID:
+                if (!serverHasDiscord && !serverHasRoblox && !backupHasDiscord && !backupHasRoblox) {
+                    currentDiscordName = null;
+                    currentRobloxName = null;
+                    renderDiscordConfigUI(null, null);
+                    renderRobloxAccountUI(null);
+                    renderAccountHistoryUI([], {}, false);
+                    localStorage.removeItem(LOCAL_BACKUP_KEY);
+                    localStorage.removeItem('kortex_discord_id');
+                    return;
+                }
+
                 // 2. Si el bot se actualizó o reinició y perdió alguna de las sesiones activas en el navegador, restaurarlas automáticamente
                 if ((backupHasDiscord && !serverHasDiscord) || (backupHasRoblox && !serverHasRoblox)) {
                     const restoreRes = await fetch(apiUrl('/api/auth/restore'), {
@@ -3814,7 +3861,7 @@
                     });
                     const restoredData = await restoreRes.json();
                     if (restoredData.ok) {
-                        if (restoredData.discordId && restoredData.discordId !== 'default_session') {
+                        if (restoredData.discordId && restoredData.discordId !== 'default_session' && !restoredData.discordId.startsWith('guest_')) {
                             setActiveDiscordId(restoredData.discordId);
                         }
                         renderDiscordConfigUI(restoredData.discordConfig || null, null);
@@ -3825,7 +3872,7 @@
                     }
                 }
 
-                if (data.discordId && data.discordId !== 'default_session') {
+                if (data.discordId && data.discordId !== 'default_session' && !data.discordId.startsWith('guest_')) {
                     setActiveDiscordId(data.discordId);
                 }
 
@@ -3843,6 +3890,7 @@
                     });
                 } else {
                     localStorage.removeItem(LOCAL_BACKUP_KEY);
+                    localStorage.removeItem('kortex_discord_id');
                 }
             } catch {
                 // Si el servidor está reiniciando durante una actualización, mantener el estado activo en pantalla
@@ -3850,41 +3898,45 @@
         }
 
         async function disconnectAccount(provider) {
-            const discordId = getActiveDiscordId() || readLocalAccountBackup()?.discordId || 'default_session';
+            const discordId = getActiveDiscordId() || readLocalAccountBackup()?.discordId || '';
             try {
-                const res = await fetch(apiUrl('/api/auth/disconnect'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ discordId, provider })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    const remainingDiscord = provider === 'discord' ? null : (data.discordConfig || null);
-                    const remainingRoblox = provider === 'roblox' ? null : (data.linkedAccount || null);
-                    const stillHasActive = Boolean(
-                        (remainingDiscord && remainingDiscord.oauth_verified) ||
-                        (remainingRoblox && remainingRoblox.roblox_user_id)
-                    );
-
-                    renderDiscordConfigUI(remainingDiscord, null);
-                    renderRobloxAccountUI(remainingRoblox);
-                    renderAccountHistoryUI(stillHasActive ? (data.history || []) : [], data.stats || {}, stillHasActive);
-
-                    if (stillHasActive) {
-                        saveLocalAccountBackup({
-                            discordId: data.discordId || discordId,
-                            discordConfig: remainingDiscord,
-                            linkedAccount: remainingRoblox,
-                            history: data.history || [],
-                            stats: data.stats || {}
-                        });
-                    } else {
-                        localStorage.removeItem(LOCAL_BACKUP_KEY);
-                    }
+                if (discordId && discordId !== 'default_session') {
+                    await fetch(apiUrl('/api/auth/disconnect'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ discordId, provider })
+                    });
                 }
-            } catch {
-                // Silencioso
+            } catch {}
+
+            const backup = readLocalAccountBackup() || {};
+            if (provider === 'discord') {
+                backup.discordConfig = null;
+                currentDiscordName = null;
+                if (!backup.linkedAccount?.roblox_user_id) {
+                    localStorage.removeItem(LOCAL_BACKUP_KEY);
+                    localStorage.removeItem('kortex_discord_id');
+                } else {
+                    saveLocalAccountBackup(backup);
+                }
+                renderDiscordConfigUI(null, null);
+            } else if (provider === 'roblox') {
+                backup.linkedAccount = null;
+                currentRobloxName = null;
+                if (!backup.discordConfig?.oauth_verified) {
+                    localStorage.removeItem(LOCAL_BACKUP_KEY);
+                    localStorage.removeItem('kortex_discord_id');
+                } else {
+                    saveLocalAccountBackup(backup);
+                }
+                renderRobloxAccountUI(null);
             }
+
+            const stillHasActive = Boolean(
+                (backup.discordConfig && backup.discordConfig.oauth_verified) ||
+                (backup.linkedAccount && backup.linkedAccount.roblox_user_id)
+            );
+            renderAccountHistoryUI(stillHasActive ? (backup.history || []) : [], backup.stats || {}, stillHasActive);
         }
 
         let discordWebAutoPollTimer = null;
@@ -3955,7 +4007,7 @@
                         if (step2Box) step2Box.style.display = 'block';
                         if (dFeedback) {
                             dFeedback.style.color = '#38BDF8';
-                            dFeedback.textContent = data.message || '💡 Escribí /config en el bot de Discord, copié tu código KTX-XXXXXX alojado en "1. Cuenta de Discord" y pegalo arriba.';
+                            dFeedback.textContent = data.message || '🔑 Escribí /config en el bot de Discord, copiá tu código KTX-XXXXXX alojado en "1. Cuenta de Discord" y pegalo arriba.';
                         }
                         if (codeEl) codeEl.focus();
                     }
@@ -4006,10 +4058,14 @@
                     : `Generando código de verificación para "${query}"...`;
             }
             try {
+                const activeId = getActiveDiscordId();
+                const sessionGuestId = activeId || (localStorage.getItem('kortex_session_id') || ('guest_' + Math.random().toString(36).substring(2, 10)));
+                if (!activeId) localStorage.setItem('kortex_session_id', sessionGuestId);
+
                 const res = await fetch(apiUrl('/api/auth/roblox/quick-link'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ discordId: getActiveDiscordId(), query, action: actionMode })
+                    body: JSON.stringify({ discordId: sessionGuestId, query, action: actionMode })
                 });
                 const data = await res.json();
                 if (!data.ok) {
@@ -4020,7 +4076,11 @@
                     return;
                 }
                 if (data.discordId && data.discordId !== 'default_session') {
-                    setActiveDiscordId(data.discordId);
+                    if (!data.discordId.startsWith('guest_')) {
+                        setActiveDiscordId(data.discordId);
+                    } else {
+                        localStorage.setItem('kortex_session_id', data.discordId);
+                    }
                 }
                 if (data.step === 'verify_required') {
                     if (step2Box) step2Box.style.display = 'block';
@@ -4056,40 +4116,35 @@
         }
 
         async function startOAuthPopup(provider) {
-            if (provider === 'discord') {
-                const inputEl = document.getElementById('quick-discord-input');
-                const codeEl = document.getElementById('quick-discord-code');
-                const dFeedback = document.getElementById('discord-feedback');
-                const idVal = (inputEl?.value || getActiveDiscordId() || '').trim();
-                const codeVal = (codeEl?.value || '').trim();
-                if (idVal && codeVal) {
-                    return await quickVerifyDiscordWeb('verify');
-                }
-                if (!idVal && inputEl) {
-                    inputEl.focus();
-                } else if (codeEl) {
-                    codeEl.focus();
-                }
-                if (dFeedback) {
-                    dFeedback.style.color = '#38BDF8';
-                    dFeedback.innerHTML = '💡 <strong>Recomendado:</strong> Usá el <strong>Autenticador OAuth 2.0</strong> o escribí <code>/config</code> en el bot de Discord y copié tu código <code>KTX-XXXXXX</code>.';
-                }
-                return;
+            const activeId = getActiveDiscordId();
+            const discordId = activeId || (document.getElementById('quick-discord-input')?.value || '').trim() || localStorage.getItem('kortex_session_id') || ('guest_' + Math.random().toString(36).substring(2, 10));
+            if (!activeId) localStorage.setItem('kortex_session_id', discordId);
+            const isRoblox = provider === 'roblox';
+            const feedbackEl = document.getElementById(isRoblox ? 'roblox-feedback' : 'discord-feedback');
+
+            if (feedbackEl) {
+                feedbackEl.style.color = '#38BDF8';
+                feedbackEl.textContent = isRoblox
+                    ? '🔐 Abriendo Autenticador OAuth 2.0 de Roblox...'
+                    : '🔐 Abriendo Autenticador OAuth 2.0 de Discord...';
             }
 
-            if (provider === 'roblox') {
-                const rInput = document.getElementById('quick-roblox-input');
-                const rVal = (rInput?.value || '').trim();
-                if (rVal) {
-                    return await quickVerifyRobloxWeb('start');
+            try {
+                const endpoint = isRoblox ? '/api/auth/roblox/url' : '/api/auth/discord/url';
+                const res = await fetch(apiUrl(`${endpoint}?discord_id=${encodeURIComponent(discordId)}`));
+                const data = await res.json();
+                const targetUrl = data.url || data.gatewayUrl || apiUrl(`/api/auth/${isRoblox ? 'roblox' : 'discord'}/redirect?discord_id=${encodeURIComponent(discordId)}`);
+
+                const popup = window.open(targetUrl, `kortex_oauth_${provider}`, 'width=560,height=720,menubar=no,toolbar=no,location=yes,status=no');
+                if (!popup) {
+                    window.location.href = targetUrl;
                 }
-                if (rInput) rInput.focus();
-                const rFeedback = document.getElementById('roblox-feedback');
-                if (rFeedback) {
-                    rFeedback.style.color = '#38BDF8';
-                    rFeedback.innerHTML = '🎮 Escribí tu <strong>@Usuario de Roblox</strong> o <strong>ID numérico</strong> en la casilla de abajo y tocá <strong>🔑 Generar Código</strong>. (Los permisos del bot en Roblox están en <strong>Configuración → Permisos de la aplicación</strong>).';
+            } catch {
+                const fallbackUrl = apiUrl(`/api/auth/${isRoblox ? 'roblox' : 'discord'}/redirect?discord_id=${encodeURIComponent(discordId)}`);
+                const popup = window.open(fallbackUrl, `kortex_oauth_${provider}`, 'width=560,height=720');
+                if (!popup) {
+                    window.location.href = fallbackUrl;
                 }
-                return;
             }
         }
 
