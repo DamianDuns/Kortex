@@ -2019,27 +2019,27 @@
 
         <!-- PANE 1: CUENTAS E INICIO DE SESIÓN -->
         <div class="popover-pane active" id="popover-pane-accounts">
-            <!-- 1. Discord Verification Card (Code hosted in /config — Zero DM Spam) -->
+            <!-- 1. Discord Verification Card (Code in /config + OAuth 2.0) -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
                         <div class="popover-avatar-lg discord" id="pop-discord-avatar">D</div>
                         <div class="popover-account-text">
                             <strong id="discord-status-title">Cuenta de Discord</strong>
-                            <span id="discord-status-sub">Código alojado en el comando /config (Cero spam por MD)</span>
+                            <span id="discord-status-sub">Verificación con comando /config o Autenticador OAuth 2.0</span>
                         </div>
                     </div>
                 </div>
                 <div class="popover-btn-row">
                     <button type="button" class="popover-btn discord" id="btn-discord-login" onclick="startOAuthPopup('discord')">
-                        🔑 Conectar con Código de /config
+                        🔐 Autenticador OAuth 2.0 (Discord)
                     </button>
                     <button type="button" class="popover-btn-ghost" id="btn-discord-disconnect" onclick="disconnectAccount('discord')" title="Cerrar sesión de Discord">
                         Salir
                     </button>
                 </div>
                 <div class="popover-quick-box">
-                    <span class="popover-quick-label">🛡️ Escribí el comando <code>/config</code> en el bot de Discord y pegá tu ID + tu clave <code>KTX-XXXXXX</code> alojada ahí:</span>
+                    <span class="popover-quick-label">🔑 O conectate con el código alojado en el comando <code>/config</code> de Discord:</span>
                     <div class="popover-quick-form">
                         <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Tu Discord ID (ej: 957207733017387038)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
                     </div>
@@ -2051,45 +2051,45 @@
                     </div>
                 </div>
                 <div id="discord-feedback" class="popover-feedback">
-                    💡 <strong>Sin spam por MD:</strong> Pasate por el comando <code>/config</code> en Discord (apartado <strong>1. Cuenta de Discord</strong>), copiá tu código <code>KTX-XXXXXX</code> alojado ahí y pegalo arriba. Los permisos están en <strong>Configuración → Permisos de la aplicación</strong>.
+                    Podés usar el <strong>Autenticador OAuth 2.0</strong> o abrir el comando <code>/config</code> en Discord (apartado <strong>1. Cuenta de Discord</strong>) y pegar tu código <code>KTX-XXXXXX</code>.
                 </div>
             </div>
 
-            <!-- 2. Roblox Direct Verification Card -->
+            <!-- 2. Roblox Verification Card (Bio Code + OAuth 2.0) -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
                         <div class="popover-avatar-lg roblox" id="pop-roblox-avatar">R</div>
                         <div class="popover-account-text">
                             <strong id="roblox-status-title">Cuenta de Roblox</strong>
-                            <span id="roblox-status-sub">Para cargar tu propio avatar en el Probador, Tycoon 3D y Exportador</span>
+                            <span id="roblox-status-sub">Verificación con código en biografía o Autenticador OAuth 2.0</span>
                         </div>
                     </div>
                 </div>
                 <div class="popover-btn-row">
                     <button type="button" class="popover-btn roblox" id="btn-roblox-login" onclick="startOAuthPopup('roblox')">
-                        🎮 Vincular Cuenta de Roblox (@Usuario / ID)
+                        🔐 Autenticador OAuth 2.0 (Roblox)
                     </button>
                     <button type="button" class="popover-btn-ghost" id="btn-roblox-disconnect" onclick="disconnectAccount('roblox')" title="Desvincular cuenta de Roblox">
                         Quitar
                     </button>
                 </div>
                 <div class="popover-quick-box">
-                    <span class="popover-quick-label">🛡️ Escribí tu @Usuario o ID de Roblox para generar tu código de propiedad:</span>
+                    <span class="popover-quick-label">🎮 O escribí tu @Usuario / ID de Roblox para verificarte con código en tu biografía:</span>
                     <div class="popover-quick-form">
                         <input type="text" class="popover-quick-input" id="quick-roblox-input" placeholder="Ej: damianpro13 o tu ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
                         <button type="button" class="popover-quick-submit" onclick="quickVerifyRobloxWeb('start')">🔑 Generar Código</button>
                     </div>
                     <div id="roblox-step2-verify" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.12);">
                         <div style="font-size:11px;color:#E2E8F0;line-height:1.45;margin-bottom:6px;">
-                            Pegá este código temporal en la descripción <strong>"Acerca de" (About)</strong> de tu perfil de Roblox <strong id="roblox-verify-target-label"></strong> y tocá comprobar:
+                            Pegá este código en la biografía <strong>"Acerca de" (About)</strong> de tu cuenta de Roblox <strong id="roblox-verify-target-label"></strong> y tocá comprobar:
                             <div id="roblox-verify-code-badge" style="margin-top:5px;padding:6px 10px;background:#0F172A;border:1px solid #38BDF8;border-radius:6px;font-family:monospace;font-weight:800;font-size:13px;color:#38BDF8;text-align:center;letter-spacing:0.6px;user-select:all;">KORTEX-0000</div>
                         </div>
-                        <button type="button" class="popover-quick-submit" style="width:100%;background:#16A34A;color:#FFFFFF;padding:8px 12px;" onclick="quickVerifyRobloxWeb('verify')">✅ Ya pegué el código en mi perfil (Comprobar)</button>
+                        <button type="button" class="popover-quick-submit" style="width:100%;background:#16A34A;color:#FFFFFF;padding:8px 12px;" onclick="quickVerifyRobloxWeb('verify')">✅ Ya pegué el código en mi biografía (Comprobar)</button>
                     </div>
                 </div>
                 <div id="roblox-feedback" class="popover-feedback">
-                    En Roblox, donde está alojado el bot y sus permisos es en <strong>Configuración → Permisos de la aplicación</strong> (<em>Settings → App Permissions</em>).
+                    Podés usar el <strong>Autenticador OAuth 2.0</strong> o verificarte escribiendo tu nombre de usuario y colocando el código en tu biografía de Roblox.
                 </div>
             </div>
         </div>
