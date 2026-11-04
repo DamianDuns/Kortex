@@ -1763,7 +1763,7 @@ function obtenerVerificacionPendienteDiscord(discordId) {
 
 /**
  * Inicia el desafío de verificación para conectar una cuenta de Discord por ID desde la Web:
- * - CERO SPAM POR MD: Nunca envía Mensajes Directos (MD) al buzón del usuario.
+ * - PRIVACIDAD Y CONVENIENCIA: Aloja los códigos en el panel /config sin requerir interacción por Mensaje Directo.
  * - El código `KTX-XXXXXX` se aloja directamente dentro del comando `/config` en Discord (`Cuentas y Datos Guardados`).
  * - Verifica que el usuario comparta servidor con el bot o haya ejecutado `/config` antes.
  */
@@ -1807,7 +1807,7 @@ async function iniciarVerificacionDiscordWeb(discordIdInput, { client = null, re
         dmSent: false,
         hostedInConfig: true,
         expiresInMinutes: 30,
-        message: '🔑 Sin spam por MD: escribí el comando /config en el bot de Discord, abrí "Cuentas y Datos Guardados" y copiá tu código KTX-XXXXXX alojado en el apartado 1. Cuenta de Discord.'
+        message: '🔑 Código de verificación: escribí el comando /config en el bot de Discord, abrí "Cuentas y Datos Guardados" y copiá tu código KTX-XXXXXX alojado en el apartado 1. Cuenta de Discord.'
     };
 }
 
@@ -1830,7 +1830,7 @@ async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client
         return {
             ok: false,
             step: 'verify_required',
-            message: '🔑 Para conectar tu ID sin spam por MD, ejecutá el comando /config en Discord (apartado 1. Cuenta de Discord), copiá tu código KTX-XXXXXX alojado ahí y pegalo acá.'
+            message: '🔑 Para conectar tu ID, ejecutá el comando /config en Discord (apartado 1. Cuenta de Discord), copiá tu código KTX-XXXXXX alojado ahí y pegalo acá.'
         };
     }
 
@@ -2136,7 +2136,7 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput, options =
     if (botAccount.connected) {
         statusMessage =
             `🛡️ **Verificación de propiedad requerida para @${resolved.roblox_username} (ID \`${resolved.roblox_user_id}\`):**\n` +
-            `• **Opción A (Descripción del Perfil — Cero Spam):** Pegá el código \`${robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en Roblox y tocá **✅ Comprobar Verificación**.\n` +
+            `• **Opción A (Descripción del Perfil):** Pegá el código \`${robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en Roblox y tocá **✅ Comprobar Verificación**.\n` +
             `• **Opción B (Amistad con el Bot):** Aceptá o enviale solicitud de amistad a **@${botAccount.roblox_username}** en Roblox y tocá **✅ Comprobar Verificación**.`;
     } else {
         statusMessage =
@@ -3163,7 +3163,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
     container.addSeparatorComponents(separador(true));
 
-    // 1. CUENTA DE DISCORD (Aloja aquí mismo el código KTX-XXXXXX para evitar spam por MD)
+    // 1. CUENTA DE DISCORD (Aloja aquí mismo el código KTX-XXXXXX para conectar en la Web)
     const webCodeNoteEs = webDiscordChallenge?.code
         ? `\n🔑 **Tu código de verificación para conectar tu ID (\`${uid}\`) en la Web:** \`${webDiscordChallenge.code}\` *(alojado aquí en \`/config\` para no enviar spam por MD)*`
         : '';
