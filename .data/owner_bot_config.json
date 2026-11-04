@@ -1,0 +1,21 @@
+{
+  "ownerId": "957207733017387038",
+  "engineMode": "auto",
+  "maintenanceMode": false,
+  "requireDiscordOAuth": true,
+  "dynamicLoadingEnabled": false,
+  "alertsEnabled": true,
+  "categoryEconomyEnabled": true,
+  "categoryAvatarEnabled": true,
+  "categoryGamesEnabled": true,
+  "categoryStatusEnabled": true,
+  "tycoonEnabled": true,
+  "botPresenceStatus": "idle",
+  "botActivityText": "/roblox • /tycoon • /config",
+  "maxWishlistItems": 5,
+  "maxSandboxItems": 5,
+  "maxGameSubs": 3,
+  "priceCheckIntervalMinutes": 5,
+  "workersIntervalMinutes": 15,
+  "updatedAt": "2026-11-04T07:42:40.943Z"
+}

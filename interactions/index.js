@@ -10,6 +10,8 @@ const {
     TextInputBuilder,
     TextInputStyle,
     ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     MessageFlags
 } = require('discord.js');
 
@@ -21,6 +23,15 @@ const {
     obtenerCuentaVinculada,
     obtenerConfigDiscord,
     guardarConfigDiscord,
+    activarSesionDiscordDirecta,
+    resolverUsuarioRoblox,
+    guardarCuentaVinculada,
+    eliminarCuentaVinculada,
+    iniciarVerificacionCodigoRoblox,
+    confirmarVerificacionCodigoRoblox,
+    cancelarVerificacionCodigoRoblox,
+    generarCodigoVinculacionDiscord,
+    procesarAccionSeguridadDiscordWeb,
     verificarAutorizacionDiscordOAuth,
     verificarAutorizacionRobloxOAuth,
     construirPanelVinculacionCuenta,
@@ -31,20 +42,28 @@ const { handleEconomyInteraction } = require('../src/modules/economyModule');
 const { handleAvatarInteraction } = require('../src/modules/avatarModule');
 const { handleGamesInteraction } = require('../src/modules/gamesModule');
 const {
+    construirPanelEstadoRoblox,
+    handleStatusInteraction
+} = require('../src/modules/statusModule');
+const {
     optimizarMemoriaRam,
     ejecutarDiagnosticoArranqueYCalibracion,
     ejecutarSecuenciaOptimizacionEnVivo,
     obtenerConfigPropietario,
     guardarConfigPropietario,
+    restaurarConfigPropietarioPorDefecto,
+    aplicarPresenciaBotDiscord,
     esPropietarioDelBot,
     construirPanelAvisoModeracion,
     ejecutarInteraccionConOptimizacionYProgreso
 } = require('../src/utils/performanceManager');
 const {
     TIER_LABELS,
+    obtenerPreferenciasUsuario,
     obtenerIdiomaUsuario,
     guardarIdiomaUsuario,
-    guardarPreferenciasUsuario
+    guardarPreferenciasUsuario,
+    restaurarPreferenciasUsuarioPorDefecto
 } = require('../src/utils/i18n');
 const {
     actualizarIntervalosMonitoreo,
@@ -84,15 +103,26 @@ cargarHandlers('modals', modals);
 function obtenerResumenHandlers() {
     const extraBotones = [
         'btn_fastlink_modal',
+        'btn_fastlink_open_modal',
+        'btn_fastlink_verify_now',
+        'btn_fastlink_cancel_verify',
         'btn_fastlink_refresh',
+        'btn_discord_web_approve:*',
+        'btn_discord_web_block:*',
+        'btn_config_direct_discord',
+        'btn_config_unlink_roblox',
         'btn_config_refresh',
         'btn_lang_first_pick:*',
         'btn_pref_lang:*',
+        'btn_pref_toggle_alerts',
+        'btn_pref_toggle_ephemeral',
+        'btn_pref_reset',
         'btn_welcome_open_*',
         'btn_owner_*',
         'btn_econ_*',
         'btn_ava_*',
         'btn_games_*',
+        'btn_status_*',
         'tycoon_*'
     ];
     const extraSelects = [
@@ -100,22 +130,28 @@ function obtenerResumenHandlers() {
         'help_category_select',
         'help_roblox_subcat_select',
         'config_category_select',
+        'select_pref_default_cat',
         'select_pref_tier',
+        'select_pref_comfort',
         'welcome_tour_select',
         'select_owner_mechanic',
         'select_econ_*',
         'select_ava_*',
         'select_games_*',
+        'select_status_*',
         'tycoon_section_select',
         'tycoon_*'
     ];
     const extraModales = [
+        'modal_fastlink_roblox_submit',
         'modal_owner_limits_submit',
         'modal_owner_intervals_submit',
+        'modal_owner_presence_submit',
         'modal_owner_ugc_delete_submit',
         'modal_econ_*',
         'modal_ava_*',
         'modal_games_*',
+        'modal_status_*',
         'tycoon_modal_*'
     ];
     return {
@@ -130,6 +166,12 @@ function siguienteModoMotor(modoActual) {
     if (modoActual === 'auto') return 'ahorro';
     if (modoActual === 'ahorro') return 'maximo';
     return 'auto';
+}
+
+function siguienteEstadoPresencia(estadoActual) {
+    if (estadoActual === 'online') return 'idle';
+    if (estadoActual === 'idle') return 'dnd';
+    return 'online';
 }
 
 function construirModalLimitesPropietario(cfg, isEn = false) {
@@ -213,6 +255,23 @@ function construirModalModeracionUgcPropietario(isEn = false) {
     return modal;
 }
 
+function construirModalPresenciaPropietario(cfg, isEn = false) {
+    const modal = new ModalBuilder()
+        .setCustomId('modal_owner_presence_submit')
+        .setTitle(isEn ? '💬 Custom Bot Activity Text' : '💬 Frase de Estado del Bot en Discord');
+
+    const inputActivity = new TextInputBuilder()
+        .setCustomId('owner_activity_text')
+        .setLabel(isEn ? 'Activity text shown under the bot' : 'Frase de actividad que mostrará el bot')
+        .setStyle(TextInputStyle.Short)
+        .setValue(String(cfg.botActivityText || '/roblox • /tycoon • /help • /config'))
+        .setPlaceholder('/roblox • /tycoon • /help • /config')
+        .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(inputActivity));
+    return modal;
+}
+
 async function procesarInteraccionInterna(interaction) {
     // Puente Silencioso: Recompensar con Tix en segundo plano (cooldown 5 min) sin interrumpir /roblox
     if (interaction.user?.id) {
@@ -288,6 +347,7 @@ async function procesarInteraccionInterna(interaction) {
         cid.startsWith('btn_owner_') ||
         cid === 'modal_owner_limits_submit' ||
         cid === 'modal_owner_intervals_submit' ||
+        cid === 'modal_owner_presence_submit' ||
         cid === 'modal_owner_ugc_delete_submit'
     ) {
         const esOwner = await esPropietarioDelBot(interaction.user.id, interaction.client);
@@ -309,6 +369,9 @@ async function procesarInteraccionInterna(interaction) {
             }
             if (chosen === 'owner_modal_intervals') {
                 return await interaction.showModal(construirModalIntervalosPropietario(ownerCfg, isEn));
+            }
+            if (chosen === 'owner_modal_presence') {
+                return await interaction.showModal(construirModalPresenciaPropietario(ownerCfg, isEn));
             }
             if (chosen === 'owner_modal_ugc_mod') {
                 return await interaction.showModal(construirModalModeracionUgcPropietario(isEn));
@@ -345,6 +408,13 @@ async function procesarInteraccionInterna(interaction) {
             feedback = isEn
                 ? `⏱️ **Scan intervals updated in real time:** Prices (1.1) every \`${applied.priceMinutes} min\` • Pending Robux & Game Patches every \`${applied.workerMinutes} min\`.`
                 : `⏱️ **Intervalos de escaneo actualizados en vivo:** Precios (1.1) cada \`${applied.priceMinutes} min\` • Robux Pendientes y Parches cada \`${applied.workerMinutes} min\`.`;
+        } else if (cid === 'modal_owner_presence_submit' && interaction.isModalSubmit()) {
+            const rawText = interaction.fields.getTextInputValue('owner_activity_text').trim();
+            const updated = guardarConfigPropietario({ botActivityText: rawText });
+            aplicarPresenciaBotDiscord(interaction.client);
+            feedback = isEn
+                ? `💬 **Bot activity text updated in Discord:** \`${updated.botActivityText}\`.`
+                : `💬 **Frase de actividad del bot actualizada en Discord:** \`${updated.botActivityText}\`.`;
         } else if (cid === 'modal_owner_ugc_delete_submit' && interaction.isModalSubmit()) {
             const query = interaction.fields.getTextInputValue('owner_ugc_target').trim();
             const { items } = await getCatalogItems();
@@ -386,6 +456,7 @@ async function procesarInteraccionInterna(interaction) {
         } else if (cid === 'btn_owner_toggle_maintenance') {
             const nuevoEstado = !ownerCfg.maintenanceMode;
             guardarConfigPropietario({ maintenanceMode: nuevoEstado });
+            aplicarPresenciaBotDiscord(interaction.client);
             feedback = nuevoEstado
                 ? (isEn
                     ? '🛠️ **Maintenance Mode ENABLED:** Only you (Owner) can run commands right now.'
@@ -399,12 +470,34 @@ async function procesarInteraccionInterna(interaction) {
                 : '🔄 **Parámetros y uso de memoria actualizados.**';
         } else if (cid === 'select_owner_mechanic' && interaction.isStringSelectMenu()) {
             const chosen = interaction.values[0];
-            if (chosen === 'owner_cycle_engine') {
+            if (chosen === 'owner_cycle_presence') {
+                const nextStatus = siguienteEstadoPresencia(ownerCfg.botPresenceStatus || 'online');
+                guardarConfigPropietario({ botPresenceStatus: nextStatus });
+                aplicarPresenciaBotDiscord(interaction.client);
+                const statusLabels = {
+                    online: isEn ? '🟢 Online' : '🟢 En línea',
+                    idle: isEn ? '🌙 Idle / Away' : '🌙 Ausente (Idle)',
+                    dnd: isEn ? '⛔ Do Not Disturb' : '⛔ No Molestar (DND)'
+                };
+                feedback = isEn
+                    ? `🟢 **Bot Discord Status changed to:** ${statusLabels[nextStatus]}.`
+                    : `🟢 **Estado del bot en Discord cambiado a:** ${statusLabels[nextStatus]}.`;
+            } else if (chosen === 'owner_cycle_engine') {
                 const nuevoModo = siguienteModoMotor(ownerCfg.engineMode);
                 guardarConfigPropietario({ engineMode: nuevoModo });
                 feedback = isEn
                     ? `🎛️ **Performance Mode changed to:** \`${nuevoModo.toUpperCase()}\`.`
                     : `🎛️ **Modo de Rendimiento cambiado a:** \`${nuevoModo.toUpperCase()}\`.`;
+            } else if (chosen === 'owner_toggle_alerts') {
+                const nuevo = ownerCfg.alertsEnabled === false;
+                guardarConfigPropietario({ alertsEnabled: nuevo });
+                feedback = nuevo
+                    ? (isEn
+                        ? '🔔 **Global Background Alerts:** 🟢 Active (Price Sniper 1.1, Pending Robux 1.4, and Game Patches 3.4).'
+                        : '🔔 **Alertas Automáticas Globales:** 🟢 Activadas (Precios 1.1, Robux Pendientes 1.4 y Parches 3.4).')
+                    : (isEn
+                        ? '⏸️ **Global Background Alerts:** Paused temporarily.'
+                        : '⏸️ **Alertas Automáticas Globales:** Pausadas temporalmente.');
             } else if (chosen === 'owner_toggle_tycoon') {
                 const nuevo = ownerCfg.tycoonEnabled === false;
                 guardarConfigPropietario({ tycoonEnabled: nuevo });
@@ -418,6 +511,7 @@ async function procesarInteraccionInterna(interaction) {
             } else if (chosen === 'owner_toggle_maintenance') {
                 const nuevo = !ownerCfg.maintenanceMode;
                 guardarConfigPropietario({ maintenanceMode: nuevo });
+                aplicarPresenciaBotDiscord(interaction.client);
                 feedback = nuevo
                     ? (isEn
                         ? '🛠️ **Maintenance Mode ENABLED** (owner-only access).'
@@ -440,11 +534,18 @@ async function procesarInteraccionInterna(interaction) {
                 guardarConfigPropietario({ dynamicLoadingEnabled: nuevo });
                 feedback = nuevo
                     ? (isEn
-                        ? '📋 **Step-by-Step Loading Screen:** 🟢 Enabled (4-row progress).'
-                        : '📋 **Pantalla de Carga por Filas:** 🟢 Activada (progreso de 4 filas).')
+                        ? '🟡 **Queue Notice on Heavy Load:** Enabled (shows notice only if all concurrency slots are full).'
+                        : '🟡 **Aviso de Cola en Tráfico Alto:** Activado (solo muestra aviso si los slots de concurrencia están llenos).')
                     : (isEn
-                        ? '⚡ **Step-by-Step Loading Screen:** Disabled (instant direct reply).'
-                        : '⚡ **Pantalla de Carga por Filas:** Desactivada (respuesta directa al instante).');
+                        ? '⚡ **Direct 1-Step Reply:** Enabled (zero intermediate edits, minimum RAM & API usage).'
+                        : '⚡ **Respuesta Directa en 1 Paso:** Activada (sin ediciones intermedias, mínimo consumo de RAM y Discord API).');
+            } else if (chosen === 'owner_reset_defaults') {
+                restaurarConfigPropietarioPorDefecto();
+                actualizarIntervalosMonitoreo(interaction.client);
+                aplicarPresenciaBotDiscord(interaction.client);
+                feedback = isEn
+                    ? '🔄 **All bot parameters restored to safe factory defaults.**'
+                    : '🔄 **Todos los parámetros del bot se restauraron a sus valores óptimos por defecto.**';
             }
         }
 
@@ -456,7 +557,16 @@ async function procesarInteraccionInterna(interaction) {
     const esAccionConfig =
         cid === 'config_category_select' ||
         cid === 'btn_config_refresh' ||
+        cid === 'btn_config_direct_discord' ||
+        cid === 'btn_config_unlink_roblox' ||
+        cid === 'btn_fastlink_open_modal' ||
+        cid === 'btn_fastlink_verify_now' ||
+        cid === 'btn_fastlink_cancel_verify' ||
+        cid.startsWith('btn_discord_web_') ||
+        cid === 'modal_fastlink_roblox_submit' ||
+        cid === 'select_pref_default_cat' ||
         cid === 'select_pref_tier' ||
+        cid === 'select_pref_comfort' ||
         cid.startsWith('btn_pref_');
     if (ownerCfg.maintenanceMode && !esAccionConfig) {
         const esOwner = await esPropietarioDelBot(interaction.user.id, interaction.client);
@@ -511,6 +621,31 @@ async function procesarInteraccionInterna(interaction) {
         return await interaction.editReply(panel);
     }
 
+    if (cid === 'select_pref_default_cat' && interaction.isStringSelectMenu()) {
+        const nextCat = interaction.values[0] || 'cat_economy';
+        const prefs = guardarPreferenciasUsuario(interaction.user.id, { default_category: nextCat });
+        const isEn = prefs.lang === 'en';
+        const labels = isEn
+            ? {
+                cat_economy: '💰 1. Economy & Pricing',
+                cat_avatar: '👕 2. Avatars & 3D/2D Studio',
+                cat_games: '🎮 3. Games & Servers',
+                cat_status: '📊 4. Roblox Analytics & Status'
+            }
+            : {
+                cat_economy: '💰 1. Economía y Precios',
+                cat_avatar: '👕 2. Avatares y Estudio 3D/2D',
+                cat_games: '🎮 3. Juegos y Servidores',
+                cat_status: '📊 4. Estadísticas y Estado'
+            };
+        await interaction.deferUpdate();
+        const feedback = isEn
+            ? `📂 **Default \`/roblox\` starting category saved:** ${labels[prefs.default_category] || labels.cat_economy}`
+            : `📂 **Categoría de inicio en \`/roblox\` guardada:** ${labels[prefs.default_category] || labels.cat_economy}`;
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
     if (cid === 'select_pref_tier' && interaction.isStringSelectMenu()) {
         const selectedTier = interaction.values[0] || 'TIER_100';
         const prefs = guardarPreferenciasUsuario(interaction.user.id, { default_tier: selectedTier });
@@ -520,6 +655,116 @@ async function procesarInteraccionInterna(interaction) {
         const feedback = isEn
             ? `🌎 **Default pricing region saved:** ${tierLabel}`
             : `🌎 **Región de precios predeterminada guardada:** ${tierLabel}`;
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'select_pref_comfort' && interaction.isStringSelectMenu()) {
+        const choice = interaction.values[0] || '';
+        const uid = interaction.user.id;
+        const currentPrefs = obtenerPreferenciasUsuario(uid);
+        const isEn = currentPrefs.lang === 'en';
+        await interaction.deferUpdate();
+
+        let feedback = '';
+        if (choice.startsWith('cat:')) {
+            const nextCat = choice.split(':')[1] || 'cat_economy';
+            guardarPreferenciasUsuario(uid, { default_category: nextCat });
+            const labels = isEn
+                ? {
+                    cat_economy: '💰 1. Economy & Pricing',
+                    cat_avatar: '👕 2. Avatars & 3D/2D Studio',
+                    cat_games: '🎮 3. Games & Servers',
+                    cat_status: '📊 4. Roblox Analytics & Status'
+                }
+                : {
+                    cat_economy: '💰 1. Economía y Precios',
+                    cat_avatar: '👕 2. Avatares y Estudio 3D/2D',
+                    cat_games: '🎮 3. Juegos y Servidores',
+                    cat_status: '📊 4. Estadísticas y Estado'
+                };
+            feedback = isEn
+                ? `📂 **Default \`/roblox\` category updated to:** ${labels[nextCat] || labels.cat_economy}`
+                : `📂 **Categoría inicial de \`/roblox\` guardada:** ${labels[nextCat] || labels.cat_economy}`;
+        } else if (choice.startsWith('range:')) {
+            const nextRange = choice.split(':')[1] || '7d';
+            guardarPreferenciasUsuario(uid, { default_chart_range: nextRange });
+            const rangeLabels = isEn
+                ? { '24h': '24 Hours (24h)', '7d': '7 Days (7d)', '30d': '30 Days (30d)', 'all': 'Full History (All)' }
+                : { '24h': '24 Horas (24h)', '7d': '7 Días (7d)', '30d': '30 Días (30d)', 'all': 'Histórico Completo' };
+            feedback = isEn
+                ? `📈 **Default chart range (1.1) set to:** \`${rangeLabels[nextRange] || '7d'}\``
+                : `📈 **Rango predeterminado de gráficas (1.1) guardado:** \`${rangeLabels[nextRange] || '7d'}\``;
+        } else if (choice === 'toggle_camera') {
+            const nextCam = currentPrefs.default_camera_mode === 'headshot' ? 'full' : 'headshot';
+            guardarPreferenciasUsuario(uid, { default_camera_mode: nextCam });
+            feedback = nextCam === 'headshot'
+                ? (isEn
+                    ? '📸 **2.1 Outfit Sandbox Camera:** Set to **🔍 Head / Face Zoom** by default.'
+                    : '📸 **Cámara Inicial del Probador 2.1:** Configurada en **🔍 Zoom Cabeza / Rostro** por defecto.')
+                : (isEn
+                    ? '📸 **2.1 Outfit Sandbox Camera:** Set to **🧍 Full Body 3D** by default.'
+                    : '📸 **Cámara Inicial del Probador 2.1:** Configurada en **🧍 Cuerpo Completo 3D** por defecto.');
+        } else if (choice === 'toggle_cashback') {
+            const nextCb = currentPrefs.auto_cashback_40 === false;
+            guardarPreferenciasUsuario(uid, { auto_cashback_40: nextCb });
+            feedback = nextCb
+                ? (isEn
+                    ? '🧮 **1.2 Economy Calculator:** 40% Group Method Cashback is now **pre-enabled** by default.'
+                    : '🧮 **Calculadora 1.2:** El **Cashback del 40% (Método de Grupo)** ahora estará pre-activado al abrir la calculadora.')
+                : (isEn
+                    ? '🧮 **1.2 Economy Calculator:** Set to manual benefit selection.'
+                    : '🧮 **Calculadora 1.2:** Configurada en selección manual de beneficios.');
+        }
+
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_pref_toggle_alerts' && interaction.isButton()) {
+        const uid = interaction.user.id;
+        const current = obtenerPreferenciasUsuario(uid);
+        const nextState = current.dm_alerts_enabled === false;
+        const updated = guardarPreferenciasUsuario(uid, { dm_alerts_enabled: nextState });
+        const isEn = updated.lang === 'en';
+        await interaction.deferUpdate();
+        const feedback = nextState
+            ? (isEn
+                ? '🔔 **Personal DM Alerts ENABLED:** You will receive automatic DM notifications for Price Sniper (1.1), Pending Robux (1.4), and Game Updates (3.4).'
+                : '🔔 **Alertas por MD ACTIVADAS:** Recibirás avisos automáticos de Precios (1.1), Robux Pendientes (1.4) y Parches (3.4).')
+            : (isEn
+                ? '🔕 **Do Not Disturb Mode ENABLED:** All automatic DM alerts are paused until you turn them back on (your saved items remain intact).'
+                : '🔕 **Modo No Molestar ACTIVADO:** Se pausaron todos los avisos por Mensaje Directo sin borrar tus objetos guardados.');
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_pref_toggle_ephemeral' && interaction.isButton()) {
+        const uid = interaction.user.id;
+        const current = obtenerPreferenciasUsuario(uid);
+        const nextEphemeral = !current.ephemeral_config;
+        const updated = guardarPreferenciasUsuario(uid, { ephemeral_config: nextEphemeral });
+        const isEn = updated.lang === 'en';
+        await interaction.deferUpdate();
+        const feedback = nextEphemeral
+            ? (isEn
+                ? '🔒 **Private Mode (Only visible to me) ENABLED:** Next time you run `/roblox`, `/status`, `/tycoon`, or `/config`, the panel will open privately so only you can see it in the channel.'
+                : '🔒 **Modo Privado (Solo visible para mí) ACTIVADO:** La próxima vez que ejecutes `/roblox`, `/status`, `/tycoon` o `/config`, el panel se abrirá en privado para que nadie más en el canal lo vea.')
+            : (isEn
+                ? '👁️ **Public Mode ENABLED:** Commands will open normally in the channel.'
+                : '👁️ **Modo Público ACTIVADO:** Los comandos se abrirán públicamente en el canal como de costumbre.');
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_pref_reset' && interaction.isButton()) {
+        const uid = interaction.user.id;
+        const updated = restaurarPreferenciasUsuarioPorDefecto(uid);
+        const isEn = updated.lang === 'en';
+        await interaction.deferUpdate();
+        const feedback = isEn
+            ? '🔄 **Preferences restored to default settings!**'
+            : '🔄 **¡Tus preferencias volvieron a los valores predeterminados!**';
         const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
         return await interaction.editReply(panel);
     }
@@ -573,6 +818,140 @@ async function procesarInteraccionInterna(interaction) {
         return await interaction.editReply(panel);
     }
 
+    if (cid === 'btn_fastlink_open_modal' && interaction.isButton()) {
+        const isEn = obtenerIdiomaUsuario(interaction.user.id) === 'en';
+        const modal = new ModalBuilder()
+            .setCustomId('modal_fastlink_roblox_submit')
+            .setTitle(isEn ? '🎮 Link Roblox Account (@Username or ID)' : '🎮 Vincular Cuenta de Roblox (@Usuario o ID)');
+
+        const inputUser = new TextInputBuilder()
+            .setCustomId('fastlink_roblox_input')
+            .setLabel(isEn ? 'Your Roblox @Username or numeric User ID' : 'Tu @Usuario de Roblox o ID numérico')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder(isEn ? 'e.g. damianpro13 or 123456789' : 'Ej: damianpro13 o 123456789')
+            .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(inputUser));
+        return await interaction.showModal(modal);
+    }
+
+    if (cid === 'modal_fastlink_roblox_submit' && interaction.isModalSubmit()) {
+        await interaction.deferUpdate();
+        const uid = interaction.user.id;
+        const isEn = obtenerIdiomaUsuario(uid) === 'en';
+        const rawQuery = interaction.fields.getTextInputValue('fastlink_roblox_input').trim();
+
+        const isConfigView = interaction.message?.components?.some(c => {
+            try {
+                const jsonStr = JSON.stringify(c.toJSON ? c.toJSON() : c);
+                return jsonStr.includes('config_category_select') || jsonStr.includes('btn_config_refresh');
+            } catch {
+                return false;
+            }
+        });
+
+        // Iniciar verificación obligatoria de propiedad (Nunca vincular en 1 clic sin comprobar que la cuenta le pertenece)
+        const challengeRes = await iniciarVerificacionCodigoRoblox(uid, rawQuery, { requesterIp: `discord:${uid}` });
+        if (!challengeRes.ok) {
+            const errMsg = isEn
+                ? `❌ Could not find any Roblox user matching \`${rawQuery}\`. Check the spelling or enter your numeric Roblox ID.`
+                : (challengeRes.message || `❌ No se encontró ningún usuario de Roblox que coincida con \`${rawQuery}\`.`);
+            const panel = isConfigView
+                ? await construirPanelConfigDiscord(interaction.user, errMsg, 'cat_accounts', interaction.client)
+                : await construirPanelVinculacionCuenta(uid, errMsg);
+            return await interaction.editReply(panel);
+        }
+
+        const verifyMsg = isEn
+            ? `🛡️ **Ownership verification required for @${challengeRes.profile.roblox_username} (ID \`${challengeRes.profile.roblox_user_id}\`):** Paste the temporary code \`${challengeRes.verifyCode}\` in your Roblox profile **"About" (Description)**, save it, and click **✅ Verify Now** below.`
+            : challengeRes.message;
+
+        const panel = isConfigView
+            ? await construirPanelConfigDiscord(interaction.user, verifyMsg, 'cat_accounts', interaction.client)
+            : await construirPanelVinculacionCuenta(uid, verifyMsg);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_fastlink_verify_now' && interaction.isButton()) {
+        await interaction.deferUpdate();
+        const uid = interaction.user.id;
+        const isConfigView = interaction.message?.components?.some(c => {
+            try {
+                const jsonStr = JSON.stringify(c.toJSON ? c.toJSON() : c);
+                return jsonStr.includes('config_category_select') || jsonStr.includes('btn_config_refresh');
+            } catch {
+                return false;
+            }
+        });
+
+        const verifyRes = await confirmarVerificacionCodigoRoblox(uid);
+        const panel = isConfigView
+            ? await construirPanelConfigDiscord(interaction.user, verifyRes.message, 'cat_accounts', interaction.client)
+            : await construirPanelVinculacionCuenta(uid, verifyRes.message);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_fastlink_cancel_verify' && interaction.isButton()) {
+        await interaction.deferUpdate();
+        const uid = interaction.user.id;
+        const isEn = obtenerIdiomaUsuario(uid) === 'en';
+        cancelarVerificacionCodigoRoblox(uid);
+        const cancelMsg = isEn
+            ? '✖️ **Pending Roblox verification canceled.**'
+            : '✖️ **Solicitud de verificación de Roblox cancelada.**';
+        const isConfigView = interaction.message?.components?.some(c => {
+            try {
+                const jsonStr = JSON.stringify(c.toJSON ? c.toJSON() : c);
+                return jsonStr.includes('config_category_select') || jsonStr.includes('btn_config_refresh');
+            } catch {
+                return false;
+            }
+        });
+        const panel = isConfigView
+            ? await construirPanelConfigDiscord(interaction.user, cancelMsg, 'cat_accounts', interaction.client)
+            : await construirPanelVinculacionCuenta(uid, cancelMsg);
+        return await interaction.editReply(panel);
+    }
+
+    if ((cid.startsWith('btn_discord_web_approve:') || cid.startsWith('btn_discord_web_block:')) && interaction.isButton()) {
+        const parts = cid.split(':');
+        const targetUid = parts[1] || '';
+        const tokenDigits = parts[2] || '';
+        if (targetUid && targetUid !== interaction.user.id) {
+            return await interaction.reply({
+                content: '🔒 Solo el titular de esta cuenta de Discord puede usar este control.',
+                flags: MessageFlags.Ephemeral
+            });
+        }
+        const action = cid.startsWith('btn_discord_web_block:') ? 'block' : 'approve';
+        const resSec = await procesarAccionSeguridadDiscordWeb(interaction.user, action, tokenDigits);
+
+        if (action === 'approve' && resSec.ok) {
+            const updatedRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`btn_discord_web_approve:${interaction.user.id}:${resSec.rawDigits || tokenDigits}`)
+                    .setLabel(`Autorizado en Web • Código: ${resSec.code || `KTX-${tokenDigits}`}`)
+                    .setEmoji('✅')
+                    .setStyle(ButtonStyle.Success)
+                    .setDisabled(true),
+                new ButtonBuilder()
+                    .setCustomId(`btn_discord_web_block:${interaction.user.id}`)
+                    .setLabel('Revocar / Bloquear Solicitudes')
+                    .setEmoji('🚫')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+            return await interaction.update({
+                content: resSec.message,
+                components: [updatedRow]
+            });
+        }
+
+        return await interaction.update({
+            content: resSec.message,
+            components: []
+        });
+    }
+
     if (cid === 'btn_fastlink_refresh' && interaction.isButton()) {
         await interaction.deferUpdate();
         const isEn = obtenerIdiomaUsuario(interaction.user.id) === 'en';
@@ -582,13 +961,38 @@ async function procesarInteraccionInterna(interaction) {
                 ? `✅ Status verified: your active authorized Roblox account is **@${cuenta.roblox_username}** (ID \`${cuenta.roblox_user_id}\`).`
                 : `✅ Estado comprobado: tu cuenta de Roblox autorizada activa es **@${cuenta.roblox_username}** (ID \`${cuenta.roblox_user_id}\`).`)
             : (isEn
-                ? `ℹ️ No active authorized Roblox account detected. Click **Authorize with Roblox OAuth 2.0** above to sign in.`
-                : `ℹ️ No se detectó una cuenta de Roblox autorizada activa. Tocá el botón **Autorizar con Roblox OAuth 2.0** arriba para iniciar sesión.`);
+                ? `ℹ️ No active authorized Roblox account detected. Click **Link by @Username / ID** or **Web OAuth 2.0** above.`
+                : `ℹ️ No se detectó una cuenta de Roblox activa. Tocá **Vincular por @Usuario / ID** o **OAuth 2.0 Web** arriba.`);
         const panel = await construirPanelVinculacionCuenta(interaction.user.id, msg);
         return await interaction.editReply(panel);
     }
 
     // 3B. Configuración de Usuario (/config — Categoría: Cuentas y Conexión)
+    if (cid === 'btn_config_direct_discord' && interaction.isButton()) {
+        await interaction.deferUpdate();
+        const uid = interaction.user.id;
+        const isEn = obtenerIdiomaUsuario(uid) === 'en';
+        const savedCfg = await activarSesionDiscordDirecta(interaction.user);
+        const newChallenge = generarCodigoVinculacionDiscord(uid, interaction.user, { forceNew: true });
+        const msg = isEn
+            ? `⚡ **Discord Account Active & Web Code Generated in \`/config\`:** Connected as **@${savedCfg?.discord_username || interaction.user.username}** (ID \`${uid}\`). Your code to link on the web is **\`${newChallenge?.code}\`** *(no DM spam)*.`
+            : `⚡ **Cuenta de Discord Activa y Código Alojado en \`/config\`:** Conectada como **@${savedCfg?.discord_username || interaction.user.username}** (ID \`${uid}\`). Tu código para conectar tu ID en la web es **\`${newChallenge?.code}\`** *(sin enviar MDs)*.`;
+        const panel = await construirPanelConfigDiscord(interaction.user, msg, 'cat_accounts', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_config_unlink_roblox' && interaction.isButton()) {
+        await interaction.deferUpdate();
+        const uid = interaction.user.id;
+        const isEn = obtenerIdiomaUsuario(uid) === 'en';
+        await eliminarCuentaVinculada(uid, 'roblox');
+        const msg = isEn
+            ? '🔌 **Roblox account unlinked:** You can link another Roblox account anytime by @Username / ID or Web OAuth.'
+            : '🔌 **Cuenta de Roblox desvinculada:** Podés vincular otra cuenta cuando quieras por @Usuario / ID o desde el Portal Web.';
+        const panel = await construirPanelConfigDiscord(interaction.user, msg, 'cat_accounts', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
     if (cid === 'btn_config_refresh' && interaction.isButton()) {
         await interaction.deferUpdate();
         const uid = interaction.user.id;
@@ -616,12 +1020,6 @@ async function procesarInteraccionInterna(interaction) {
 
     // 3D. Verificación funcional inteligente de cuenta vinculada:
     const ACCIONES_REQUIEREN_ROBLOX = {
-        'btn_ava_sandbox_load_worn': {
-            nombre: '2.1 Cotizar Mi Ropa Actual (Probador en Vivo)',
-            motivo: 'Para leer e importar las prendas que llevás equipadas actualmente en tu propio avatar, es necesario vincular tu **Cuenta de Roblox**.',
-            backId: 'btn_ava_sandbox',
-            backLabel: 'Volver Atrás'
-        },
         'btn_ava_export3d_linked': {
             nombre: '2.4 Exportar Mi Avatar en 3D (.PNG + .ZIP)',
             motivo: 'Para exportar el modelo 3D y las texturas de tu propio personaje (en lugar de otro jugador o accesorio), necesitás tener vinculada tu **Cuenta de Roblox**.',
@@ -732,6 +1130,10 @@ async function procesarInteraccionInterna(interaction) {
 
     if (cid.startsWith('btn_games_') || cid.startsWith('modal_games_') || cid.startsWith('select_games_')) {
         return await handleGamesInteraction(interaction);
+    }
+
+    if (cid.startsWith('btn_status_') || cid.startsWith('modal_status_') || cid.startsWith('select_status_')) {
+        return await handleStatusInteraction(interaction);
     }
 
     // 5. Handlers clásicos (Precios, Mi Lista, Gráficas, Calculadoras, Ping)

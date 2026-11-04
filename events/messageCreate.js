@@ -7,6 +7,8 @@ const { construirMenuPrincipal } = require('../interactions/buttons/navigation')
 const { construirPanelPing } = require('../commands/ping');
 const { construirPanelHelp } = require('../commands/help');
 const { construirPanelConfigDiscord } = require('../src/utils/fastLink');
+const { construirPanelEstadoRoblox } = require('../src/modules/statusModule');
+const { construirPanelTycoon } = require('../interactions/tycoonHandler');
 const {
     obtenerConfigPropietario,
     esPropietarioDelBot,
@@ -40,6 +42,15 @@ module.exports = {
                 }
                 const panel = await construirPanelConfigDiscord(message.author, null, 'cat_accounts', message.client);
                 return await message.reply(traducirPayloadDiscord(panel, lang));
+            }
+
+            // Soporte directo para prefijo !tycoon
+            if (lowerContent === '!tycoon' || lowerContent.startsWith('!tycoon ')) {
+                if (!haSeleccionadoIdioma(userId)) {
+                    return await message.reply(construirPanelSeleccionIdiomaInicial(userId, 'tycoon'));
+                }
+                const panel = await construirPanelTycoon(message.author, 'sec_studio', null);
+                return await message.reply(panel);
             }
 
             const esRobloxPrefijo = lowerContent === '!roblox' || lowerContent.startsWith('!roblox ');
@@ -92,7 +103,13 @@ module.exports = {
                 return await message.reply(construirPanelHelp('cmd_overview', 'sub_economy', lang));
             }
 
-            // 4. @Kortex solo, @Kortex roblox o @Kortex !roblox -> Abre el Action Hub directo
+            // 5. @Kortex tycoon -> Abre el Estudio Tycoon
+            if (texto === 'tycoon' || texto === '!tycoon') {
+                const panel = await construirPanelTycoon(message.author, 'sec_studio', null);
+                return await message.reply(panel);
+            }
+
+            // 6. @Kortex solo, @Kortex roblox o @Kortex !roblox -> Abre el Action Hub directo
             const hub = construirMenuPrincipal(userId);
             await message.reply(traducirPayloadDiscord(hub, lang));
         });

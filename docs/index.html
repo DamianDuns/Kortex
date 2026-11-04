@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Kortex — Documentación oficial del bot para Discord: comandos, categorías, configuración de usuario, moderación del propietario y 15 herramientas integradas.">
+    <meta name="description" content="Kortex — Documentación oficial del bot para Discord: 20 herramientas en /roblox, ecosistema visual de 4 categorías en /tycoon, configuración /config y semáforo de concurrencia RAM.">
     <meta property="og:title" content="Kortex — Documentación Oficial del Bot">
-    <meta property="og:description" content="Explorá todos los comandos (/roblox, /config, /help, /ping), categorías de herramientas, motor de optimización y centro de cuentas de Kortex.">
+    <meta property="og:description" content="Explorá todos los comandos (/roblox, /tycoon, /config, /help, /ping), 20 herramientas simétricas, vitrinas visuales PNG y el motor ligero de concurrencia y RAM.">
     <title>Kortex — Documentación Oficial del Bot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2019,52 +2019,77 @@
 
         <!-- PANE 1: CUENTAS E INICIO DE SESIÓN -->
         <div class="popover-pane active" id="popover-pane-accounts">
-            <!-- 1. Discord OAuth 2.0 Card -->
+            <!-- 1. Discord Verification Card (Code hosted in /config — Zero DM Spam) -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
                         <div class="popover-avatar-lg discord" id="pop-discord-avatar">D</div>
                         <div class="popover-account-text">
                             <strong id="discord-status-title">Cuenta de Discord</strong>
-                            <span id="discord-status-sub">Para guardar listas, códigos y alertas automáticas</span>
+                            <span id="discord-status-sub">Código alojado en el comando /config (Cero spam por MD)</span>
                         </div>
                     </div>
                 </div>
                 <div class="popover-btn-row">
                     <button type="button" class="popover-btn discord" id="btn-discord-login" onclick="startOAuthPopup('discord')">
-                        🔗 Iniciar Sesión con Discord
+                        🔑 Conectar con Código de /config
                     </button>
                     <button type="button" class="popover-btn-ghost" id="btn-discord-disconnect" onclick="disconnectAccount('discord')" title="Cerrar sesión de Discord">
                         Salir
                     </button>
                 </div>
+                <div class="popover-quick-box">
+                    <span class="popover-quick-label">🛡️ Escribí el comando <code>/config</code> en el bot de Discord y pegá tu ID + tu clave <code>KTX-XXXXXX</code> alojada ahí:</span>
+                    <div class="popover-quick-form">
+                        <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Tu Discord ID (ej: 957207733017387038)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                    </div>
+                    <div id="discord-step2-verify" style="margin-top:8px;">
+                        <div class="popover-quick-form">
+                            <input type="text" class="popover-quick-input" id="quick-discord-code" placeholder="2. Tu clave de /config (ej: KTX-123456)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                            <button type="button" class="popover-quick-submit" style="background:#16A34A;color:#FFFFFF;" onclick="quickVerifyDiscordWeb('verify')">✅ Vincular</button>
+                        </div>
+                    </div>
+                </div>
                 <div id="discord-feedback" class="popover-feedback">
-                    También podés gestionarla desde Discord usando el comando /config.
+                    💡 <strong>Sin spam por MD:</strong> Pasate por el comando <code>/config</code> en Discord (apartado <strong>1. Cuenta de Discord</strong>), copiá tu código <code>KTX-XXXXXX</code> alojado ahí y pegalo arriba. Los permisos están en <strong>Configuración → Permisos de la aplicación</strong>.
                 </div>
             </div>
 
-            <!-- 2. Roblox OAuth 2.0 Card -->
+            <!-- 2. Roblox Direct Verification Card -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
                         <div class="popover-avatar-lg roblox" id="pop-roblox-avatar">R</div>
                         <div class="popover-account-text">
                             <strong id="roblox-status-title">Cuenta de Roblox</strong>
-                            <span id="roblox-status-sub">Para cargar tu propio avatar en el Probador y 3D</span>
+                            <span id="roblox-status-sub">Para cargar tu propio avatar en el Probador, Tycoon 3D y Exportador</span>
                         </div>
                     </div>
                 </div>
                 <div class="popover-btn-row">
                     <button type="button" class="popover-btn roblox" id="btn-roblox-login" onclick="startOAuthPopup('roblox')">
-                        🎮 Iniciar Sesión con Roblox (OAuth 2.0)
+                        🎮 Vincular Cuenta de Roblox (@Usuario / ID)
                     </button>
                     <button type="button" class="popover-btn-ghost" id="btn-roblox-disconnect" onclick="disconnectAccount('roblox')" title="Desvincular cuenta de Roblox">
                         Quitar
                     </button>
                 </div>
-
+                <div class="popover-quick-box">
+                    <span class="popover-quick-label">🛡️ Escribí tu @Usuario o ID de Roblox para generar tu código de propiedad:</span>
+                    <div class="popover-quick-form">
+                        <input type="text" class="popover-quick-input" id="quick-roblox-input" placeholder="Ej: damianpro13 o tu ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
+                        <button type="button" class="popover-quick-submit" onclick="quickVerifyRobloxWeb('start')">🔑 Generar Código</button>
+                    </div>
+                    <div id="roblox-step2-verify" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.12);">
+                        <div style="font-size:11px;color:#E2E8F0;line-height:1.45;margin-bottom:6px;">
+                            Pegá este código temporal en la descripción <strong>"Acerca de" (About)</strong> de tu perfil de Roblox <strong id="roblox-verify-target-label"></strong> y tocá comprobar:
+                            <div id="roblox-verify-code-badge" style="margin-top:5px;padding:6px 10px;background:#0F172A;border:1px solid #38BDF8;border-radius:6px;font-family:monospace;font-weight:800;font-size:13px;color:#38BDF8;text-align:center;letter-spacing:0.6px;user-select:all;">KORTEX-0000</div>
+                        </div>
+                        <button type="button" class="popover-quick-submit" style="width:100%;background:#16A34A;color:#FFFFFF;padding:8px 12px;" onclick="quickVerifyRobloxWeb('verify')">✅ Ya pegué el código en mi perfil (Comprobar)</button>
+                    </div>
+                </div>
                 <div id="roblox-feedback" class="popover-feedback">
-                    Autorización oficial con Roblox OAuth 2.0. Tu sesión e historial quedan guardados de forma segura.
+                    En Roblox, donde está alojado el bot y sus permisos es en <strong>Configuración → Permisos de la aplicación</strong> (<em>Settings → App Permissions</em>).
                 </div>
             </div>
         </div>
@@ -2154,12 +2179,12 @@
                 <div class="kicker">Documentación Oficial del Bot · Ecosistema para Discord</div>
                 <h1>Guía completa de comandos, paneles interactivos y utilidades de Kortex.</h1>
                 <p>
-                    Kortex integra paneles interactivos directamente en Discord: comandos organizados por categorías, configuración de cuentas y moderación del propietario en <code>/config</code>, lista dinámica de procedimientos durante las cargas y 15 herramientas especializadas para Roblox.
+                    Kortex integra paneles interactivos directamente en Discord: <strong>20 herramientas simétricas</strong> en <code>/roblox</code> (4 categorías × 5), el ecosistema 3D y vitrina visual de <strong>4 categorías</strong> en <code>/tycoon</code>, gestión de cuentas en <code>/config</code> y un motor de concurrencia directo sin sobrecarga de RAM.
                 </p>
                 <div class="hero-actions">
                     <a href="#comandos" class="btn btn-primary">Explorar Comandos</a>
                     <button type="button" class="btn btn-secondary" onclick="openAccountPopover()">Cuentas e Iniciar Sesión</button>
-                    <a href="#herramientas" class="btn btn-secondary">Ver Herramientas</a>
+                    <a href="#vistas-previas" class="btn btn-secondary">Ver Vitrinas en Vivo</a>
                 </div>
             </div>
 
@@ -2173,6 +2198,7 @@
                     <div class="discord-cmd-switcher" role="tablist" aria-label="Vista previa de comandos en Discord">
                         <button class="discord-cmd-tab active" data-simcmd="help" onclick="switchDiscordSimCommand('help')">/help</button>
                         <button class="discord-cmd-tab" data-simcmd="roblox" onclick="switchDiscordSimCommand('roblox')">/roblox</button>
+                        <button class="discord-cmd-tab" data-simcmd="tycoon" onclick="switchDiscordSimCommand('tycoon')">/tycoon</button>
                         <button class="discord-cmd-tab" data-simcmd="config" onclick="switchDiscordSimCommand('config')">/config</button>
                         <button class="discord-cmd-tab" data-simcmd="ping" onclick="switchDiscordSimCommand('ping')">/ping</button>
                     </div>
@@ -2202,8 +2228,8 @@
         <!-- 01. COMANDOS DEL BOT Y SUS CATEGORÍAS -->
         <section id="comandos" class="section">
             <div class="section-header">
-                <h2>01. Comandos del Bot y Estructura de Categorías</h2>
-                <p>Kortex organiza sus funciones en cuatro comandos principales dentro de Discord, cada uno con su propio selector de categorías y controles interactivos.</p>
+                <h2>01. Comandos del Bot y Estructura Simétrica</h2>
+                <p>Kortex organiza sus funciones en comandos especializados dentro de Discord, cada uno con selector de categorías y renderizado gráfico en tiempo real.</p>
             </div>
 
             <div class="commands-doc-grid">
@@ -2211,27 +2237,56 @@
                 <article class="cmd-doc-card">
                     <div class="cmd-doc-top">
                         <span class="cmd-syntax">/roblox</span>
-                        <span class="cmd-scope">3 Categorías · 15 Herramientas · Cuenta Roblox</span>
+                        <span class="cmd-scope">4 Categorías Simétricas · 20 Herramientas (5×4)</span>
                     </div>
                     <p class="cmd-doc-desc">
-                        Abre el panel interactivo principal de Roblox. Permite alternar entre tres categorías de utilidades y acceder al centro de vinculación de tu personaje de Roblox.
+                        Abre el panel interactivo principal de Roblox. Organizado simétricamente en cuatro categorías de 5 herramientas cada una, con vinculación de cuenta OAuth 2.0.
                     </p>
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
-                            <strong>Categoría 1: Economía, Mercado y Precios</strong>
-                            Seguimiento de precios y listas personales, calculadoras financieras (+40%), pisos de accesorios, agenda de Robux pendientes y auditor de grupos.
+                            <strong>Categoría 1: Economía, Mercado y Precios (1.1 a 1.5)</strong>
+                            Seguimiento de precios y Mi Lista, calculadoras financieras (+40%), pisos de accesorios, agenda de Robux pendientes y auditor de grupos.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 2: Taller de Avatares y Estudio 3D/2D</strong>
+                            <strong>Categoría 2: Taller de Avatares y Estudio 3D/2D (2.1 a 2.5)</strong>
                             Probador de ropa sobre tu personaje, buscador de clones económicos, maniquí 2D para plantillas, exportador 3D (.PNG + .ZIP) y emparejador por color.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 3: Utilidades de Juego y Servidores</strong>
+                            <strong>Categoría 3: Utilidades de Juego y Servidores (3.1 a 3.5)</strong>
                             Buscador de servidores casi vacíos, extractor de pases web e internos, bóveda de códigos promocionales, alertas de parches y sub-lugares.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Centro de Vinculación de Cuenta de Roblox</strong>
-                            Permite conectar tu perfil de Roblox mediante OAuth 2.0 Oficial o en Modo Básico por Nombre de usuario / ID.
+                            <strong>Categoría 4: Estadísticas y Análisis de Roblox (4.1 a 4.5)</strong>
+                            Estado de servidores en tiempo real (4.1), Juegos en tendencia (4.2), Inspector de perfil (4.3), Radar de Limiteds (4.4) y Comparador Juego vs. Juego (4.5).
+                        </div>
+                    </div>
+                </article>
+
+                <!-- /tycoon -->
+                <article class="cmd-doc-card">
+                    <div class="cmd-doc-top">
+                        <span class="cmd-syntax">/tycoon</span>
+                        <span class="cmd-scope">4 Categorías Visuales · Lienzos PNG Dedicados</span>
+                    </div>
+                    <p class="cmd-doc-desc">
+                        Ecosistema Tycoon en 3ra persona donde cada una de sus 4 categorías renderiza su propia tarjeta gráfica PNG de alta resolución (960×550) sin saturación de texto.
+                    </p>
+                    <div class="cmd-cat-list">
+                        <div class="cmd-cat-item">
+                            <strong>Categoría 1: 🏗️ Mi Estudio y Producción (3D Isométrico Roblox)</strong>
+                            Terreno 3D low-poly con pinos y rocas, plataforma de cemento limpia (sin neones cibernéticos), Dropper 1 con chimenea, cinta transportadora en L, Bóveda Colectora 3D, botones pisables circulares y tu <strong>PJ 3D de cuerpo completo + ítems equipados</strong>.
+                        </div>
+                        <div class="cmd-cat-item">
+                            <strong>Categoría 2: 🎒 Tienda, Ítems y Taller UGC</strong>
+                            Vitrina visual 2×4 con 8 tarjetas de ítems ilustradas a medida (Espadas, Katanas, Alas, Halos), equipamiento de hasta 3 ítems y Taller UGC (70% regalías).
+                        </div>
+                        <div class="cmd-cat-item">
+                            <strong>Categoría 3: 👑 Cofres, Limiteds e Intercambios</strong>
+                            Vitrina visual con Cofre de Ascensión 3D + 6 tarjetas Limited y Limited U seriadas (<code>#01/15</code>) junto con el tablero de Trading P2P.
+                        </div>
+                        <div class="cmd-cat-item">
+                            <strong>Categoría 4: 💠 Misiones, Pociones y Ranking</strong>
+                            Tablero visual con las 4 Misiones Semanales para ganar Cristales Kortex (<code>💠</code>) gratis, Pociones de 30m, Top 5 Estudios y ventajas Nitro/YouTube.
                         </div>
                     </div>
                 </article>
@@ -2240,76 +2295,55 @@
                 <article class="cmd-doc-card">
                     <div class="cmd-doc-top">
                         <span class="cmd-syntax">/config</span>
-                        <span class="cmd-scope">Selector por Categoría · Cuentas y Moderación</span>
+                        <span class="cmd-scope">Cuentas OAuth 2.0 · Idioma · Moderación Propietario</span>
                     </div>
                     <p class="cmd-doc-desc">
-                        Abre el panel de configuración organizado por categorías seleccionables: gestión de conexión para cualquier usuario y panel exclusivo de moderación y motor para el propietario del bot.
+                        Panel de configuración organizado por categorías: conexión de cuentas Discord/Roblox, selector de idioma (Español / English) y administración exclusiva del propietario.
                     </p>
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
-                            <strong>Categoría 1: 🔗 Cuentas y Conexión (Usuarios)</strong>
-                            Muestra el estado de tu cuenta de Discord con OAuth 2.0 y comprueba en vivo si la aplicación sigue autorizada en tus ajustes de Discord.
+                            <strong>Categoría 1: 🔗 Cuentas y Datos Guardados (Usuarios)</strong>
+                            Conecta tus cuentas de Discord y Roblox con OAuth 2.0 oficial y muestra el resumen de tu lista, Robux pendientes, alertas y códigos.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 2: 🛡️ Configuración y Moderación del Bot (Propietario)</strong>
-                            Exclusiva para el propietario del bot: incluye el Sistema del Optimizador RAM / GPU calibrado, el selector de modos (Auto / Ahorro / Máximo) y la terminal de estado.
+                            <strong>Categoría 2: 🌐 Idioma y Preferencias Regionales</strong>
+                            Alterna instantáneamente entre Español y English en todos los paneles y lienzos PNG, y ajusta tu región de precios predeterminada.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>⚙️ Control General de Mecánicas y Módulos (Propietario)</strong>
-                            Permite al propietario activar o pausar en tiempo real el Modo Mantenimiento Global, los procedimientos por filas (Fila 1 a Fila 4), las alertas en 2do plano y cada categoría.
+                            <strong>Categoría 3: 🛡️ Administración y Motor RAM (Propietario)</strong>
+                            Control exclusivo del Semáforo de Concurrencia (Auto / Ahorro / Turbo), Purga de Caché en 1 paso, límites por usuario y moderación UGC.
                         </div>
                     </div>
                 </article>
 
-                <!-- /help -->
+                <!-- /help & /ping -->
                 <article class="cmd-doc-card">
                     <div class="cmd-doc-top">
-                        <span class="cmd-syntax">/help</span>
-                        <span class="cmd-scope">Navegación de 2 Niveles · Guía Interactiva</span>
+                        <span class="cmd-syntax">/help · /ping</span>
+                        <span class="cmd-scope">Guía de 2 Niveles · Diagnóstico de Latencia y RAM</span>
                     </div>
                     <p class="cmd-doc-desc">
-                        Centro de documentación interactivo dentro de Discord. Permite elegir cualquier comando del bot y desplegar sus herramientas y funciones sin saturar el chat.
+                        Comandos de asistencia rápida y telemetría técnica para consultar cualquier función o medir la salud del servidor en vivo.
                     </p>
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
-                            <strong>Nivel 1: Selector Principal de Comandos</strong>
-                            Alterna entre el Resumen General, el comando /roblox, el comando /config y el comando /ping.
+                            <strong>📚 /help — Navegación Interactiva de 2 Niveles</strong>
+                            Permite explorar el resumen general, las 4 categorías de <code>/roblox</code> (20 herramientas), las 4 categorías visuales de <code>/tycoon</code>, <code>/config</code> y <code>/ping</code>.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Nivel 2: Subcategorías de /roblox</strong>
-                            Al seleccionar el comando /roblox dentro de /help, se habilita un segundo menú desplegable para inspeccionar sus 3 categorías y el sistema de cuenta.
-                        </div>
-                    </div>
-                </article>
-
-                <!-- /ping -->
-                <article class="cmd-doc-card">
-                    <div class="cmd-doc-top">
-                        <span class="cmd-syntax">/ping</span>
-                        <span class="cmd-scope">Diagnóstico en Vivo · Latencia y RAM Host</span>
-                    </div>
-                    <p class="cmd-doc-desc">
-                        Panel de diagnóstico técnico rápido que muestra el estado de conexión con Discord y el consumo real de memoria en cualquier servidor o contenedor.
-                    </p>
-                    <div class="cmd-cat-list">
-                        <div class="cmd-cat-item">
-                            <strong>Latencia de Respuesta y WebSocket API</strong>
-                            Mide en milisegundos el tiempo de respuesta del bot y clasifica el estado con semáforo automático (Excelente, Estable o Lenta).
-                        </div>
-                        <div class="cmd-cat-item">
-                            <strong>Memoria del Proceso y RAM Universal del Contenedor / Host</strong>
-                            Muestra la RAM del proceso (RSS, JS Heap, Canvas/Caché) junto con los MB usados y el límite total del contenedor o servidor.
+                            <strong>🏓 /ping — Latencia WebSocket y Memoria Real del Host</strong>
+                            Mide en milisegundos la respuesta con Discord y desglosa la RAM del proceso (RSS, Heap JS, Buffers Canvas) frente al límite real del contenedor Linux.
                         </div>
                     </div>
                 </article>
             </div>
         </section>
 
-        <!-- 02. CATÁLOGO DE LAS 15 HERRAMIENTAS DE /ROBLOX -->
+        <!-- 02. CATÁLOGO DE LAS 20 HERRAMIENTAS DE /ROBLOX + 4 CATEGORÍAS DE /TYCOON -->
         <section id="herramientas" class="section">
             <div class="section-header">
-                <h2>02. Detalle de las 15 Herramientas por Categoría</h2>
-                <p>Seleccioná una categoría para consultar qué ofrece cada utilidad y cómo funciona dentro de Discord.</p>
+                <h2>02. Catálogo Simétrico: 20 Herramientas en /roblox + 4 Categorías en /tycoon</h2>
+                <p>Seleccioná una categoría para consultar qué ofrece cada herramienta y cómo funciona dentro de Discord.</p>
             </div>
 
             <div class="cat-tabs" role="tablist">
@@ -2322,77 +2356,83 @@
                 <button class="cat-tab" data-cat="games" onclick="switchCategory('games')">
                     Categoría 3: Juegos y Servidores (5)
                 </button>
+                <button class="cat-tab" data-cat="status" onclick="switchCategory('status')">
+                    Categoría 4: Estadísticas y Análisis (5)
+                </button>
+                <button class="cat-tab" data-cat="tycoon" onclick="switchCategory('tycoon')">
+                    🏭 Ecosistema /tycoon (4 Categorías)
+                </button>
             </div>
 
             <div id="tools-container" class="tools-grid"></div>
         </section>
 
-        <!-- 03. SISTEMA DEL OPTIMIZADOR, PROCEDIMIENTOS POR FILAS Y TERMINAL EN VIVO -->
+        <!-- 03. ARQUITECTURA DE CONCURRENCIA LIGERA, ESCUDO ANTI-SPAM Y OPTIMIZACIÓN REAL DE RAM -->
         <section id="mecanicas" class="section">
             <div class="section-header">
-                <h2>03. Sistema del Optimizador, Procedimientos por Filas y Terminal en Vivo</h2>
+                <h2>03. Motor de Concurrencia Ligera, Escudo Anti-Spam y Ahorro Real de RAM</h2>
                 <p>
-                    Calibrado para mantenerse en reposo cuando usás el bot de forma individual y activarse únicamente cuando falta memoria real o al ejecutar un procedimiento pesado, mostrando cada etapa en las <strong>Filas 1 a 4</strong> junto al panel dinámico de carga y la terminal inferior.
+                    En lugar de pantallas de carga artificiales por filas que editan el mensaje varias veces (lo cual consume más memoria y cuota de Discord API), Kortex utiliza <strong>Ejecución Directa en 1 Paso</strong> combinada con un <strong>Semáforo de Concurrencia GPU/Canvas</strong>, <strong>Escudo Anti-Spam por Usuario</strong> y <strong>Purga Selectiva de Cachés por TTL</strong>.
                 </p>
             </div>
 
-            <!-- PANEL AMPLIO DEL SISTEMA DE OPTIMIZACIÓN: 4 FILAS + CARGADOR LATERAL DINÁMICO + TERMINAL ABAJO -->
+            <!-- PANEL INTERACTIVO DEL MOTOR DE RENDIMIENTO REAL -->
             <div class="optimizer-showcase" id="optimizer-showcase">
                 <div class="optimizer-top-bar">
                     <div class="optimizer-top-title">
-                        <h3 id="opt-panel-heading">🧹 Sistema de Ejecución por Filas y Optimizador RAM/GPU</h3>
-                        <span id="opt-panel-subheading">Visualizá cómo avanzan los procedimientos en las Filas 1, 2, 3 y 4 con su panel dinámico lateral y consola terminal inferior.</span>
+                        <h3 id="opt-panel-heading">⚡ Arquitectura de Concurrencia y Protección Real de Memoria</h3>
+                        <span id="opt-panel-subheading">Inspeccioná cómo actúan las 4 capas reales de protección bajo tráfico intenso sin gastar RAM en animaciones intermedias.</span>
                     </div>
                     <div class="optimizer-controls-bar">
-                        <select id="opt-procedure-select" class="opt-select" onchange="changeOptimizerProcedure(this.value)" aria-label="Seleccionar procedimiento">
-                            <option value="optimize">🧹 Procedimiento: Optimización de Memoria RAM y GPU</option>
-                            <option value="export3d">📦 Procedimiento: Exportador 3D (.PNG HD + .ZIP)</option>
-                            <option value="sandbox">🧪 Procedimiento: Probador de Combinaciones en Vivo</option>
-                            <option value="floors">📉 Procedimiento: Monitor de Pisos de Precio HD</option>
+                        <select id="opt-procedure-select" class="opt-select" onchange="changeOptimizerProcedure(this.value)" aria-label="Seleccionar subsistema de rendimiento">
+                            <option value="optimize">⚡ Resumen: Los 4 Pilares de Ahorro Real de RAM</option>
+                            <option value="export3d">🚦 Subsistema 1: Semáforo de Concurrencia Canvas / 3D</option>
+                            <option value="sandbox">🛡️ Subsistema 2: Escudo Anti-Spam por Usuario (6s Lock)</option>
+                            <option value="floors">🧹 Subsistema 3: Caché HTTP Anti-429 y Purga Selectiva</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="optimizer-body-grid">
-                    <!-- IZQUIERDA: LAS 4 FILAS DE PROCEDIMIENTOS (Fila 1, Fila 2, Fila 3, Fila 4) -->
+                    <!-- IZQUIERDA: LAS 4 CAPAS TÉCNICAS DEL SUBSISTEMA SELECCIONADO -->
                     <div class="opt-rows-stack" id="opt-rows-container"></div>
 
-                    <!-- DERECHA / AL LADO: PANEL DINÁMICO DE CARGA Y CALIBRACIÓN -->
+                    <!-- DERECHA: DIAGNÓSTICO TÉCNICO HONESTO (POR QUÉ RESPUESTA EN 1 PASO AHORRA RAM) -->
                     <aside class="opt-side-panel">
                         <div>
                             <div class="opt-loader-visual">
-                                <div class="opt-spinner-ring" id="opt-spinner-ring">1/4</div>
+                                <div class="opt-spinner-ring done" id="opt-spinner-ring">1-STEP</div>
                                 <div class="opt-loader-meta">
-                                    <strong id="opt-side-status-title">Ejecutando Fila 2 de 4</strong>
-                                    <span id="opt-side-status-sub">Procesando etapa actual antes de pasar a la siguiente fila...</span>
+                                    <strong id="opt-side-status-title">Ejecución Directa en 1 Paso</strong>
+                                    <span id="opt-side-status-sub">1 sola llamada a Discord API por clic · 0 objetos intermedios en V8 Heap.</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="opt-calibration-box">
-                            <strong>🛡️ Calibración Inteligente (Uso Individual)</strong>
+                            <strong>💡 ¿Por qué eliminamos la carga por filas?</strong>
                             <p>
-                                Si sos el único usuario activo y el contenedor tiene memoria libre suficiente, el optimizador permanece en reposo pasivo y no se dispara solo. Únicamente actúa si detecta falta real de RAM o cuando lo ejecutás desde <code>/config</code>.
+                                Editar un mensaje 4 veces seguidas (<em>Fila 1 → Fila 4</em>) antes de responder obligaba a construir 4 contenedores en memoria y consumía 4 veces más límite de tasa de Discord. Con <strong>Respuesta Directa + Semáforo de Concurrencia</strong>, la RAM se mantiene plana incluso en picos de uso.
                             </p>
                         </div>
 
                         <div class="opt-side-actions">
-                            <button type="button" class="btn btn-primary" onclick="runFullOptimizerSequence()">▶ Ejecutar Filas 1 a 4</button>
-                            <button type="button" class="btn btn-secondary" onclick="stepOptimizerRow()">⏭ Cambiar Fila</button>
+                            <button type="button" class="btn btn-primary" onclick="runFullOptimizerSequence()">▶ Simular Pico de Tráfico</button>
+                            <button type="button" class="btn btn-secondary" onclick="stepOptimizerRow()">⏭ Inspeccionar Capa</button>
                         </div>
                     </aside>
                 </div>
 
-                <!-- ABAJO: PANEL DE TERMINAL MOSTRANDO LOS PROCEDIMIENTOS HASTA FINALIZAR -->
+                <!-- ABAJO: CONSOLA DE TELEMETRÍA REAL DE MEMORIA Y CONCURRENCIA -->
                 <div class="opt-terminal-box">
                     <div class="opt-terminal-header">
                         <span class="opt-terminal-dots">
                             <i style="background:#F23F43;"></i>
                             <i style="background:#F0B232;"></i>
                             <i style="background:#23A55A;"></i>
-                            <span style="margin-left:0.4rem;">kortex@optimizer:~$ — Terminal de Ejecución de Procedimientos</span>
+                            <span style="margin-left:0.4rem;">kortex@concurrency-guard:~$ — Telemetría de Concurrencia y Memoria</span>
                         </span>
-                        <span id="opt-terminal-badge">ESTADO: EN EJECUCIÓN</span>
+                        <span id="opt-terminal-badge">MODO: DIRECTO (0 SOBRECARGA)</span>
                     </div>
                     <div class="opt-terminal-body" id="opt-terminal-body"></div>
                 </div>
@@ -2400,47 +2440,71 @@
 
             <div class="mechanics-grid">
                 <article class="mechanic-card">
-                    <span class="mechanic-num">01 · ESTADOS POR FILAS (FILA 1 A FILA 4)</span>
-                    <h3>Procedimientos Estructurados + Terminal</h3>
+                    <span class="mechanic-num">01 · EJECUCIÓN DIRECTA EN 1 PASO</span>
+                    <h3>75% Menos Llamadas a Discord API y Menor Uso de Heap</h3>
                     <p>
-                        En lugar de una barra de carga suelta, el panel organiza cada ejecución en <strong>Fila 1, Fila 2, Fila 3 y Fila 4</strong> con un cargador dinámico al costado y una consola tipo terminal abajo que detalla cada paso hasta finalizar.
+                        Al responder directamente con el resultado final sin enviar 3 o 4 ediciones intermedias de "cargando fila", el bot evita instanciar árboles de componentes repetidos en memoria y responde mucho más rápido.
                     </p>
                 </article>
 
                 <article class="mechanic-card">
-                    <span class="mechanic-num">02 · CALIBRACIÓN PARA USO INDIVIDUAL</span>
-                    <h3>Sin Activaciones Innecesarias</h3>
+                    <span class="mechanic-num">02 · SEMÁFORO DE RENDERS CANVAS Y 3D</span>
+                    <h3>Tope Estricto de Buffers Gráficos Simultáneos</h3>
                     <p>
-                        El detector descuenta la caché de archivos de Linux para medir la RAM real disponible. Mientras uses el bot vos solo y no falte memoria, permanece en <strong>🟢 Estable (En Reposo)</strong> sin lanzar purgas automáticas por su cuenta.
+                        Los lienzos nativos (<code>@napi-rs/canvas</code> de 960×550) son lo que más RAM consume si 20 usuarios hacen clic a la vez. El semáforo limita los renders simultáneos (máx. 2 en Auto, 1 en Ahorro) y encola el resto en FIFO sin picos de memoria.
                     </p>
                 </article>
 
                 <article class="mechanic-card">
-                    <span class="mechanic-num">03 · CONTROL EXCLUSIVO EN /CONFIG</span>
-                    <h3>Motor RAM / GPU y Moderación del Propietario</h3>
+                    <span class="mechanic-num">03 · ESCUDO ANTI-SPAM POR USUARIO</span>
+                    <h3>Bloqueo de Clics Duplicados en Vuelo</h3>
                     <p>
-                        Desde la categoría <strong>🛡️ Configuración y Moderación del Bot</strong> en <code>/config</code>, el propietario controla en exclusiva el modo del motor (Automático, Ahorro o Alto Rendimiento), limpia la memoria RAM/GPU y activa o pausa cualquier mecánica general del bot.
+                        Si un mismo usuario pulsa repetidamente botones pesados de renderizado antes de que termine su petición actual, el gestor intercepta los clics duplicados para que un solo usuario no pueda saturar la cola ni duplicar buffers.
                     </p>
                 </article>
 
                 <article class="mechanic-card">
-                    <span class="mechanic-num">04 · SESIONES PERSISTENTES Y ACCESO FLEXIBLE</span>
-                    <h3>Respaldo Automático y Desbloqueo Puntual</h3>
+                    <span class="mechanic-num">04 · CACHÉ HTTP ANTI-429 Y PURGA POR TTL</span>
+                    <h3>Coalescencia de Peticiones y Limpieza Automática</h3>
                     <p>
-                        Tus sesiones de Discord y Roblox junto con tu historial quedan respaldados en disco y navegador para sobrevivir actualizaciones del bot, mientras que las herramientas de consulta siguen disponibles libremente.
+                        Las consultas repetidas a Roblox API comparten respuesta en caché con TTL corto, y el recolector limpia automáticamente las entradas vencidas sin tocar jamás tus sesiones activas de Discord o Roblox.
                     </p>
                 </article>
             </div>
         </section>
 
-        <!-- 04. VISTAS PREVIAS DE TARJETAS Y GRÁFICAS -->
+        <!-- 04. VISTAS PREVIAS DE TARJETAS Y GRÁFICAS EN VIVO -->
         <section id="vistas-previas" class="section">
             <div class="section-header">
-                <h2>04. Vistas Previas de Tarjetas y Gráficas del Bot</h2>
-                <p>Muestras reales generadas en vivo por las herramientas visuales de Kortex.</p>
+                <h2>04. Vistas Previas en Vivo: Las 4 Categorías de /tycoon y Herramientas de /roblox</h2>
+                <p>Muestras reales generadas en tiempo real por el motor gráfico de Kortex. Usá los botones de la tarjeta de <code>/tycoon</code> para alternar entre sus 4 categorías visuales.</p>
             </div>
 
             <div class="canvas-grid">
+                <div class="canvas-card" style="grid-column: 1 / -1;">
+                    <img id="img-tycoon" data-endpoint="/api/canvas/tycoon?section=sec_studio" src="/api/canvas/tycoon?section=sec_studio" alt="Vitrina Visual Interactiva de /tycoon" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '/tycoon — Vitrina Visual en 4 Categorías')">
+                    <div class="canvas-caption" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                            <span id="tycoon-preview-caption"><strong>/tycoon — Categoría 1 (Mi Estudio 3D Roblox):</strong> Plataforma isométrica 3D cartoon/low-poly (sin neón cibernético), PJ 3D con assets equipados, Cinta en L y Bóveda Colectora</span>
+                            <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCurrentTycoonCanvas()">↻ Recargar Lienzo</button>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <button type="button" class="btn btn-primary tycoon-sec-btn" data-sec="sec_studio" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_studio')">🏗️ 1. Mi Estudio 3D</button>
+                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_shop" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_shop')">🎒 2. Vitrina de Ítems (2×4)</button>
+                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_vault" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_vault')">👑 3. Cofres 3D y Limiteds</button>
+                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_perks" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_perks')">💠 4. Misiones y Top 5</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="canvas-card">
+                    <img id="img-status" data-endpoint="/api/canvas/status" src="/api/canvas/status" alt="Estado de Servidores de Roblox en Tiempo Real" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '4.1 Estado de Servidores de Roblox en Vivo')">
+                    <div class="canvas-caption">
+                        <span><strong>4.1 Estado de Roblox (Categoría 4):</strong> Servidores prendidos, ping HTTP y 5 subsistemas en vivo</span>
+                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-status', '/api/canvas/status')">Recargar</button>
+                    </div>
+                </div>
+
                 <div class="canvas-card">
                     <img id="img-sniper" data-endpoint="/api/canvas/sniper" src="/api/canvas/sniper" alt="Gráfica Histórica de Precios" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '1.1 Seguimiento de Precios — Evolución Histórica')">
                     <div class="canvas-caption">
@@ -2450,9 +2514,9 @@
                 </div>
 
                 <div class="canvas-card">
-                    <img id="img-floors" data-endpoint="/api/canvas/floors" src="/api/canvas/floors" alt="Precios Mínimos de Accesorios" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '1.3 Precios Mínimos por Tipo de Accesorio')">
+                    <img id="img-floors" data-endpoint="/api/canvas/floors" src="/api/canvas/floors" alt="Monitor de Pisos UGC con Apache ECharts" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '1.3 Monitor de Pisos UGC (Apache ECharts)')">
                     <div class="canvas-caption">
-                        <span><strong>1.3 Precios Mínimos:</strong> Comparativa por tipo de accesorio</span>
+                        <span><strong>1.3 Monitor de Pisos UGC (Apache ECharts + Resvg):</strong> Barras con degradado, curva suave de área y medidor circular</span>
                         <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-floors', '/api/canvas/floors')">Recargar</button>
                     </div>
                 </div>
@@ -2462,14 +2526,6 @@
                     <div class="canvas-caption">
                         <span><strong>2.1 Probador de Ropa:</strong> Vista previa sobre el personaje y presupuesto</span>
                         <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-sandbox', '/api/canvas/sandbox')">Recargar</button>
-                    </div>
-                </div>
-
-                <div class="canvas-card">
-                    <img id="img-mannequin" data-endpoint="/api/canvas/mannequin" src="/api/canvas/mannequin" alt="Probador de Plantillas 2D en Maniquí" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '2.3 Maniquí 2D — Frente y Espalda')">
-                    <div class="canvas-caption">
-                        <span><strong>2.3 Maniquí 2D:</strong> Vista frontal y trasera para revisar costuras</span>
-                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-mannequin', '/api/canvas/mannequin')">Recargar</button>
                     </div>
                 </div>
             </div>
@@ -2585,110 +2641,110 @@
         });
 
         // ==========================================================
-        // 2. SISTEMA DE PROCEDIMIENTOS POR FILAS (1 A 4) + TERMINAL
+        // 2. ARQUITECTURA DE CONCURRENCIA LIGERA Y AHORRO REAL DE RAM
         // ==========================================================
         const OPTIMIZER_PROCEDURES = {
             optimize: {
-                title: '🧹 Optimizador de Memoria RAM y Buffers GPU',
-                cmdHeader: 'kortex@optimizer:~$ exec --procedure "Optimizador de Memoria RAM y Buffers GPU"',
+                title: '⚡ Los 4 Pilares de Ahorro Real de RAM y Cuota Discord API',
+                cmdHeader: 'kortex@concurrency-guard:~$ status --mode=direct-1step --memory-guard',
                 rows: [
                     {
-                        title: 'Inspección de Memoria del Proceso y Host',
-                        detail: 'Verificando RSS de Node.js, Heap JS y memoria disponible real en el contenedor',
-                        cmd: 'mem.inspect --rss=94.2MB --heap=41.8MB --cgroup-working-set'
+                        title: '1. Ejecución Directa en 1 Paso (Sin Filas Intermedias)',
+                        detail: 'Responde directamente sin enviar 3-4 ediciones intermedias a Discord API (ahorra 75% de llamadas y evita alocar contenedores temporales en V8 Heap)',
+                        cmd: 'interaction.reply_direct --steps=1 --extra-edits=0 --saved-api-quota=75%'
                     },
                     {
-                        title: 'Purga Selectiva de Cachés Temporales',
-                        detail: 'Liberando entradas expiradas de catálogos, avatares, grupos y pases',
-                        cmd: 'cache.purge --modules=economy,avatar,games --keep-sessions'
+                        title: '2. Semáforo de Concurrencia Nativa (@napi-rs/canvas)',
+                        detail: 'Limita renders simultáneos (máx. 2 en Auto, 1 en Eco) y encola peticiones extra en FIFO para evitar picos de ArrayBuffers en C++',
+                        cmd: 'semaphore.acquire --max-gpu=2 --max-general=6 --queue=fifo'
                     },
                     {
-                        title: 'Liberación de Buffers Nativos Canvas / 3D',
-                        detail: 'Descartando ArrayBuffers gráficos residuales sin afectar sesiones guardadas',
-                        cmd: 'gpu.release_buffers --canvas-2d --obj-zip-streams'
+                        title: '3. Escudo Anti-Spam por Usuario (Bloqueo en Vuelo 6s)',
+                        detail: 'Si un mismo usuario hace clic repetidamente en botones pesados antes de que termine su render actual, ignora los duplicados al instante',
+                        cmd: 'user_guard.dedupe --window=6000ms --prevent-parallel-canvas'
                     },
                     {
-                        title: 'Compactación Final y Verificación de Estabilidad',
-                        detail: 'Sincronizando recolector de memoria y estabilizando el motor en reposo',
-                        cmd: 'engine.finalize --verify-stability --status=ESTABLE_EN_REPOSO'
+                        title: '4. Purga Selectiva de Cachés por TTL y Cgroup Linux',
+                        detail: 'Limpia únicamente respuestas HTTP expiradas y buffers temporales cuando falta memoria real (>86%), respetando sesiones OAuth',
+                        cmd: 'cache.purge_expired --http-pool --preserve-oauth-sessions'
                     }
                 ]
             },
             export3d: {
-                title: '📦 Exportador 3D (Render PNG HD + Archivo .ZIP)',
-                cmdHeader: 'kortex@engine:~$ exec --procedure "Exportador 3D (.PNG HD + .ZIP)"',
+                title: '🚦 Subsistema 1: Semáforo de Concurrencia Canvas / 3D',
+                cmdHeader: 'kortex@concurrency-guard:~$ inspect --subsystem=canvas-semaphore',
                 rows: [
                     {
-                        title: 'Consulta de Metadatos 3D en Roblox API',
-                        detail: 'Resolviendo manifiesto tridimensional del avatar o accesorio solicitado',
-                        cmd: 'roblox.3d_manifest.resolve --target-mesh'
+                        title: 'Detección de Operación Gráfica Pesada',
+                        detail: 'Identifica interacciones que generan lienzos 960×550 (/tycoon, /roblox 4.1-4.5, Sandbox 2.1, Exportador 3D 2.4)',
+                        cmd: 'classifier.check_heavy_canvas --target=960x550-png'
                     },
                     {
-                        title: 'Descarga de Geometría (.OBJ / .MTL) y Texturas',
-                        detail: 'Obteniendo malla 3D, materiales y mapas de textura desde Roblox CDN',
-                        cmd: 'cdn.fetch_3d_assets --obj --mtl --textures'
+                        title: 'Control de Slots Activos (activeGpuOps <= 2)',
+                        detail: 'Si hay slot libre, ejecuta al instante (0ms de espera). Si 2 renders ya están corriendo, entra en cola FIFO ligera',
+                        cmd: 'gpu_slots.check --active=1 --max=2 --wait=0ms'
                     },
                     {
-                        title: 'Renderizado de Tarjeta PNG en Alta Definición',
-                        detail: 'Procesando imagen transparente HD del modelo tridimensional',
-                        cmd: 'canvas.render_3d_showcase --transparent-png'
+                        title: 'Reutilización y Liberación Inmediata del Buffer',
+                        detail: 'Al enviar el AttachmentBuilder a Discord, libera el slot en el bloque finally{} y pasa al siguiente en cola',
+                        cmd: 'gpu_slots.release --gc-arraybuffers --next-in-queue'
                     },
                     {
-                        title: 'Compresión del Paquete .ZIP en Memoria',
-                        detail: 'Generando archivo .ZIP descargable y finalizando entrega en Discord',
-                        cmd: 'zip.pack_memory_stream --attach-all --done'
+                        title: 'Estabilidad Garantizada en Picos de Servidor',
+                        detail: 'Incluso si 30 usuarios ejecutan /tycoon a la vez, la RAM nativa de Canvas nunca supera el techo de 2 lienzos simultáneos',
+                        cmd: 'telemetry.verify --max-concurrent-buffers=2 --oom-risk=0%'
                     }
                 ]
             },
             sandbox: {
-                title: '🧪 Probador de Combinaciones en Vivo (Outfit Sandbox)',
-                cmdHeader: 'kortex@engine:~$ exec --procedure "Probador de Combinaciones en Vivo"',
+                title: '🛡️ Subsistema 2: Escudo Anti-Spam por Usuario',
+                cmdHeader: 'kortex@concurrency-guard:~$ inspect --subsystem=anti-spam-lock',
                 rows: [
                     {
-                        title: 'Resolución del Personaje y Prendas Equipadas',
-                        detail: 'Obteniendo anatomía del avatar y accesorios activos desde Roblox API',
-                        cmd: 'avatar.sandbox.load_rig --fetch-wearing'
+                        title: 'Registro de Operación Activa por Discord ID',
+                        detail: 'Guarda en un Map ligero (activeUserOperations) el ID del usuario y el timestamp de inicio del render',
+                        cmd: 'active_ops.set --user=discord_id --type=heavy_gpu'
                     },
                     {
-                        title: 'Validación de Accesorios y Cotización Individual',
-                        detail: 'Verificando miniaturas y precios en Robux de hasta 5 ítems combinados',
-                        cmd: 'avatar.items.validate --max-slots=5 --pricing'
+                        title: 'Intercepción de Clics Repetidos (< 6 segundos)',
+                        detail: 'Si el usuario vuelve a pulsar botones pesados mientras su imagen aún se está generando, bloquea el render duplicado',
+                        cmd: 'active_ops.intercept_duplicate --action=defer_noop --ram-saved=100%'
                     },
                     {
-                        title: 'Composición Gráfica HD sobre el Personaje',
-                        detail: 'Renderizando vista previa combinada y encuadre en el motor Canvas',
-                        cmd: 'canvas.render_sandbox --composite-layers --hd'
+                        title: 'Navegación Rápida Sin Bloqueos',
+                        detail: 'Los cambios de menú desplegable (/help, /config, categorías) pasan directo sin bloqueo para mantener fluidez total',
+                        cmd: 'router.fast_path --menus=unblocked'
                     },
                     {
-                        title: 'Entrega de Vista Previa y Presupuesto Total',
-                        detail: 'Finalizando tarjeta visual con desglose de ahorro del conjunto',
-                        cmd: 'ui.commit_container --sandbox-ready'
+                        title: 'Desbloqueo Automático al Entregar Respuesta',
+                        detail: 'Apenas termina el editReply final, limpia el candado del usuario inmediatamente',
+                        cmd: 'active_ops.delete --user=discord_id --status=ready'
                     }
                 ]
             },
             floors: {
-                title: '📉 Monitor de Pisos de Precio Dinámicos',
-                cmdHeader: 'kortex@engine:~$ exec --procedure "Monitor de Pisos de Precio Dinámicos"',
+                title: '🧹 Subsistema 3: Caché HTTP Anti-429 y Purga Selectiva',
+                cmdHeader: 'kortex@concurrency-guard:~$ inspect --subsystem=http-cache-purger',
                 rows: [
                     {
-                        title: 'Escaneo de las 8 Subcategorías de Accesorios',
-                        detail: 'Consultando pisos actuales en Sombreros, Pelo, Cara, Cuello, Hombros y más',
-                        cmd: 'economy.scan_floors --subcategories=8 --live'
+                        title: 'Coalescencia de Peticiones Concurrentes (In-Flight)',
+                        detail: 'Si 5 usuarios consultan el mismo juego o ítem a la vez, se hace 1 sola petición HTTP a Roblox API y se comparte el resultado',
+                        cmd: 'http.coalesce_inflight --dedupe-requests=true'
                     },
                     {
-                        title: 'Cálculo de Variación frente al Promedio Semanal',
-                        detail: 'Comparando precios mínimos de hoy contra la referencia de 7 días',
-                        cmd: 'economy.compute_deltas --window=7d --sort-savings'
+                        title: 'Caché en Memoria con Tope y Expiración TTL',
+                        detail: 'Guarda respuestas frecuentes de Roblox por pocos segundos para evitar errores 429 (Too Many Requests)',
+                        cmd: 'http.cache_ttl --hit-rate=92% --anti-429=active'
                     },
                     {
-                        title: 'Renderizado de Tabla Visual en Motor Gráfico',
-                        detail: 'Generando tarjeta comparativa HD en el lienzo de servidor',
-                        cmd: 'canvas.render_floors --hd-card --anti-aliasing'
+                        title: 'Lectura Real de Memoria Linux Cgroup v1/v2',
+                        detail: 'Descuenta inactive_file del kernel Linux para medir el Working Set real y no disparar limpiezas falsas',
+                        cmd: 'cgroup.read_working_set --discount-file-cache'
                     },
                     {
-                        title: 'Publicación del Reporte de Mercado',
-                        detail: 'Entregando gráfico actualizado y resumen por tipo de accesorio',
-                        cmd: 'ui.commit_container --attach-canvas --done'
+                        title: 'Purga Instantánea en 1 Paso desde /config',
+                        detail: 'Cuando el propietario pulsa "Limpiar Caché", libera objetos expirados en <5ms sin animaciones lentas',
+                        cmd: 'cache.purge_now --instant --freed-expired-entries'
                     }
                 ]
             }
@@ -2696,7 +2752,7 @@
 
         let optShowcaseState = {
             procKey: 'optimize',
-            activeRowIdx: 1, // 0..3 = Fila 1..4 en ejecución, 4 = Finalizado (4/4)
+            activeRowIdx: 3,
             timer: null
         };
 
@@ -2712,29 +2768,34 @@
             if (!rowsEl || !termBodyEl) return;
 
             const idx = optShowcaseState.activeRowIdx;
-            const isFinished = idx >= 4;
+            const isFinished = idx >= 3;
 
-            // 1. Renderizar las 4 Filas (Fila 1, Fila 2, Fila 3, Fila 4)
             rowsEl.innerHTML = proc.rows.map((r, i) => {
                 const rowNum = i + 1;
-                let stateClass = '';
-                let badgeText = '⏳ EN ESPERA';
-                let icon = '⚪';
+                let stateClass = 'done';
+                let badgeText = '🟢 ACTIVO';
+                let icon = '🛡️';
 
-                if (isFinished || i < idx) {
-                    stateClass = 'done';
-                    badgeText = '✅ COMPLETADO';
-                    icon = '✅';
-                } else if (i === idx) {
-                    stateClass = 'active';
-                    badgeText = '🔄 CARGANDO AHORA...';
-                    icon = '🔄';
+                if (!isFinished) {
+                    if (i < idx) {
+                        stateClass = 'done';
+                        badgeText = '✅ VERIFICADO';
+                        icon = '✅';
+                    } else if (i === idx) {
+                        stateClass = 'active';
+                        badgeText = '⚡ INSPECCIONANDO';
+                        icon = '🔍';
+                    } else {
+                        stateClass = '';
+                        badgeText = '⚪ EN REPOSO';
+                        icon = '⚪';
+                    }
                 }
 
                 return `
                     <div class="opt-row-card ${stateClass}">
                         <div class="opt-row-main">
-                            <span class="opt-row-label">${icon} Fila ${rowNum} · Procedimiento ${rowNum} de 4</span>
+                            <span class="opt-row-label">${icon} Capa Técnica ${rowNum} de 4</span>
                             <div class="opt-row-title">${r.title}</div>
                             <div class="opt-row-desc">${r.detail}</div>
                         </div>
@@ -2743,24 +2804,22 @@
                 `;
             }).join('');
 
-            // 2. Actualizar el Panel Dinámico Lateral
             if (ringEl && sideTitleEl && sideSubEl) {
                 if (isFinished) {
                     ringEl.className = 'opt-spinner-ring done';
-                    ringEl.textContent = '4/4';
-                    sideTitleEl.textContent = '✅ Procedimiento Finalizado (4 de 4)';
-                    sideSubEl.textContent = 'Todas las filas se completaron correctamente. El motor volvió a estado de reposo.';
+                    ringEl.textContent = '1-STEP';
+                    sideTitleEl.textContent = '⚡ Ejecución Directa (Sin Sobrecarga)';
+                    sideSubEl.textContent = '1 sola llamada a Discord API por clic • Semáforo Canvas y Anti-Spam activos.';
                 } else {
                     ringEl.className = 'opt-spinner-ring spinning';
                     ringEl.textContent = `${idx + 1}/4`;
-                    sideTitleEl.textContent = `🔄 Cargando Fila ${idx + 1} de 4`;
+                    sideTitleEl.textContent = `🔍 Inspeccionando Capa ${idx + 1} de 4`;
                     sideSubEl.textContent = proc.rows[idx].detail;
                 }
             }
 
-            // 3. Actualizar la Terminal Inferior en Vivo
             if (termBadgeEl) {
-                termBadgeEl.textContent = isFinished ? 'ESTADO: FINALIZADO (4/4 OK)' : `EJECUTANDO: FILA ${idx + 1} DE 4`;
+                termBadgeEl.textContent = isFinished ? 'ESTADO: ÓPTIMO (SIN SOBRECARGA)' : `INSPECCIONANDO CAPA ${idx + 1}/4`;
                 termBadgeEl.style.color = isFinished ? '#4ADE80' : '#38BDF8';
             }
 
@@ -2769,17 +2828,14 @@
 
             for (let i = 0; i < proc.rows.length; i++) {
                 const r = proc.rows[i];
-                const tag = `[FILA-0${i + 1}]`;
-                if (isFinished || i < idx) {
-                    lines.push(`<div class="term-line">${tag} <span class="term-ok">OK</span>   &gt; ${r.cmd} <span class="term-muted">--&gt; Completado</span></div>`);
-                } else if (i === idx) {
-                    lines.push(`<div class="term-line">${tag} <span class="term-run">RUN</span>  &gt; ${r.cmd} ...</div>`);
-                    lines.push(`<div class="term-line">          <span class="term-wait">↳ Ejecutando procedimiento en Fila ${i + 1}: ${r.detail}...</span></div>`);
+                const tag = `[CAPA-0${i + 1}]`;
+                if (isFinished || i <= idx) {
+                    lines.push(`<div class="term-line">${tag} <span class="term-ok">ACTIVE</span> &gt; ${r.cmd}</div>`);
                 }
             }
 
             if (isFinished) {
-                lines.push(`<div class="term-line">[SISTEMA] <span class="term-ok">DONE</span> &gt; Ejecución de las Filas 1 a 4 finalizada sin sobrecarga. Motor en reposo calibrado.</div>`);
+                lines.push(`<div class="term-line">[MEMORIA] <span class="term-ok">OK</span>     &gt; Sin pantallas de 4 filas: 0 timers extra en Heap y 75% menos llamadas a Discord API.</div>`);
             }
 
             termBodyEl.innerHTML = lines.join('');
@@ -2791,7 +2847,7 @@
                 optShowcaseState.timer = null;
             }
             optShowcaseState.procKey = procKey;
-            optShowcaseState.activeRowIdx = 1;
+            optShowcaseState.activeRowIdx = 3;
             renderOptimizerShowcase();
         }
 
@@ -2800,7 +2856,7 @@
                 clearInterval(optShowcaseState.timer);
                 optShowcaseState.timer = null;
             }
-            optShowcaseState.activeRowIdx = (optShowcaseState.activeRowIdx + 1) % 5;
+            optShowcaseState.activeRowIdx = (optShowcaseState.activeRowIdx + 1) % 4;
             renderOptimizerShowcase();
         }
 
@@ -2813,14 +2869,14 @@
             renderOptimizerShowcase();
 
             optShowcaseState.timer = setInterval(() => {
-                if (optShowcaseState.activeRowIdx < 4) {
+                if (optShowcaseState.activeRowIdx < 3) {
                     optShowcaseState.activeRowIdx++;
                     renderOptimizerShowcase();
                 } else {
                     clearInterval(optShowcaseState.timer);
                     optShowcaseState.timer = null;
                 }
-            }, 650);
+            }, 500);
         }
 
         // ==========================================================
@@ -2831,11 +2887,50 @@
             helpSection: 'cmd_overview',
             helpRobloxSub: 'sub_economy',
             robloxCat: 'economy',
+            tycoonCat: 'sec_studio',
             configCat: 'cat_accounts',
             ownerEngineMode: 'AUTO',
             ownerMaintenance: false,
-            ownerOptimizing: false,
-            ownerOptRow: 1
+            ownerCleanedNotice: false
+        };
+
+        const SIM_TYCOON_CATS = {
+            sec_studio: {
+                label: '🏗️ Categoría 1: Mi Estudio y Producción (Mapa 3D Isométrico)',
+                canvasEndpoint: '/api/canvas/tycoon?section=sec_studio',
+                rows: [
+                    { name: '🟢 Colector de Tix + Cinta Transportadora 3D', sub: '4 tarjetas HUD simétricas (Nivel, Tix, Cristales y Producción/m) sin RAP innecesario.', btn: '🟢 Recolectar Tix' },
+                    { name: '🔥 Racha Diaria de Estudio (+Tix y +💠 Cada 5 Días)', sub: 'Reclamá tu recompensa cada 24h y multiplicá tu bono diario consecutivo.', btn: '🔥 Racha Diaria' },
+                    { name: '🚀 Ascensión Rebirth (+35% Permanente + Llave)', sub: 'Al llegar a Nivel 6 podés hacer Rebirth para ganar +35% permanente y 1 Llave de Cofre.', btn: '🚀 Rebirth' }
+                ]
+            },
+            sec_shop: {
+                label: '🎒 Categoría 2: Tienda, Ítems y Taller UGC (Vitrina 2×4)',
+                canvasEndpoint: '/api/canvas/tycoon?section=sec_shop',
+                rows: [
+                    { name: '🖼️ Vitrina Visual 2×4 de Tarjetas de Ítems Ilustradas', sub: 'Cada ítem muestra su propia ilustración vectorial a color (Espadas, Katanas, Alas, Halos, Cascos) + rareza + bono %.', btn: '🎟️ Comprar Tix' },
+                    { name: '💠 Tienda de Cristales Kortex + Equipamiento (3 Slots)', sub: 'Adquirí reliquias épicas/míticas con Cristales ganados en misiones y equipá hasta 3 a la vez.', btn: '💠 Tienda Cristales' },
+                    { name: '🎨 Taller Creador UGC (70% Regalías en Vivo)', sub: 'Publicá tu propio ítem personalizado en el mercado global y cobrá el 70% de cada venta.', btn: '🎨 Crear UGC' }
+                ]
+            },
+            sec_vault: {
+                label: '👑 Categoría 3: Cofres, Limiteds e Intercambios P2P',
+                canvasEndpoint: '/api/canvas/tycoon?section=sec_vault',
+                rows: [
+                    { name: '🗝️ Cofre de Ascensión 3D (1 Llave de Rebirth)', sub: 'Abrí un cofre garantizando 1 reliquia o ítem especial que aún no tengas en tu inventario.', btn: '🗝️ Abrir Cofre (1 🗝️)' },
+                    { name: '👑 Bóveda Limited y Limited U Seriados (#01/15)', sub: '6 tarjetas visuales con estado de stock global y número de serie único por copia.', btn: '👑 Reclamar Limited U' },
+                    { name: '🤝 Mercado P2P e Intercambio Directo entre Jugadores', sub: 'Publicá ofertas en el tablero global o enviá copias Limited a otro jugador de Discord.', btn: '🤝 Publicar Oferta' }
+                ]
+            },
+            sec_perks: {
+                label: '💠 Categoría 4: Misiones Semanales, Pociones y Ranking',
+                canvasEndpoint: '/api/canvas/tycoon?section=sec_perks',
+                rows: [
+                    { name: '🎯 4 Misiones Semanales con Barras de Progreso', sub: 'Completá objetivos semanales para reclamar Cristales Kortex (💠) y Tix 100% gratis.', btn: '🎁 Reclamar Misiones' },
+                    { name: '🧪 Laboratorio de Pociones (30 Minutos Activos)', sub: 'Activá el Elixir de Velocidad 2x o el Imán Cuántico con Tix o Cristales.', btn: '⚡ Poción 2x' },
+                    { name: '🏆 Top 5 Estudios + Ventajas Nitro Boost (+50%) y YouTube (+35%)', sub: 'Competí en el ranking global y sincronizá tus multiplicadores permanentes de comunidad.', btn: '🔄 Sincronizar VIP' }
+                ]
+            }
         };
 
         const SIM_ROBLOX_CATS = {
@@ -2868,12 +2963,22 @@
                     { name: '🔔 3.4 Avisos de Actualizaciones', sub: 'Seguí hasta 3 juegos y recibí alertas de parches.', btn: '🔔 Abrir' },
                     { name: '🗺️ 3.5 Explorador de Sub-Lugares', sub: 'Mundos secundarios y lobbies conectados al juego.', btn: '🗺️ Abrir' }
                 ]
+            },
+            status: {
+                label: '📊 Categoría 4: Estadísticas y Análisis de Roblox (5 herramientas)',
+                rows: [
+                    { name: '📡 4.1 Estado de Servidores de Roblox en Tiempo Real', sub: 'Verificá si los servidores están prendidos, su ping en vivo y el estado de Juegos, Web, Avatares y Studio.', btn: '📡 Abrir' },
+                    { name: '📈 4.2 Juegos en Tendencia y Top Jugadores en Vivo', sub: 'Experiencias con más jugadores simultáneos, visitas totales y porcentaje de aprobación.', btn: '📈 Abrir' },
+                    { name: '🕵️ 4.3 Inspector y Estadísticas de Perfil de Usuario', sub: 'Antigüedad de cuenta, seguidores, amigos, grupos unidos y tarjeta visual.', btn: '🕵️ Abrir' },
+                    { name: '💎 4.4 Radar de Limiteds y Oportunidades de Mercado', sub: 'Coleccionables Limited destacados: mejor precio actual vs. valor promedio y demanda.', btn: '💎 Abrir' },
+                    { name: '⚔️ 4.5 Comparador de Experiencias (Juego vs. Juego)', sub: 'Comparativa cara a cara de jugadores activos, visitas, favoritos y capacidad.', btn: '⚔️ Abrir' }
+                ]
             }
         };
 
         function switchDiscordSimCommand(cmd) {
             simState.cmd = cmd;
-            simState.ownerOptimizing = false;
+            simState.ownerCleanedNotice = false;
             document.querySelectorAll('.discord-cmd-tab').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.simcmd === cmd);
             });
@@ -2886,7 +2991,7 @@
 
         function onSimSelectChange(field, value) {
             simState[field] = value;
-            simState.ownerOptimizing = false;
+            simState.ownerCleanedNotice = false;
             renderDiscordSim();
         }
 
@@ -2903,26 +3008,8 @@
         }
 
         function triggerSimOwnerOptimizer() {
-            simState.ownerOptimizing = true;
-            simState.ownerOptRow = 0;
+            simState.ownerCleanedNotice = true;
             renderDiscordSim();
-
-            const interval = setInterval(() => {
-                if (!simState.ownerOptimizing) {
-                    clearInterval(interval);
-                    return;
-                }
-                if (simState.ownerOptRow < 3) {
-                    simState.ownerOptRow++;
-                    renderDiscordSim();
-                } else {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        simState.ownerOptimizing = false;
-                        renderDiscordSim();
-                    }, 700);
-                }
-            }, 520);
         }
 
         function renderDiscordSim() {
@@ -2938,16 +3025,16 @@
                     detailHtml = `
                         <div class="v2-section-list">
                             <div class="v2-section-row">
-                                <div class="v2-section-text"><strong>🎮 /roblox — Panel de 15 Herramientas y Cuenta Roblox</strong><span>3 categorías interactivas y vinculación de tu personaje.</span></div>
+                                <div class="v2-section-text"><strong>🎮 /roblox — 20 Herramientas Simétricas (4 Categorías × 5)</strong><span>Economía, Avatares 3D/2D, Juegos y Estadísticas/Estado de Roblox.</span></div>
                             </div>
                             <div class="v2-section-row">
-                                <div class="v2-section-text"><strong>⚙️ /config — Cuentas, Conexión y Moderación del Bot</strong><span>Categoría Cuentas y Conexión + Panel del Propietario (Motor RAM/GPU y mecánicas).</span></div>
+                                <div class="v2-section-text"><strong>🏭 /tycoon — Estudio 3D + 4 Categorías con Vitrinas PNG</strong><span>Estudio 3D, Vitrina 2×4 de Ítems, Cofres 3D/Limiteds y Misiones Semanales.</span></div>
                             </div>
                             <div class="v2-section-row">
-                                <div class="v2-section-text"><strong>🏓 /ping — Diagnóstico, Latencia y RAM del Host</strong><span>Velocidad de respuesta y consumo de memoria del proceso y servidor.</span></div>
+                                <div class="v2-section-text"><strong>⚙️ /config — Cuentas OAuth 2.0, Idioma y Moderación</strong><span>Conexión de cuentas, Español/English y panel de administración del propietario.</span></div>
                             </div>
                             <div class="v2-section-row">
-                                <div class="v2-section-text"><strong>📚 /help — Centro de Ayuda Interactiva</strong><span>Explorá cada comando y sus categorías desde el menú desplegable.</span></div>
+                                <div class="v2-section-text"><strong>🏓 /ping — Diagnóstico, Latencia y RAM del Host</strong><span>Velocidad de respuesta y consumo real de memoria del contenedor.</span></div>
                             </div>
                         </div>
                     `;
@@ -2959,6 +3046,7 @@
                                 <option value="sub_economy" ${sub === 'sub_economy' ? 'selected' : ''}>💰 Categoría 1: Economía, Mercado y Precios (1.1 a 1.5)</option>
                                 <option value="sub_avatar" ${sub === 'sub_avatar' ? 'selected' : ''}>👕 Categoría 2: Taller de Avatares y Estudio 3D/2D (2.1 a 2.5)</option>
                                 <option value="sub_games" ${sub === 'sub_games' ? 'selected' : ''}>🎮 Categoría 3: Utilidades de Juego y Servidores (3.1 a 3.5)</option>
+                                <option value="sub_status" ${sub === 'sub_status' ? 'selected' : ''}>📊 Categoría 4: Estadísticas y Análisis de Roblox (4.1 a 4.5)</option>
                                 <option value="sub_account" ${sub === 'sub_account' ? 'selected' : ''}>🔐 Centro de Vinculación de Cuenta de Roblox</option>
                             </select>
                             <span class="v2-select-arrow">▼</span>
@@ -2971,7 +3059,7 @@
                             </div>
                         `;
                     } else {
-                        const catKey = sub === 'sub_avatar' ? 'avatar' : (sub === 'sub_games' ? 'games' : 'economy');
+                        const catKey = sub === 'sub_avatar' ? 'avatar' : (sub === 'sub_games' ? 'games' : (sub === 'sub_status' ? 'status' : 'economy'));
                         const catObj = SIM_ROBLOX_CATS[catKey];
                         detailHtml = `
                             <div class="v2-section-list">
@@ -2983,11 +3071,20 @@
                             </div>
                         `;
                     }
+                } else if (sec === 'cmd_tycoon') {
+                    detailHtml = `
+                        <div class="v2-section-list">
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🏗️ Categoría 1: Mi Estudio y Producción</strong><span>Mapa 3D isométrico (4 HUD cards sin RAP), Colector de Tix, Racha Diaria y Rebirth.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🎒 Categoría 2: Tienda, Ítems y Taller UGC</strong><span>Vitrina visual 2×4 de tarjetas ilustradas + creación UGC con 70% de regalías.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>👑 Categoría 3: Cofres, Limiteds e Intercambios</strong><span>Cofre de Ascensión 3D + 6 tarjetas Limited / Limited U seriadas y Trading P2P.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>💠 Categoría 4: Misiones, Pociones y Ranking</strong><span>4 Misiones Semanales por Cristales gratis + Top 5 Estudios + Nitro/YouTube VIP.</span></div></div>
+                        </div>
+                    `;
                 } else if (sec === 'cmd_config') {
                     detailHtml = `
                         <div class="v2-section-list">
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>🔗 Categoría 1: Cuentas y Conexión</strong><span>Estado de sesión OAuth 2.0 de Discord para cualquier usuario.</span></div></div>
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>🛡️ Categoría 2: Configuración y Moderación del Bot (Propietario)</strong><span>Control exclusivo del Motor RAM/GPU, procedimientos por Filas 1 a 4 + Terminal y mecánicas generales.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🔗 Categoría 1: Cuentas y Conexión</strong><span>Estado de sesión OAuth 2.0 de Discord y Roblox para cualquier usuario.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🛡️ Categoría 2: Administración del Bot (Propietario)</strong><span>Semáforo de Concurrencia, Purga de Caché instantánea en 1 paso y moderación.</span></div></div>
                         </div>
                     `;
                 } else {
@@ -3007,8 +3104,9 @@
                     <div class="v2-select-wrap">
                         <select class="v2-select" onchange="onSimSelectChange('helpSection', this.value)">
                             <option value="cmd_overview" ${sec === 'cmd_overview' ? 'selected' : ''}>🏠 Resumen General de Comandos del Bot</option>
-                            <option value="cmd_roblox" ${sec === 'cmd_roblox' ? 'selected' : ''}>🎮 Comando /roblox — 15 Herramientas y Cuenta Roblox</option>
-                            <option value="cmd_config" ${sec === 'cmd_config' ? 'selected' : ''}>⚙️ Comando /config — Cuentas y Moderación del Bot</option>
+                            <option value="cmd_roblox" ${sec === 'cmd_roblox' ? 'selected' : ''}>🎮 Comando /roblox — 20 Herramientas (4 Categorías)</option>
+                            <option value="cmd_tycoon" ${sec === 'cmd_tycoon' ? 'selected' : ''}>🏭 Comando /tycoon — Estudio 3D y 4 Vitrinas PNG</option>
+                            <option value="cmd_config" ${sec === 'cmd_config' ? 'selected' : ''}>⚙️ Comando /config — Cuentas, Idioma y Moderación</option>
                             <option value="cmd_ping" ${sec === 'cmd_ping' ? 'selected' : ''}>🏓 Comando /ping — Latencia, Estado y RAM del Host</option>
                         </select>
                         <span class="v2-select-arrow">▼</span>
@@ -3019,6 +3117,40 @@
                     <div class="v2-separator"></div>
                     <div class="v2-btn-row">
                         <button class="v2-btn" onclick="document.getElementById('comandos').scrollIntoView({behavior:'smooth'})">🌐 Guía Web Oficial</button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (simState.cmd === 'tycoon') {
+                const tyObj = SIM_TYCOON_CATS[simState.tycoonCat] || SIM_TYCOON_CATS.sec_studio;
+                box.innerHTML = `
+                    <div>
+                        <div class="v2-title">🏭 Estudio Roblox Tycoon — @Usuario</div>
+                        <div class="v2-subtitle">${tyObj.label}</div>
+                    </div>
+                    <div class="v2-select-wrap">
+                        <select class="v2-select" onchange="onSimSelectChange('tycoonCat', this.value); switchTycoonCanvasPreview(this.value);">
+                            <option value="sec_studio" ${simState.tycoonCat === 'sec_studio' ? 'selected' : ''}>🏗️ 1. Mi Estudio y Producción (Mapa 3D y Racha)</option>
+                            <option value="sec_shop" ${simState.tycoonCat === 'sec_shop' ? 'selected' : ''}>🎒 2. Tienda, Ítems y Taller UGC (Vitrina 2×4)</option>
+                            <option value="sec_vault" ${simState.tycoonCat === 'sec_vault' ? 'selected' : ''}>👑 3. Cofres, Limiteds e Intercambios P2P</option>
+                            <option value="sec_perks" ${simState.tycoonCat === 'sec_perks' ? 'selected' : ''}>💠 4. Misiones Semanales, Pociones y Ranking</option>
+                        </select>
+                        <span class="v2-select-arrow">▼</span>
+                    </div>
+                    <div class="v2-separator"></div>
+                    <div class="v2-section-list">
+                        ${tyObj.rows.map((r, idx) => `
+                            <div class="v2-section-row">
+                                <div class="v2-section-text"><strong>${r.name}</strong><span>${r.sub}</span></div>
+                                <button class="v2-btn ${idx === 0 ? 'green' : 'blurple'}" onclick="switchTycoonCanvasPreview('${simState.tycoonCat}'); document.getElementById('vistas-previas').scrollIntoView({behavior:'smooth'});">${r.btn}</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="v2-separator"></div>
+                    <div class="v2-btn-row">
+                        <button class="v2-btn blurple" onclick="switchTycoonCanvasPreview('${simState.tycoonCat}'); document.getElementById('vistas-previas').scrollIntoView({behavior:'smooth'});">🖼️ Ver Lienzo PNG en Vivo</button>
+                        <button class="v2-btn" onclick="switchCategory('tycoon'); document.getElementById('herramientas').scrollIntoView({behavior:'smooth'});">📖 Detalles de /tycoon</button>
                     </div>
                 `;
                 return;
@@ -3036,6 +3168,7 @@
                             <option value="economy" ${simState.robloxCat === 'economy' ? 'selected' : ''}>💰 Categoría 1: Economía, Mercado y Precios (5)</option>
                             <option value="avatar" ${simState.robloxCat === 'avatar' ? 'selected' : ''}>👕 Categoría 2: Taller de Avatares y Estudio 3D/2D (5)</option>
                             <option value="games" ${simState.robloxCat === 'games' ? 'selected' : ''}>🎮 Categoría 3: Utilidades de Juego y Servidores (5)</option>
+                            <option value="status" ${simState.robloxCat === 'status' ? 'selected' : ''}>📊 Categoría 4: Estadísticas y Análisis de Roblox (5)</option>
                         </select>
                         <span class="v2-select-arrow">▼</span>
                     </div>
@@ -3060,56 +3193,15 @@
             if (simState.cmd === 'config') {
                 const isOwnerView = simState.configCat === 'cat_owner_bot';
                 if (isOwnerView) {
-                    if (simState.ownerOptimizing) {
-                        const optRows = OPTIMIZER_PROCEDURES.optimize.rows;
-                        const cur = simState.ownerOptRow;
-                        box.innerHTML = `
-                            <div class="v2-section-row" style="border-bottom:none; padding:0;">
-                                <div>
-                                    <div class="v2-title">🧹 Optimizador de Memoria RAM y Buffers GPU</div>
-                                    <div class="v2-subtitle">⚡ Sistema Dinámico: Cargando Fila ${cur + 1} de 4 · 🟢 Estable</div>
-                                </div>
-                                <button class="v2-btn blurple" disabled>🔄 Fila ${cur + 1} de 4</button>
-                            </div>
-                            <div class="v2-separator"></div>
-                            <div class="v2-section-list">
-                                ${optRows.map((r, idx) => {
-                                    let icon = '⚪';
-                                    let st = '[ PENDIENTE ]';
-                                    if (idx < cur) { icon = '✅'; st = '[ COMPLETADO ]'; }
-                                    else if (idx === cur) { icon = '🔄'; st = '[ EJECUTANDO AHORA... ]'; }
-                                    return `
-                                        <div class="v2-section-row">
-                                            <div class="v2-section-text">
-                                                <strong>${icon} Fila ${idx + 1} — ${r.title} · ${st}</strong>
-                                                <span>${r.detail}</span>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                            <div class="v2-separator"></div>
-                            <div class="v2-terminal">
-                                <div><span class="term-prompt">kortex@optimizer:~$</span> exec --procedure "Optimizador RAM/GPU"</div>
-                                ${optRows.slice(0, cur + 1).map((r, idx) =>
-                                    idx < cur
-                                        ? `<div>[FILA-0${idx + 1}] <span class="term-ok">OK</span>  &gt; ${r.cmd}</div>`
-                                        : `<div>[FILA-0${idx + 1}] <span class="term-run">RUN</span> &gt; ${r.cmd} ...</div>`
-                                ).join('')}
-                            </div>
-                        `;
-                        return;
-                    }
-
                     box.innerHTML = `
                         <div>
-                            <div class="v2-title">🛡️ Configuración y Moderación del Bot (Propietario)</div>
-                            <div class="v2-subtitle">Panel exclusivo del propietario: Cola Anti-429, Telemetría Real y Optimizador RAM/GPU.</div>
+                            <div class="v2-title">🛡️ Administración del Bot (Propietario)</div>
+                            <div class="v2-subtitle">Semáforo de Concurrencia, Escudo Anti-Spam y Purga Instantánea en 1 Paso.</div>
                         </div>
                         <div class="v2-select-wrap">
                             <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
                                 <option value="cat_accounts">🔗 Categoría: Cuentas y Conexión</option>
-                                <option value="cat_owner_bot" selected>🛡️ Categoría: Configuración y Moderación del Bot (Propietario)</option>
+                                <option value="cat_owner_bot" selected>🛡️ Categoría: Administración del Bot (Propietario)</option>
                             </select>
                             <span class="v2-select-arrow">▼</span>
                         </div>
@@ -3117,27 +3209,26 @@
                         <div class="v2-section-list">
                             <div class="v2-section-row">
                                 <div class="v2-section-text">
-                                    <strong>⚡ Optimizador RAM/GPU (${simState.ownerEngineMode}) &amp; Cola Anti-429</strong>
-                                    <span>🟢 Estable · RAM Bot: 94.2 MB · Caché Anti-429: Hit-Rate 92% · In-Flight: 0</span>
+                                    <strong>⚡ Semáforo de Concurrencia (${simState.ownerEngineMode}) &amp; Caché Anti-429</strong>
+                                    <span>🟢 Estable · RAM Proceso: 92.4 MB · Respuesta Directa en 1 Paso (Sin sobrecarga de filas)</span>
                                 </div>
                             </div>
                             <div class="v2-section-row">
                                 <div class="v2-section-text">
                                     <strong>⚙️ Mecánicas y Módulos Generales del Bot</strong>
-                                    <span>Mantenimiento: ${simState.ownerMaintenance ? '🟠 Activo (Solo Propietario)' : '🟢 Público'} · Filas 1 a 4 + Terminal: 🟢 Activo</span>
+                                    <span>Mantenimiento: ${simState.ownerMaintenance ? '🟠 Activo (Solo Propietario)' : '🟢 Público'} · /tycoon: 🟢 Activo</span>
                                 </div>
                             </div>
                         </div>
+                        ${simState.ownerCleanedNotice ? `
                         <div class="v2-terminal">
-                            <div><span class="term-prompt">kortex@optimizer:~$</span> status --subsystems --anti429</div>
-                            <div>[MOTOR]   &gt; <span class="term-ok">Calibración activa:</span> Uso individual detectado (sin sobrecarga)</div>
-                            <div>[ANTI429] &gt; Coalescencia de peticiones concurrentes + Caché inteligente activa</div>
-                        </div>
+                            <div><span class="term-ok">🧹 Limpieza de caché completada en 1 paso:</span> Se liberaron las entradas HTTP expiradas sin tocar sesiones OAuth activas.</div>
+                        </div>` : ''}
                         <div class="v2-separator"></div>
                         <div class="v2-btn-row">
-                            <button class="v2-btn blurple" onclick="triggerSimOwnerOptimizer()">🧹 Optimizar Memoria (Filas 1-4)</button>
-                            <button class="v2-btn" onclick="cycleSimOwnerEngine()">⚡ Motor: ${simState.ownerEngineMode}</button>
-                            <button class="v2-btn" onclick="toggleSimOwnerMaintenance()">🛠️ ${simState.ownerMaintenance ? 'Salir Mantenimiento' : 'Modo Mantenimiento'}</button>
+                            <button class="v2-btn blurple" onclick="triggerSimOwnerOptimizer()">🧹 Limpiar Caché (1 Paso)</button>
+                            <button class="v2-btn" onclick="cycleSimOwnerEngine()">🎛️ Modo: ${simState.ownerEngineMode}</button>
+                            <button class="v2-btn" onclick="toggleSimOwnerMaintenance()">🛠️ ${simState.ownerMaintenance ? 'Salir Mantenimiento' : 'Mantenimiento'}</button>
                         </div>
                     `;
                     return;
@@ -3146,12 +3237,12 @@
                 box.innerHTML = `
                     <div>
                         <div class="v2-title">⚙️ Configuración de Usuario — Kortex</div>
-                        <div class="v2-subtitle">Seleccioná una categoría en el menú desplegable (Cuentas o Moderación del Propietario).</div>
+                        <div class="v2-subtitle">Cuentas y Datos Guardados: Tu código KTX-XXXXXX se aloja aquí sin enviar spam por MD.</div>
                     </div>
                     <div class="v2-select-wrap">
                         <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
-                            <option value="cat_accounts" selected>🔗 Categoría: Cuentas y Conexión</option>
-                            <option value="cat_owner_bot">🛡️ Categoría: Configuración y Moderación del Bot (Propietario)</option>
+                            <option value="cat_accounts" selected>🔗 Categoría: Cuentas y Datos Guardados</option>
+                            <option value="cat_owner_bot">🛡️ Categoría: Administración del Bot (Propietario)</option>
                         </select>
                         <span class="v2-select-arrow">▼</span>
                     </div>
@@ -3159,15 +3250,21 @@
                     <div class="v2-section-list">
                         <div class="v2-section-row">
                             <div class="v2-section-text">
-                                <strong>💬 Cuenta de Discord: Sesión activa</strong>
-                                <span>Podés conectar tu cuenta con Discord OAuth 2.0 o comprobar el estado de tus permisos.</span>
+                                <strong>💬 1. Cuenta de Discord (Código Web Alojado en /config)</strong>
+                                <span>🔑 Tu código de verificación para conectar tu ID en la Web: <code>KTX-482910</code> *(sin spam por MD)* · Permisos en <strong>Configuración → Permisos de la aplicación</strong>.</span>
+                            </div>
+                        </div>
+                        <div class="v2-section-row">
+                            <div class="v2-section-text">
+                                <strong>🎮 2. Cuenta de Roblox</strong>
+                                <span>En Roblox, donde está alojado el bot y sus permisos es en <strong>Configuración → Permisos de la aplicación</strong>.</span>
                             </div>
                         </div>
                     </div>
                     <div class="v2-separator"></div>
                     <div class="v2-btn-row">
-                        <button class="v2-btn blurple" onclick="openAccountPopover()">💬 Conectar con Discord OAuth2</button>
-                        <button class="v2-btn green" onclick="checkAccountStatus()">🔄 Comprobar Conexión</button>
+                        <button class="v2-btn blurple" onclick="openAccountPopover()">🔑 Usar mi Código de /config</button>
+                        <button class="v2-btn green" onclick="checkAccountStatus()">🔄 Actualizar Estado</button>
                     </div>
                 `;
                 return;
@@ -3185,7 +3282,7 @@
                             <div class="v2-section-text"><strong>⚡ Latencia y WebSocket API</strong><span>Respuesta: 38ms · WebSocket: 42ms · Uptime: Activo</span></div>
                         </div>
                         <div class="v2-section-row">
-                            <div class="v2-section-text"><strong>💾 RAM Proceso y Contenedor / Host</strong><span>94.2 MB Bot (JS + Canvas) · 340.0 / 2048.0 MB Host Real (16.6%)</span></div>
+                            <div class="v2-section-text"><strong>💾 RAM Proceso y Contenedor / Host</strong><span>92.4 MB Bot (JS + Canvas) · 338.0 / 2048.0 MB Host Real (16.5%)</span></div>
                         </div>
                     </div>
                     <div class="v2-separator"></div>
@@ -3198,7 +3295,7 @@
         }
 
         // ==========================================================
-        // 3. CATÁLOGO DE LAS 15 HERRAMIENTAS
+        // 3. CATÁLOGO DE LAS 20 HERRAMIENTAS DE /ROBLOX + 4 CATEGORÍAS DE /TYCOON
         // ==========================================================
         const TOOLS_DATA = {
             economy: [
@@ -3326,8 +3423,114 @@
                     benefit: 'Explorás mundos secundarios o plazas de tradeo conectadas a cualquier experiencia.',
                     access: '🟢 Uso libre inmediato sin necesidad de iniciar sesión.'
                 }
+            ],
+            status: [
+                {
+                    num: 'HERRAMIENTA 4.1 · CATEGORÍA 4 DE /ROBLOX',
+                    title: '📡 Estado de Servidores de Roblox en Tiempo Real',
+                    desc: 'Comprobá en tiempo real cómo están prendidos los servidores de Roblox, su índice de salud global y la latencia HTTP en milisegundos de los 5 subsistemas críticos: Juegos y Matchmaking, Web y Auth, Avatares 3D/2D, Economía/Catálogo y Roblox Studio / Cloud APIs.',
+                    offers: 'Tablero visual PNG en tiempo real + semáforo por nodo (Prendido / Lento / Caído) + muestra activa de jugadores.',
+                    benefit: 'Sabés al instante si Roblox funciona al 100% o si hay lag generalizado en los servidores.',
+                    access: '🟢 Uso libre inmediato desde la Categoría 4 de /roblox.'
+                },
+                {
+                    num: 'HERRAMIENTA 4.2 · CATEGORÍA 4 DE /ROBLOX',
+                    title: '📈 Juegos en Tendencia y Top Jugadores en Vivo',
+                    desc: 'Explorá las experiencias de Roblox con mayor cantidad de jugadores simultáneos en tiempo real, junto con su acumulado histórico de visitas y su porcentaje de aprobación.',
+                    offers: 'Gráfica comparativa en vivo de jugadores simultáneos + métricas de visitas y aprobación.',
+                    benefit: 'Descubrís qué experiencias concentran el mayor tráfico activo en Roblox ahora mismo.',
+                    access: '🟢 Uso libre inmediato desde la Categoría 4 de /roblox.'
+                },
+                {
+                    num: 'HERRAMIENTA 4.3 · CATEGORÍA 4 DE /ROBLOX',
+                    title: '🕵️ Inspector y Estadísticas de Perfil de Usuario',
+                    desc: 'Analizá cualquier cuenta de Roblox por nombre o ID: antigüedad exacta en años y días, seguidores, amigos, grupos unidos, estado de verificación y tarjeta visual de perfil.',
+                    offers: 'Tarjeta analítica PNG del usuario + buscador por nombre/ID + análisis en 1 clic de tu cuenta vinculada.',
+                    benefit: 'Auditás la trayectoria y alcance social de cualquier perfil de Roblox en segundos.',
+                    access: '🟢 Uso libre inmediato desde la Categoría 4 de /roblox.'
+                },
+                {
+                    num: 'HERRAMIENTA 4.4 · CATEGORÍA 4 DE /ROBLOX',
+                    title: '💎 Radar de Limiteds y Oportunidades de Mercado',
+                    desc: 'Consultá coleccionables Limited destacados comparando su mejor precio actual de venta frente a su valor promedio de mercado y su nivel de demanda.',
+                    offers: 'Tablero visual PNG con porcentaje de descuento frente al promedio + acceso directo a seguimiento en 1.1.',
+                    benefit: 'Detectás oportunidades de compra en coleccionables Limited por debajo de su valor habitual.',
+                    access: '🟢 Uso libre inmediato desde la Categoría 4 de /roblox.'
+                },
+                {
+                    num: 'HERRAMIENTA 4.5 · CATEGORÍA 4 DE /ROBLOX',
+                    title: '⚔️ Comparador de Experiencias (Juego vs. Juego)',
+                    desc: 'Enfrentá dos experiencias de Roblox cara a cara para comparar sus jugadores activos en vivo, visitas totales, favoritos y capacidad máxima por servidor.',
+                    offers: 'Tarjeta comparativa lado a lado en PNG + ventana modal para comparar cualquier par de Place IDs.',
+                    benefit: 'Comparás el rendimiento en vivo de dos juegos de Roblox en una sola imagen.',
+                    access: '🟢 Uso libre inmediato desde la Categoría 4 de /roblox.'
+                }
+            ],
+            tycoon: [
+                {
+                    num: 'CATEGORÍA 1 · /TYCOON',
+                    title: '🏗️ Mi Estudio y Producción (3D Isométrico Roblox Cartoon)',
+                    desc: 'Escena 3D isométrica estilo Roblox Studio con pasto verde, pinos low-poly, plataforma de cemento limpia (sin bordes neón cibernéticos), Dropper 1 con chimenea, cinta en L con bloques TIX 3D, Bóveda Colectora, botones circulares pisables y carga real de tu PJ 3D de cuerpo completo + accesorios equipados.',
+                    offers: 'Render 3D Skia (@napi-rs/canvas) con PJ 3D + Colector en 1 clic + Racha Diaria (🔥) + Rebirth en Nivel 6.',
+                    benefit: 'Farmeás Tix y Cristales en un Tycoon 3D colorido, limpio y fiel a Roblox Studio.',
+                    access: '🟢 Disponible ejecutando /tycoon.'
+                },
+                {
+                    num: 'CATEGORÍA 2 · /TYCOON',
+                    title: '🎒 Tienda, Ítems y Taller UGC (Vitrina 2×4)',
+                    desc: 'Renderiza una cuadrícula visual 2×4 con 8 tarjetas de ítems ilustradas a medida (Bloxy Cola, Casco BC, Espada Linked, Katana Darkheart, Alas Cuánticas, Halo Celestial, Valkyrie). Permite comprar con Tix o Cristales, equipar 3 ítems y crear UGC.',
+                    offers: 'Ilustración vectorial única por ítem + etiqueta de rareza + Taller UGC con 70% de regalías.',
+                    benefit: 'Identificás cada ítem visualmente por su tarjeta ilustrada antes de comprarlo o equiparlo.',
+                    access: '🟢 Disponible en la Categoría 2 de /tycoon.'
+                },
+                {
+                    num: 'CATEGORÍA 3 · /TYCOON',
+                    title: '👑 Cofres, Limiteds e Intercambios P2P',
+                    desc: 'Vitrina visual con el Cofre de Ascensión en 3D a la izquierda y una cuadrícula 2×3 de 6 tarjetas Limited y Limited U seriadas (#01/15) a la derecha, junto con el mercado de intercambio P2P entre jugadores.',
+                    offers: 'Apertura de Cofres con llaves de Rebirth + reclamo de Limited U seriados + Trading P2P.',
+                    benefit: 'Conseguís ítems exclusivos abriendo cofres o comerciando copias seriadas con otros usuarios.',
+                    access: '🟢 Disponible en la Categoría 3 de /tycoon.'
+                },
+                {
+                    num: 'CATEGORÍA 4 · /TYCOON',
+                    title: '💠 Misiones Semanales, Pociones y Ranking',
+                    desc: 'Tablero visual dividido simétricamente entre tus 4 Misiones Semanales (con barras de progreso y recompensa en Cristales Kortex + Tix) y el Top 5 de Estudios Globales, además de Pociones y ventajas Nitro/YouTube.',
+                    offers: '4 Misiones Semanales renovables + Laboratorio de Pociones (30m) + Ranking Top 5 en vivo.',
+                    benefit: 'Ganás la moneda premium (Cristales Kortex 💠) de forma 100% gratuita completando misiones.',
+                    access: '🟢 Disponible en la Categoría 4 de /tycoon.'
+                }
             ]
         };
+
+        let currentTycoonPreviewSec = 'sec_studio';
+        const TYCOON_PREVIEW_CAPTIONS = {
+            sec_studio: '<strong>/tycoon — Categoría 1 (Mi Estudio 3D Roblox):</strong> Plataforma isométrica 3D cartoon/low-poly (sin neón cibernético), PJ 3D con assets equipados, Cinta en L y Bóveda Colectora',
+            sec_shop: '<strong>/tycoon — Categoría 2 (Vitrina 2×4 de Ítems):</strong> 8 tarjetas de ítems con ilustraciones vectoriales propias, rareza, bono % y Taller UGC',
+            sec_vault: '<strong>/tycoon — Categoría 3 (Cofres 3D y Limiteds):</strong> Cofre de Ascensión 3D + cuadrícula 2×3 de reliquias Limited y Limited U seriadas (#01/15)',
+            sec_perks: '<strong>/tycoon — Categoría 4 (Misiones y Top 5):</strong> 4 Misiones Semanales con barras de progreso para ganar Cristales Kortex + Ranking Top 5'
+        };
+
+        function switchTycoonCanvasPreview(secKey) {
+            currentTycoonPreviewSec = secKey || 'sec_studio';
+            const img = document.getElementById('img-tycoon');
+            const cap = document.getElementById('tycoon-preview-caption');
+            const ep = `/api/canvas/tycoon?section=${encodeURIComponent(currentTycoonPreviewSec)}`;
+            if (img) {
+                img.setAttribute('data-endpoint', ep);
+                img.src = `${apiUrl(ep)}&t=${Date.now()}`;
+            }
+            if (cap && TYCOON_PREVIEW_CAPTIONS[currentTycoonPreviewSec]) {
+                cap.innerHTML = TYCOON_PREVIEW_CAPTIONS[currentTycoonPreviewSec];
+            }
+            document.querySelectorAll('.tycoon-sec-btn').forEach(btn => {
+                const isActive = btn.getAttribute('data-sec') === currentTycoonPreviewSec;
+                btn.className = `btn ${isActive ? 'btn-primary' : 'btn-secondary'} tycoon-sec-btn`;
+            });
+        }
+
+        function reloadCurrentTycoonCanvas() {
+            switchTycoonCanvasPreview(currentTycoonPreviewSec);
+        }
 
         function switchCategory(catKey) {
             document.querySelectorAll('.cat-tab').forEach(btn => {
@@ -3357,7 +3560,8 @@
         function reloadCanvas(imgId, baseUrl) {
             const img = document.getElementById(imgId);
             if (img) {
-                img.src = `${apiUrl(baseUrl)}?t=${Date.now()}`;
+                const sep = baseUrl.includes('?') ? '&' : '?';
+                img.src = `${apiUrl(baseUrl)}${sep}t=${Date.now()}`;
             }
         }
 
@@ -3443,8 +3647,8 @@
             if (isVerified && username) {
                 currentDiscordName = username;
                 if (dTitle) dTitle.textContent = `Discord: @${currentDiscordName}`;
-                if (dSub) dSub.textContent = '🟢 Sesión activa con Discord OAuth 2.0';
-                if (btnLogin) btnLogin.textContent = '🔗 Revalidar Sesión';
+                if (dSub) dSub.textContent = '🟢 Sesión activa verificada con código de /config';
+                if (btnLogin) btnLogin.textContent = '🔑 Revalidar con Código de /config';
                 if (btnDisconnect) btnDisconnect.classList.add('visible');
                 if (avatarUrl) {
                     if (navAvatar) navAvatar.innerHTML = `<img src="${avatarUrl}" alt="Discord" referrerPolicy="no-referrer">`;
@@ -3453,8 +3657,8 @@
             } else {
                 currentDiscordName = null;
                 if (dTitle) dTitle.textContent = 'Cuenta de Discord';
-                if (dSub) dSub.textContent = 'Para guardar listas, códigos y alertas automáticas';
-                if (btnLogin) btnLogin.textContent = '🔗 Iniciar Sesión con Discord';
+                if (dSub) dSub.textContent = 'Código alojado en el comando /config (Cero spam por MD)';
+                if (btnLogin) btnLogin.textContent = '🔑 Conectar con Código de /config';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'D';
                 if (popAvatar) popAvatar.textContent = 'D';
@@ -3476,10 +3680,10 @@
                 if (rTitle) rTitle.textContent = `Roblox: @${acc.roblox_username} (ID ${acc.roblox_user_id})`;
                 if (rSub) {
                     rSub.textContent = isOAuth
-                        ? '🟢 Conectada con Roblox OAuth 2.0 (Activa)'
-                        : '🔐 Verificada con Código de Seguridad (Activa)';
+                        ? '🟢 Conectada • Permisos en Configuración → Permisos de la aplicación'
+                        : '🔐 Verificada con Código • Permisos en Configuración → Permisos de la aplicación';
                 }
-                if (btnLogin) btnLogin.textContent = '🎮 Cambiar con Roblox OAuth';
+                if (btnLogin) btnLogin.textContent = '🎮 Cambiar @Usuario / ID de Roblox';
                 if (btnDisconnect) btnDisconnect.classList.add('visible');
                 if (acc.avatar_url) {
                     if (navAvatar) navAvatar.innerHTML = `<img src="${acc.avatar_url}" alt="Roblox" referrerPolicy="no-referrer">`;
@@ -3489,7 +3693,7 @@
                 currentRobloxName = null;
                 if (rTitle) rTitle.textContent = 'Cuenta de Roblox';
                 if (rSub) rSub.textContent = 'Para cargar tu propio avatar en el Probador y 3D';
-                if (btnLogin) btnLogin.textContent = '🎮 Iniciar Sesión con Roblox (OAuth 2.0)';
+                if (btnLogin) btnLogin.textContent = '🎮 Vincular Cuenta de Roblox (@Usuario / ID)';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'R';
                 if (popAvatar) popAvatar.textContent = 'R';
@@ -3683,38 +3887,209 @@
             }
         }
 
-        async function startOAuthPopup(provider) {
-            const discordId = getActiveDiscordId();
-            const rFeedback = document.getElementById('roblox-feedback');
+        let discordWebAutoPollTimer = null;
+
+        function stopDiscordWebAutoPoll() {
+            if (discordWebAutoPollTimer) {
+                clearInterval(discordWebAutoPollTimer);
+                discordWebAutoPollTimer = null;
+            }
+        }
+
+        function startDiscordWebAutoPoll() {
+            stopDiscordWebAutoPoll();
+            discordWebAutoPollTimer = setInterval(() => {
+                const step2Box = document.getElementById('discord-step2-verify');
+                if (!step2Box || step2Box.style.display === 'none') {
+                    stopDiscordWebAutoPoll();
+                    return;
+                }
+                quickVerifyDiscordWeb('poll');
+            }, 2200);
+        }
+
+        async function quickVerifyDiscordWeb(actionMode = 'verify') {
+            const inputEl = document.getElementById('quick-discord-input');
+            const codeEl = document.getElementById('quick-discord-code');
+            const step2Box = document.getElementById('discord-step2-verify');
             const dFeedback = document.getElementById('discord-feedback');
-            const targetFeedback = provider === 'discord' ? dFeedback : rFeedback;
+            const query = (inputEl?.value || getActiveDiscordId() || '').trim();
+            const code = (codeEl?.value || '').trim();
 
+            if (!query || !/^\d{15,22}$/.test(query)) {
+                if (actionMode !== 'poll' && dFeedback) {
+                    dFeedback.style.color = '#F0B232';
+                    dFeedback.textContent = '1️⃣ Ingresá tu Discord ID numérico (17 a 20 dígitos) y el código KTX-XXXXXX que aparece al usar /config en Discord.';
+                }
+                if (inputEl) inputEl.focus();
+                return;
+            }
+
+            const effectiveAction = actionMode === 'poll' ? 'poll' : (code ? 'verify' : 'start');
+
+            if (effectiveAction !== 'poll' && dFeedback) {
+                dFeedback.style.color = '#9BA5BA';
+                dFeedback.textContent = effectiveAction === 'verify'
+                    ? 'Verificando tu código KTX-XXXXXX de /config...'
+                    : 'Preparando verificación con tu código alojado en /config...';
+            }
             try {
-                const endpoint = provider === 'discord'
-                    ? apiUrl(`/api/auth/discord/url?discord_id=${encodeURIComponent(discordId)}`)
-                    : apiUrl(`/api/auth/roblox/url?discord_id=${encodeURIComponent(discordId)}`);
-
-                const res = await fetch(endpoint);
+                const res = await fetch(apiUrl('/api/auth/discord/quick-link'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ discordId: query, query, action: effectiveAction, code })
+                });
                 const data = await res.json();
-
-                if (!data.ok || !data.url) {
-                    if (targetFeedback) {
-                        targetFeedback.style.color = '#F0B232';
-                        targetFeedback.textContent = data.message || 'Faltan configurar las credenciales OAuth 2.0 en el servidor.';
+                if (!data.ok) {
+                    if (effectiveAction === 'poll') return;
+                    if (dFeedback) {
+                        dFeedback.style.color = '#F0B232';
+                        dFeedback.textContent = data.message || 'Ejecutá /config en Discord y copiá tu código KTX-XXXXXX alojado en "1. Cuenta de Discord".';
+                    }
+                    if (step2Box) step2Box.style.display = 'block';
+                    if (codeEl && !code) codeEl.focus();
+                    return;
+                }
+                if (data.step === 'verify_required') {
+                    if (effectiveAction !== 'poll') {
+                        if (step2Box) step2Box.style.display = 'block';
+                        if (dFeedback) {
+                            dFeedback.style.color = '#38BDF8';
+                            dFeedback.textContent = data.message || '🔑 Sin spam por MD: escribí /config en el bot de Discord, copiá tu código KTX-XXXXXX alojado en "1. Cuenta de Discord" y pegalo arriba.';
+                        }
+                        if (codeEl) codeEl.focus();
                     }
                     return;
                 }
-
-                window.open(data.url, `kortex_${provider}_oauth`, 'width=540,height=680,menubar=no,toolbar=no');
-                if (targetFeedback) {
-                    targetFeedback.style.color = '#9BA5BA';
-                    targetFeedback.textContent = `Ventana de autorización de ${provider === 'discord' ? 'Discord' : 'Roblox'} abierta...`;
+                stopDiscordWebAutoPoll();
+                if (codeEl) codeEl.value = '';
+                if (data.discordId) setActiveDiscordId(data.discordId);
+                saveLocalAccountBackup({
+                    discordId: data.discordId,
+                    discordConfig: data.discordConfig,
+                    linkedAccount: data.linkedAccount,
+                    history: data.history
+                });
+                if (dFeedback) {
+                    dFeedback.style.color = '#23A55A';
+                    dFeedback.textContent = data.message;
                 }
+                checkAccountStatus();
             } catch {
-                if (targetFeedback) {
-                    targetFeedback.style.color = '#F23F43';
-                    targetFeedback.textContent = 'No se pudo conectar con el servidor de autenticación en este momento.';
+                if (effectiveAction !== 'poll' && dFeedback) {
+                    dFeedback.style.color = '#F23F43';
+                    dFeedback.textContent = 'No se pudo conectar en este momento.';
                 }
+            }
+        }
+
+        async function quickVerifyRobloxWeb(actionMode = 'start') {
+            const inputEl = document.getElementById('quick-roblox-input');
+            const step2Box = document.getElementById('roblox-step2-verify');
+            const badgeEl = document.getElementById('roblox-verify-code-badge');
+            const targetLabelEl = document.getElementById('roblox-verify-target-label');
+            const rFeedback = document.getElementById('roblox-feedback');
+            const query = (inputEl?.value || '').trim();
+
+            if (actionMode !== 'verify' && !query) {
+                if (rFeedback) {
+                    rFeedback.style.color = '#F0B232';
+                    rFeedback.textContent = 'Escribí tu @Usuario de Roblox o tu ID numérico en la casilla de arriba y tocá "🔑 Generar Código".';
+                }
+                if (inputEl) inputEl.focus();
+                return;
+            }
+            if (rFeedback) {
+                rFeedback.style.color = '#9BA5BA';
+                rFeedback.textContent = actionMode === 'verify'
+                    ? 'Revisando la descripción "Acerca de" de tu perfil en Roblox...'
+                    : `Generando código de verificación para "${query}"...`;
+            }
+            try {
+                const res = await fetch(apiUrl('/api/auth/roblox/quick-link'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ discordId: getActiveDiscordId(), query, action: actionMode })
+                });
+                const data = await res.json();
+                if (!data.ok) {
+                    if (rFeedback) {
+                        rFeedback.style.color = '#F0B232';
+                        rFeedback.textContent = data.message || 'No se pudo completar la verificación.';
+                    }
+                    return;
+                }
+                if (data.discordId && data.discordId !== 'default_session') {
+                    setActiveDiscordId(data.discordId);
+                }
+                if (data.step === 'verify_required') {
+                    if (step2Box) step2Box.style.display = 'block';
+                    if (badgeEl && data.verifyCode) badgeEl.textContent = data.verifyCode;
+                    if (targetLabelEl && data.robloxUsername) {
+                        targetLabelEl.textContent = `(@${data.robloxUsername})`;
+                    }
+                    if (rFeedback) {
+                        rFeedback.style.color = '#38BDF8';
+                        rFeedback.textContent = data.message || `Pegá el código ${data.verifyCode} en tu perfil de Roblox y tocá comprobar.`;
+                    }
+                    return;
+                }
+                if (step2Box) step2Box.style.display = 'none';
+                saveLocalAccountBackup({
+                    discordId: data.discordId,
+                    discordConfig: data.discordConfig,
+                    linkedAccount: data.linkedAccount,
+                    history: data.history
+                });
+                if (inputEl) inputEl.value = '';
+                if (rFeedback) {
+                    rFeedback.style.color = '#23A55A';
+                    rFeedback.textContent = data.message;
+                }
+                checkAccountStatus();
+            } catch {
+                if (rFeedback) {
+                    rFeedback.style.color = '#F23F43';
+                    rFeedback.textContent = 'No se pudo conectar con el servidor en este momento.';
+                }
+            }
+        }
+
+        async function startOAuthPopup(provider) {
+            if (provider === 'discord') {
+                const inputEl = document.getElementById('quick-discord-input');
+                const codeEl = document.getElementById('quick-discord-code');
+                const dFeedback = document.getElementById('discord-feedback');
+                const idVal = (inputEl?.value || getActiveDiscordId() || '').trim();
+                const codeVal = (codeEl?.value || '').trim();
+                if (idVal && codeVal) {
+                    return await quickVerifyDiscordWeb('verify');
+                }
+                if (!idVal && inputEl) {
+                    inputEl.focus();
+                } else if (codeEl) {
+                    codeEl.focus();
+                }
+                if (dFeedback) {
+                    dFeedback.style.color = '#38BDF8';
+                    dFeedback.innerHTML = '🔑 <strong>Recomendado (Sin Spam por MD):</strong> Escribí el comando <code>/config</code> en el bot de Discord, abrí <strong>Cuentas y Datos Guardados</strong>, copiá tu código <code>KTX-XXXXXX</code> alojado ahí y pegalo acá junto con tu Discord ID.';
+                }
+                return;
+            }
+
+            if (provider === 'roblox') {
+                const rInput = document.getElementById('quick-roblox-input');
+                const rVal = (rInput?.value || '').trim();
+                if (rVal) {
+                    return await quickVerifyRobloxWeb('start');
+                }
+                if (rInput) rInput.focus();
+                const rFeedback = document.getElementById('roblox-feedback');
+                if (rFeedback) {
+                    rFeedback.style.color = '#38BDF8';
+                    rFeedback.innerHTML = '🎮 Escribí tu <strong>@Usuario de Roblox</strong> o <strong>ID numérico</strong> en la casilla de abajo y tocá <strong>🔑 Generar Código</strong>. (Los permisos del bot en Roblox están en <strong>Configuración → Permisos de la aplicación</strong>).';
+                }
+                return;
             }
         }
 

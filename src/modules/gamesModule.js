@@ -8,6 +8,9 @@ const {
     ContainerBuilder,
     SectionBuilder,
     TextDisplayBuilder,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
+    AttachmentBuilder,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
@@ -24,6 +27,7 @@ const { fetchWithRetry } = require('../../utils/http');
 const { extractIdFromInput } = require('../../utils/roblox');
 const { COLORES, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
 const { obtenerConfigPropietario } = require('../utils/performanceManager');
+const { generateEmptyServersRadarCard } = require('../utils/chartGenerator');
 
 const COLOR_GAMES = 0x10B981; // Verde Esmeralda para Juegos y Servidores
 
@@ -264,13 +268,32 @@ async function construirPanelServidoresVacios(gameQuery = 'Blox Fruits') {
         }).join('\n\n')
         : `> 📭 **No hay servidores parcialmente vacíos disponibles ahora para \`${game.name}\`.** Presioná **Re-escanear** o probá otro juego.`;
 
+    const files = [];
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_GAMES)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# 👻 3.1 Servidores Vacíos — ${game.name}\n` +
             `🌐 **Jugadores activos:** \`${game.playing.toLocaleString('es-AR')}\`\n` +
             `Servidores públicos con menos jugadores listos para unirse:`
-        ))
+        ));
+
+    if (servers.length > 0) {
+        try {
+            const radarBuf = await generateEmptyServersRadarCard(game, servers);
+            if (radarBuf) {
+                files.push(new AttachmentBuilder(radarBuf, { name: 'servers_radar.png' }));
+                container.addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL('attachment://servers_radar.png')
+                    )
+                );
+            }
+        } catch (err) {
+            console.error('[EMPTY SERVERS RADAR CARD ERROR]:', err.message);
+        }
+    }
+
+    container
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(lineas));
 
@@ -306,7 +329,7 @@ async function construirPanelServidoresVacios(gameQuery = 'Blox Fruits') {
 
     return {
         components: [container],
-        files: [],
+        files,
         attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
@@ -1082,6 +1105,10 @@ async function revisarParchesJuegosWorker(client) {
         const res = await fetchWithRetry(`https://games.roblox.com/v1/games?universeIds=${universeIds.join(',')}`);
         const gamesMap = new Map((res.data?.data || []).map(g => [String(g.id), g]));
 
+        const { obtenerConfigPropietario } = require('../utils/performanceManager');
+        const { obtenerPreferenciasUsuario } = require('../utils/i18n');
+        if (obtenerConfigPropietario().alertsEnabled === false) return;
+
         for (const sub of subs) {
             const live = gamesMap.get(String(sub.universe_id));
             if (live && live.updated && sub.last_updated_iso && live.updated !== sub.last_updated_iso) {
@@ -1089,6 +1116,9 @@ async function revisarParchesJuegosWorker(client) {
                     .from('game_update_subscriptions')
                     .update({ last_updated_iso: live.updated })
                     .eq('id', sub.id);
+
+                const prefs = obtenerPreferenciasUsuario(sub.discord_id);
+                if (prefs.dm_alerts_enabled === false) continue;
 
                 try {
                     const user = await client.users.fetch(sub.discord_id);

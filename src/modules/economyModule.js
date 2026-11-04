@@ -25,7 +25,7 @@ const supabase = require('../../db');
 const { fetchWithRetry } = require('../../utils/http');
 const { extractIdFromInput } = require('../../utils/roblox');
 const { COLORES, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
-const { generatePriceFloorsChart } = require('../utils/chartGenerator');
+const { generatePriceFloorsChart, generatePendingRobuxCard } = require('../utils/chartGenerator');
 const { registerCachePurger } = require('../utils/performanceManager');
 
 // Caché de grupos inspeccionados por usuario para ordenar e inspeccionar prendas individualmente
@@ -291,6 +291,7 @@ async function construirPanelRobuxPendientes(discordId, mensajeAviso = null) {
     const registros = await obtenerRobuxPendientesUsuario(discordId);
     const totalAcumulado = registros.reduce((acc, r) => acc + Number(r.amount_robux || 0), 0);
 
+    const files = [];
     const container = new ContainerBuilder()
         .setAccentColor(COLORES.calc)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -306,6 +307,21 @@ async function construirPanelRobuxPendientes(discordId, mensajeAviso = null) {
             '> Presioná **➕ Registrar Operación** abajo para agendar tus Robux.'
         ));
     } else {
+        try {
+            const pendingBuf = await generatePendingRobuxCard(registros);
+            if (pendingBuf) {
+                files.push(new AttachmentBuilder(pendingBuf, { name: 'pending_robux.png' }));
+                container.addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL('attachment://pending_robux.png')
+                    )
+                );
+                container.addSeparatorComponents(separador());
+            }
+        } catch (err) {
+            console.error('[PENDING ROBUX CARD ERROR]:', err.message);
+        }
+
         const lineas = registros.slice(0, 8).map((r, i) => {
             const tsMin = Math.floor(new Date(r.estimated_release_min).getTime() / 1000);
             const tsMax = Math.floor(new Date(r.estimated_release_max).getTime() / 1000);
@@ -342,7 +358,7 @@ async function construirPanelRobuxPendientes(discordId, mensajeAviso = null) {
 
     return {
         components: [container],
-        files: [],
+        files,
         attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
@@ -369,8 +385,14 @@ async function revisarRobuxPendientesWorker(client) {
         // Ignorar
     }
 
+    const { obtenerConfigPropietario } = require('../utils/performanceManager');
+    const { obtenerPreferenciasUsuario } = require('../utils/i18n');
+    if (obtenerConfigPropietario().alertsEnabled === false) return;
+
     for (const item of pendientesListos) {
         try {
+            const prefs = obtenerPreferenciasUsuario(item.discord_id);
+            if (prefs.dm_alerts_enabled === false) continue;
             const user = await client.users.fetch(item.discord_id);
             if (user) {
                 const alertContainer = new ContainerBuilder()

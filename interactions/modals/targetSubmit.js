@@ -14,7 +14,8 @@ const {
 const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
+const { obtenerConfigPropietario, MAX_WISHLIST_ITEMS } = require('../../src/utils/fastLink');
 
 module.exports = {
     customIdPrefix: 'modal_set_target_submit:',
@@ -37,12 +38,13 @@ module.exports = {
         const detalles = await obtenerDetallesCompletos(idObjet, itemType, true);
         const finalType = (detalles.tipoDetectado || itemType).toLowerCase();
 
-        const { data: existente } = await supabase
+        const { data: listaUsuario } = await supabase
             .from('roblox_wishlist')
-            .select('id')
-            .eq('user_id', interaction.user.id)
-            .eq('id_objet', idObjet)
-            .maybeSingle();
+            .select('*')
+            .eq('user_id', interaction.user.id);
+
+        const itemsActuales = listaUsuario || [];
+        const existente = itemsActuales.find(i => String(i.id_objet) === String(idObjet));
 
         let registroGuardado = null;
         let dbError = null;
@@ -57,6 +59,14 @@ module.exports = {
             registroGuardado = data;
             dbError = error;
         } else {
+            const maxItems = Number(obtenerConfigPropietario().maxWishlistItems || MAX_WISHLIST_ITEMS || 5);
+            if (itemsActuales.length >= maxItems) {
+                return await interaction.followUp({
+                    content: `🚫 Llegaste al límite de **${maxItems} objetos** en tu lista de seguimiento. Eliminá alguno desde **Mi Lista** para agregar uno nuevo.`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
             const { data, error } = await supabase
                 .from('roblox_wishlist')
                 .insert([{
@@ -82,7 +92,16 @@ module.exports = {
             });
         }
 
-        await PriceItem.recordPrice(idObjet, detalles.nombre, detalles.precio).catch(() => null);
+        const priceRecord = await PriceItem.recordPrice(idObjet, detalles.nombre, detalles.precio, {
+            previousPrice: existente ? existente.last_price : detalles.precio,
+            existingHistory: existente?.price_history || null,
+            createdAt: existente?.created_at || null
+        }).catch(() => null);
+
+        const summary = PriceItem.getPriceCheckSummary(
+            registroGuardado || { id_objet: idObjet, last_price: detalles.precio, target_price: finalTarget },
+            priceRecord?.history || null
+        );
 
         let precioFmt = '`Gratis`';
         if (detalles.sinVendedores) {
@@ -92,23 +111,36 @@ module.exports = {
         }
 
         const targetFmt = finalTarget !== null
-            ? formatearPrecio(finalTarget, detalles.esUSD)
+            ? `${formatearPrecio(finalTarget, detalles.esUSD)}${summary.isTargetMet ? '  ✅ **¡META COMPLETADA!**' : ` *(⏳ faltan ${formatearPrecioTexto(summary.remainingToTarget, detalles.esUSD)})*`}`
             : '`Sin meta (notifica todo cambio)`';
+
+        const origFmt = formatearPrecio(summary.firstPrice, detalles.esUSD);
+        const lineaOrig = summary.isBelowOriginal
+            ? `🕒 **Precio original:** ~~${origFmt}~~  ➔  📉 **-${formatearPrecioTexto(summary.savedVsOriginal, detalles.esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo**`
+            : `🕒 **Precio original:** ${origFmt}`;
+
+        const bannerMetaCumplida = summary.isTargetMet
+            ? `\n\n> 🎉 **¡META YA ALCANZADA!** El precio actual (**${precioFmt}**) ya está en o por debajo de la meta que estableciste` +
+              (summary.belowTargetAmount > 0 ? ` (**-${formatearPrecioTexto(summary.belowTargetAmount, detalles.esUSD)}** más barato que tu meta)` : '') +
+              (summary.isBelowOriginal ? ` y **-${formatearPrecioTexto(summary.savedVsOriginal, detalles.esUSD)}** más bajo que el precio original.` : '.')
+            : '';
 
         const emojiCat = EMOJI_TIPO[finalType] || '📦';
         const nombreCat = NOMBRE_TIPO[finalType] || finalType.toUpperCase();
 
         const textoConfirm = new TextDisplayBuilder().setContent(
-            `# 🎯 ${existente ? 'Meta Actualizada' : '¡Monitoreo Activado!'}\n` +
+            `# 🎯 ${summary.isTargetMet ? '¡Meta Completada!' : (existente ? 'Meta Actualizada' : '¡Monitoreo Activado!')}\n` +
             `### ${detalles.nombre}\n` +
             `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${idObjet}\`\n\n` +
             `🏷️ **Precio actual:** ${precioFmt}\n` +
+            `${lineaOrig}\n` +
             `🎯 **Meta objetivo:** ${targetFmt}\n` +
-            `📡 **Estado:** 🟢 Activo`
+            `📡 **Estado:** 🟢 Activo` +
+            `${bannerMetaCumplida}`
         );
 
         const container = new ContainerBuilder()
-            .setAccentColor(COLORES.exito);
+            .setAccentColor( COLORES.exito );
 
         if (detalles.imagenUrl) {
             const section = new SectionBuilder()
@@ -122,6 +154,7 @@ module.exports = {
         container.addSeparatorComponents(separador(true));
 
         const rowButtons = new ActionRowBuilder().addComponents(
+            boton(`roblox_chart_${registroGuardado.id}_7d`, 'Ver Gráfica y Check-in', '📈', ButtonStyle.Success),
             boton(`btn_action_open_config:${registroGuardado.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
             boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary),
             new ButtonBuilder()

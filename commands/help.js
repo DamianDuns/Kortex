@@ -17,8 +17,7 @@ const {
 } = require('discord.js');
 const { COLORES, footer, separador } = require('../utils/ui');
 const { obtenerIdiomaUsuario } = require('../src/utils/i18n');
-
-const DOCS_URL = process.env.DOCS_URL || process.env.PUBLIC_GUIDE_URL || process.env.APP_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app';
+const { obtenerUrlBasePublica } = require('../src/utils/fastLink');
 
 const DETALLE_SUBCATEGORIAS_ROBLOX = {
     es: {
@@ -66,6 +65,21 @@ const DETALLE_SUBCATEGORIAS_ROBLOX = {
                 '> Seguí hasta 3 juegos favoritos y recibí un aviso cuando se actualicen.\n\n' +
                 '### 🗺️ 3.5 Explorador de Mapas Conectados\n' +
                 '> Descubrí los sub-lugares y mundos secundarios dentro de cualquier juego.'
+        },
+        sub_status: {
+            titulo: '📊 `/roblox` — Categoría 4: Estadísticas y Análisis de Roblox',
+            color: 0x06B6D4,
+            contenido:
+                '### 📡 4.1 Estado de Servidores de Roblox en Tiempo Real\n' +
+                '> Consultá en vivo si los servidores de Roblox están prendidos, su diagnóstico de red y la salud de cada subsistema.\n\n' +
+                '### 📈 4.2 Rendimiento por Plataforma y Red de Roblox\n' +
+                '> Analizá la latencia, carga de uso y estabilidad en Móvil, PC, Consola, CDN 3D, Voz/Chat y Roblox Cloud.\n\n' +
+                '### 🕵️ 4.3 Inspector y Estadísticas de Perfil de Usuario\n' +
+                '> Analizá cualquier cuenta de Roblox: antigüedad, seguidores, amigos, grupos y tarjeta visual.\n\n' +
+                '### 💎 4.4 Radar de Limiteds y Oportunidades de Mercado\n' +
+                '> Compará el mejor precio actual de coleccionables Limited frente a su valor promedio y demanda.\n\n' +
+                '### ⚔️ 4.5 Comparador de Experiencias (Juego vs. Juego)\n' +
+                '> Compará dos juegos de Roblox cara a cara en jugadores activos, visitas, favoritos y capacidad.'
         },
         sub_account: {
             titulo: '🎮 `/roblox` — Cuenta de Roblox',
@@ -121,6 +135,21 @@ const DETALLE_SUBCATEGORIAS_ROBLOX = {
                 '### 🗺️ 3.5 Connected Maps Explorer\n' +
                 '> Discover sub-places and secondary worlds inside any game.'
         },
+        sub_status: {
+            titulo: '📊 `/roblox` — Category 4: Roblox Analytics & Status',
+            color: 0x06B6D4,
+            contenido:
+                '### 📡 4.1 Real-Time Roblox Server Status\n' +
+                '> Check in real time whether Roblox servers are online, inspect network diagnostics, and view subsystem health.\n\n' +
+                '### 📈 4.2 Global Platform & Network Performance\n' +
+                '> Inspect live ping, traffic load, and stability across Mobile, PC, Console, 3D CDN, Voice/Chat, and Roblox Cloud.\n\n' +
+                '### 🕵️ 4.3 User Profile Inspector & Analytics\n' +
+                '> Inspect any Roblox account: account age, followers, friends, groups, and visual profile card.\n\n' +
+                '### 💎 4.4 Limiteds & Market Opportunity Radar\n' +
+                '> Compare featured Limited collectibles by best current price vs. average value and demand.\n\n' +
+                '### ⚔️ 4.5 Experience Comparator (Game vs. Game)\n' +
+                '> Compare two Roblox games head-to-head on active players, visits, favorites, and server capacity.'
+        },
         sub_account: {
             titulo: '🎮 `/roblox` — Roblox Account',
             color: 0x23A55A,
@@ -138,29 +167,26 @@ const SECCIONES_PRINCIPALES_HELP = {
             color: COLORES.primario,
             contenido:
                 '### 🎮 `/roblox` *(o mencionar `@Kortex`)*\n' +
-                '> Abre el panel de herramientas de Roblox dividido en **Economía**, **Avatares 3D/2D** y **Juegos y Servidores**.\n\n' +
+                '> Abre el panel de herramientas de Roblox dividido en 4 categorías: **Economía**, **Avatares 3D/2D**, **Juegos y Servidores** y **Estadísticas y Estado de Roblox**.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Abrí tu **Estudio Roblox Tycoon en 3ra persona**: Colector de Tix (`🎟️`), Tienda Normal, Taller UGC con regalías del 70%, Bóveda Limited / Limited U numerados, Trading P2P y Pociones.\n\n' +
+                '> Abrí tu **Estudio Roblox Tycoon en 3D Isométrico**: Colector de Tix (`🎟️`), **Cristales Kortex (`💠`)**, **Misiones Semanales**, Tienda Normal y de Cristales, Taller UGC (70% regalías), Bóveda Limited / Limited U y Trading P2P.\n\n' +
                 '### ⚙️ `/config`\n' +
-                '> Configurá tus cuentas vinculadas (Discord y Roblox), tus datos guardados, el **idioma** (**Español / English**) y tu región de precios.\n\n' +
+                '> Configurá tus cuentas vinculadas, datos guardados, **idioma** (**Español / English**) y región de precios.\n\n' +
                 '### 🏓 `/ping`\n' +
-                '> Muestra la latencia de conexión, el tiempo en línea y el estado del bot.'
+                '> Consultá la latencia y velocidad de respuesta del bot en tiempo real.'
         },
         cmd_tycoon: {
-            titulo: '🏭 Comando `/tycoon` — Estudio Roblox Tycoon',
+            titulo: '🏭 Comando `/tycoon` — 4 Categorías Visuales Simétricas',
             color: 0x22C55E,
             contenido:
-                '### 🏗️ 1. Mi Estudio Tycoon y Colector de Tix\n' +
-                '> • Vista gráfica en 3ra persona de tu estudio con tu avatar de Roblox, cinta transportadora, Droppers y placa verde de recolección.\n' +
-                '> • Construí los 6 Pads hasta la Torre Central y hacé **Rebirth** para ganar `+35%` permanente y Llaves de Cofre de Ascensión.\n\n' +
-                '### 🛒 2. Tienda Normal y Equipamiento\n' +
-                '> • Comprá ítems clásicos de Roblox (`+5%` a `+12%` Tix/min) y equipá cualquier accesorio de tu inventario sobre tu avatar.\n\n' +
-                '### 🎨 3. Taller y Mercado UGC\n' +
-                '> • Diseñá y publicá hasta 2 ítems `[🎨 UGC]` propios (`200–1,500 Tix`, bono fijo `+10%`) y cobrá el **70% de regalías** en cada venta.\n\n' +
-                '### 👑 4. Bóveda Limited / Limited U y Trading P2P\n' +
-                '> • Abrí Cofres de Ascensión, reclamá Drops Limited U con número de serie (`#01/15`) e intercambiá en el **Tablero Público** o por **Trade Directo**.\n\n' +
-                '### 🧪 5. Pociones y Beneficios VIP de Comunidad\n' +
-                '> • Activá pociones de 30 minutos y sincronizá **Discord Server Boost (`+50%`)** y **YouTube VIP (`+35%`)**.'
+                '### 🏗️ Categoría 1: Mi Estudio y Producción\n' +
+                '> • Mapa 3D isométrico con tu avatar, cinta transportadora, Colector de Tix, **Racha Diaria (`🔥`)** y **Rebirth (`+35%`)**.\n\n' +
+                '### 🎒 Categoría 2: Tienda, Ítems y Taller UGC\n' +
+                '> • **Vitrina Visual 2×4 de Tarjetas de Ítems Ilustradas**: comprá con Tix (`🎟️`) o Cristales (`💠`), equipá hasta 3 ítems y creá tus propios `[🎨 UGC]` (70% regalías).\n\n' +
+                '### 👑 Categoría 3: Cofres, Limiteds e Intercambios\n' +
+                '> • **Vitrina Visual de Cofre de Ascensión 3D + Tarjetas Limited**: abrí cofres con tus llaves de Rebirth, reclamá Limited U seriados (`#01/15`) y comerciá P2P.\n\n' +
+                '### 💠 Categoría 4: Misiones, Pociones y Ranking\n' +
+                '> • **Tablero Visual de 4 Misiones Semanales + Top 5 Estudios**: ganá Cristales Kortex (`💠`) gratis, activá pociones de 30m y sincronizá **Nitro Boost (`+50%`)** y **YouTube VIP (`+35%`)**.'
         },
         cmd_config: {
             titulo: '⚙️ Comando `/config` — Configuración',
@@ -177,9 +203,9 @@ const SECCIONES_PRINCIPALES_HELP = {
             titulo: '🏓 Comando `/ping` — Estado y Latencia',
             color: 0x10B981,
             contenido:
-                '### ⚡ Estado en Tiempo Real\n' +
-                '> • **Respuesta y WebSocket:** Muestra la velocidad de conexión actual con Discord.\n' +
-                '> • **Uptime y Memoria:** Indica el tiempo activo del bot, la cantidad de servidores y el uso de memoria.'
+                '### 🏓 Velocidad de Respuesta\n' +
+                '> • Muestra la velocidad de conexión actual con Discord, el tiempo activo y el uso de memoria.\n' +
+                '> • Contás con el botón **🔄 Actualizar** para volver a medir la latencia al instante.'
         }
     },
     en: {
@@ -188,29 +214,26 @@ const SECCIONES_PRINCIPALES_HELP = {
             color: COLORES.primario,
             contenido:
                 '### 🎮 `/roblox` *(or mention `@Kortex`)*\n' +
-                '> Opens the Roblox toolkit organized into **Economy**, **3D/2D Avatars**, and **Games & Servers**.\n\n' +
+                '> Opens the Roblox toolkit organized into 4 categories: **Economy**, **3D/2D Avatars**, **Games & Servers**, and **Analytics & Roblox Status**.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Open your **3rd-person Roblox Tycoon Studio**: Tix Collector (`🎟️`), Normal Shop, UGC Workshop with 70% royalties, serialized Limited / Limited U Vault, P2P Trading, and Potions.\n\n' +
+                '> Open your **3D Isometric Roblox Tycoon Studio**: Tix Collector (`🎟️`), **Kortex Crystals (`💠`)**, **Weekly Quests**, Tix & Crystal Shops, UGC Workshop (70% royalties), Limited / Limited U Vault, and P2P Trading.\n\n' +
                 '### ⚙️ `/config`\n' +
-                '> Manage your linked accounts (Discord & Roblox), saved data, **language** (**Español / English**), and pricing region.\n\n' +
+                '> Manage your linked accounts, saved data, **language** (**Español / English**), and pricing region.\n\n' +
                 '### 🏓 `/ping`\n' +
-                '> Displays connection latency, uptime, and bot status.'
+                '> Check the bot\'s connection latency and response time in real time.'
         },
         cmd_tycoon: {
-            titulo: '🏭 Command `/tycoon` — Roblox Tycoon Studio',
+            titulo: '🏭 Command `/tycoon` — 4 Symmetrical Visual Categories',
             color: 0x22C55E,
             contenido:
-                '### 🏗️ 1. My Tycoon Studio & Tix Collector\n' +
-                '> • Live 3rd-person graphic snapshot of your studio with your Roblox avatar, conveyor belt, Droppers, and green Collector Pad.\n' +
-                '> • Build all 6 Purchase Pads up to the Developer Tower and **Rebirth** for a permanent `+35%` multiplier and Ascension Chest Keys.\n\n' +
-                '### 🛒 2. Normal Shop & Equipment\n' +
-                '> • Buy classic Roblox items (`+5%` to `+12%` Tix/min) and equip any owned item on your avatar.\n\n' +
-                '### 🎨 3. UGC Workshop & Marketplace\n' +
-                '> • Design and publish up to 2 custom `[🎨 UGC]` items (`200–1,500 Tix`, fixed `+10%` boost) and earn **70% royalties** on every sale.\n\n' +
-                '### 👑 4. Limited / Limited U Vault & P2P Trading\n' +
-                '> • Unbox Ascension Chests, mint serialized Limited U drops (`#01/15`), and trade on the **Public Board** or via **Direct Trade**.\n\n' +
-                '### 🧪 5. Potions & Community VIP Perks\n' +
-                '> • Activate 30-minute potions and sync **Discord Server Boost (`+50%`)** and **YouTube VIP (`+35%`)**.'
+                '### 🏗️ Category 1: My Studio & Production\n' +
+                '> • 3D isometric studio map with your avatar, conveyor belt, Tix Collector, **Daily Streak (`🔥`)**, and **Rebirth (`+35%`)**.\n\n' +
+                '### 🎒 Category 2: Shop, Items & UGC Workshop\n' +
+                '> • **Visual 2×4 Illustrated Item Card Grid**: buy items with Tix (`🎟️`) or Crystals (`💠`), equip up to 3 items, and publish custom `[🎨 UGC]` items (70% royalties).\n\n' +
+                '### 👑 Category 3: Chests, Limiteds & P2P Trading\n' +
+                '> • **Visual 3D Ascension Chest + Limited Cards Showcase**: unbox chests with Rebirth keys, mint serialized Limited U drops (`#01/15`), and trade P2P.\n\n' +
+                '### 💠 Category 4: Quests, Potions & Leaderboard\n' +
+                '> • **Visual 4 Weekly Quests + Top 5 Studios Board**: earn free Kortex Crystals (`💠`), activate 30m potions, and sync **Nitro Boost (`+50%`)** & **YouTube VIP (`+35%`)**.'
         },
         cmd_config: {
             titulo: '⚙️ Command `/config` — Settings',
@@ -227,9 +250,9 @@ const SECCIONES_PRINCIPALES_HELP = {
             titulo: '🏓 Command `/ping` — Status & Latency',
             color: 0x10B981,
             contenido:
-                '### ⚡ Live Status\n' +
-                '> • **Response & WebSocket:** Shows current connection speed with Discord.\n' +
-                '> • **Uptime & Memory:** Displays bot uptime, server count, and memory usage.'
+                '### 🏓 Response Speed\n' +
+                '> • Shows current connection speed with Discord, uptime, and memory usage.\n' +
+                '> • Includes a **🔄 Refresh** button to re-check latency at any time.'
         }
     }
 };
@@ -251,12 +274,15 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
     } else if (mainCategory === 'cat_games') {
         mainCategory = 'cmd_roblox';
         robloxSubCategory = 'sub_games';
+    } else if (mainCategory === 'cat_status') {
+        mainCategory = 'cmd_roblox';
+        robloxSubCategory = 'sub_status';
     }
 
     const validMainKeys = ['cmd_overview', 'cmd_roblox', 'cmd_tycoon', 'cmd_config', 'cmd_ping'];
     const activeMain = validMainKeys.includes(mainCategory) ? mainCategory : 'cmd_overview';
 
-    const validSubKeys = ['sub_economy', 'sub_avatar', 'sub_games', 'sub_account'];
+    const validSubKeys = ['sub_economy', 'sub_avatar', 'sub_games', 'sub_status', 'sub_account'];
     const activeSub = validSubKeys.includes(robloxSubCategory) ? robloxSubCategory : 'sub_economy';
 
     const vistaActual = activeMain === 'cmd_roblox'
@@ -405,6 +431,20 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
                 new StringSelectMenuOptionBuilder()
                     .setLabel(
                         isEn
+                            ? 'Category 4: Analytics & Roblox Status'
+                            : 'Categoría 4: Estadísticas y Estado de Roblox'
+                    )
+                    .setDescription(
+                        isEn
+                            ? 'Server Status, Trending Games, Profiles, Limiteds & Comparator'
+                            : 'Estado de Servidores, Tendencias, Perfiles, Limiteds y Comparador'
+                    )
+                    .setValue('sub_status')
+                    .setEmoji('📊')
+                    .setDefault(activeSub === 'sub_status'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(
+                        isEn
                             ? 'Roblox Account'
                             : 'Cuenta de Roblox'
                     )
@@ -435,7 +475,7 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
                 .setLabel(isEn ? 'Web Guide' : 'Guía Web')
                 .setEmoji('🌐')
                 .setStyle(ButtonStyle.Link)
-                .setURL(DOCS_URL)
+                .setURL(obtenerUrlBasePublica())
         )
     );
 

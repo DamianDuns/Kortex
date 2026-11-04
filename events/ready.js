@@ -5,12 +5,14 @@
 const { Events } = require('discord.js');
 const supabase = require('../db');
 const { iniciarMonitoreo } = require('../services/priceTracker');
+const { aplicarPresenciaBotDiscord } = require('../src/utils/performanceManager');
 const logger = require('../utils/logger');
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
+        aplicarPresenciaBotDiscord(client);
         const currentGuilds = client.guilds.cache.map(guild => ({
             guild_id: guild.id,
             name: guild.name,

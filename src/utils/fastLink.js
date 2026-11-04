@@ -13,11 +13,71 @@ const PriceItem = require('../../models/PriceItem');
 
 const MAX_WISHLIST_ITEMS = 5;
 const MAX_HISTORY_EVENTS = 25;
+const DEFAULT_APP_URL = 'https://ais-pre-jzxizk67bjjflsgv3wdz4b-494677195769.us-west1.run.app';
+let detectedPublicAppUrl = '';
+
+function normalizarUrlPublica(rawUrl) {
+    if (!rawUrl) return '';
+    let s = String(rawUrl).trim().replace(/^["']+|["']+$/g, '').trim();
+    if (!s || /^(undefined|null|none|tu_url_aqui)$/i.test(s)) return '';
+    if (!/^https?:\/\//i.test(s)) {
+        const isLocal = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(\/|$)/i.test(s);
+        s = `${isLocal ? 'http' : 'https'}://${s}`;
+    }
+    try {
+        const parsed = new URL(s);
+        if (!/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(parsed.hostname) && parsed.protocol === 'http:') {
+            parsed.protocol = 'https:';
+        }
+        return `${parsed.protocol}//${parsed.host}${parsed.pathname === '/' ? '' : parsed.pathname}`.replace(/\/+$/, '');
+    } catch {
+        return '';
+    }
+}
+
+function setDetectedPublicAppUrl(urlCandidate) {
+    const clean = normalizarUrlPublica(urlCandidate);
+    if (!clean) return;
+    if (/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean) && detectedPublicAppUrl) return;
+    detectedPublicAppUrl = clean;
+}
+
+function obtenerUrlBasePublica(overrideUrl = '') {
+    const candidates = [
+        overrideUrl,
+        process.env.PUBLIC_URL,
+        process.env.PUBLIC_GUIDE_URL,
+        process.env.DOCS_URL,
+        process.env.RAILWAY_PUBLIC_DOMAIN,
+        process.env.RAILWAY_STATIC_URL,
+        process.env.RENDER_EXTERNAL_URL,
+        detectedPublicAppUrl,
+        process.env.APP_URL,
+        DEFAULT_APP_URL
+    ];
+    for (const cand of candidates) {
+        const clean = normalizarUrlPublica(cand);
+        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) {
+            return clean;
+        }
+    }
+    for (const cand of candidates) {
+        const clean = normalizarUrlPublica(cand);
+        if (clean) return clean;
+    }
+    return DEFAULT_APP_URL;
+}
+
 const LOCAL_STORE_DIR = path.join(__dirname, '../../data');
+const DOT_DATA_STORE_DIR = path.join(process.cwd(), '.data');
 const LOCAL_LINKS_FILE = path.join(LOCAL_STORE_DIR, 'user_links.json');
+const LOCAL_LINKS_BACKUP_FILE = path.join(DOT_DATA_STORE_DIR, 'user_links_backup.json');
 const DISCORD_CONFIG_FILE = path.join(LOCAL_STORE_DIR, 'discord_configs.json');
+const DISCORD_CONFIG_BACKUP_FILE = path.join(DOT_DATA_STORE_DIR, 'discord_configs_backup.json');
 const ACCOUNT_HISTORY_FILE = path.join(LOCAL_STORE_DIR, 'account_history.json');
 const ROBLOX_BOT_ACCOUNT_FILE = path.join(LOCAL_STORE_DIR, 'roblox_bot_account.json');
+
+let lastDiscordConfigMtime = 0;
 
 // Caché rápida en RAM sincronizada con disco y base de datos
 const fastLinkCache = new Map();
@@ -41,9 +101,19 @@ function ensureStoreDir() {
         if (!fs.existsSync(LOCAL_STORE_DIR)) {
             fs.mkdirSync(LOCAL_STORE_DIR, { recursive: true });
         }
+        if (!fs.existsSync(DOT_DATA_STORE_DIR)) {
+            fs.mkdirSync(DOT_DATA_STORE_DIR, { recursive: true });
+        }
     } catch {
         // Silencioso
     }
+}
+
+function esRegistroMasReciente(nuevo, actual) {
+    if (!actual) return true;
+    const tNuevo = nuevo?.updated_at ? Date.parse(nuevo.updated_at) : 0;
+    const tActual = actual?.updated_at ? Date.parse(actual.updated_at) : 0;
+    return tNuevo >= tActual;
 }
 
 /**
@@ -52,22 +122,35 @@ function ensureStoreDir() {
 function cargarLinksDesdeDisco() {
     try {
         ensureStoreDir();
-        if (fs.existsSync(LOCAL_LINKS_FILE)) {
-            const raw = fs.readFileSync(LOCAL_LINKS_FILE, 'utf8');
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === 'object') {
-                for (const [discordId, data] of Object.entries(parsed)) {
-                    if (data && data.roblox_user_id) {
-                        fastLinkCache.set(String(discordId), data);
+        for (const candidateFile of [LOCAL_LINKS_FILE, LOCAL_LINKS_BACKUP_FILE]) {
+            if (!fs.existsSync(candidateFile)) continue;
+            try {
+                const raw = fs.readFileSync(candidateFile, 'utf8');
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    for (const [discordId, data] of Object.entries(parsed)) {
+                        if (data && data.roblox_user_id) {
+                            const key = String(discordId);
+                            const existing = fastLinkCache.get(key);
+                            if (esRegistroMasReciente(data, existing)) {
+                                fastLinkCache.set(key, data);
+                            }
+                        }
                     }
                 }
+            } catch {
+                // Ignorar archivo corrupto individual
             }
         }
         // Hidratar también desde memoryTables.user_links de db.js si había registros
         const dbLinks = supabase.memoryTables?.user_links || [];
         for (const row of dbLinks) {
-            if (row && row.discord_id && row.roblox_user_id && !fastLinkCache.has(String(row.discord_id))) {
-                fastLinkCache.set(String(row.discord_id), row);
+            if (row && row.discord_id && row.roblox_user_id) {
+                const key = String(row.discord_id);
+                const existing = fastLinkCache.get(key);
+                if (esRegistroMasReciente(row, existing)) {
+                    fastLinkCache.set(key, row);
+                }
             }
         }
     } catch (err) {
@@ -82,33 +165,52 @@ function guardarLinksEnDisco() {
         for (const [k, v] of fastLinkCache.entries()) {
             obj[k] = v;
         }
-        fs.writeFileSync(LOCAL_LINKS_FILE, JSON.stringify(obj, null, 2), 'utf8');
+        const serialized = JSON.stringify(obj, null, 2);
+        fs.writeFileSync(LOCAL_LINKS_FILE, serialized, 'utf8');
+        fs.writeFileSync(LOCAL_LINKS_BACKUP_FILE, serialized, 'utf8');
     } catch (err) {
         console.warn('[FAST-LINK] No se pudo escribir data/user_links.json:', err.message);
     }
 }
 
 /**
- * 2. Carga y guardado de Sesiones de Discord en disco + snapshot DB
+ * 2. Carga y guardado de Sesiones y Preferencias de Discord en disco + respaldo .data + snapshot DB
  */
 function cargarConfigsDiscordDesdeDisco() {
     try {
         ensureStoreDir();
-        if (fs.existsSync(DISCORD_CONFIG_FILE)) {
-            const raw = fs.readFileSync(DISCORD_CONFIG_FILE, 'utf8');
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === 'object') {
-                for (const [discordId, cfg] of Object.entries(parsed)) {
-                    if (cfg && (cfg.oauth_verified || cfg.discord_username || cfg.language_selected || cfg.lang || cfg.default_tier)) {
-                        discordConfigCache.set(String(discordId), cfg);
+        for (const candidateFile of [DISCORD_CONFIG_FILE, DISCORD_CONFIG_BACKUP_FILE]) {
+            if (!fs.existsSync(candidateFile)) continue;
+            try {
+                const stat = fs.statSync(candidateFile);
+                if (stat.mtimeMs > lastDiscordConfigMtime) {
+                    lastDiscordConfigMtime = stat.mtimeMs;
+                }
+                const raw = fs.readFileSync(candidateFile, 'utf8');
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    for (const [discordId, cfg] of Object.entries(parsed)) {
+                        if (cfg && typeof cfg === 'object') {
+                            const key = String(discordId);
+                            const existing = discordConfigCache.get(key);
+                            if (esRegistroMasReciente(cfg, existing)) {
+                                discordConfigCache.set(key, { ...existing, ...cfg, discord_id: key });
+                            }
+                        }
                     }
                 }
+            } catch {
+                // Ignorar archivo corrupto individual
             }
         }
         const dbConfigs = supabase.memoryTables?.discord_configs || [];
         for (const row of dbConfigs) {
-            if (row && row.discord_id && !discordConfigCache.has(String(row.discord_id))) {
-                discordConfigCache.set(String(row.discord_id), row);
+            if (row && row.discord_id) {
+                const key = String(row.discord_id);
+                const existing = discordConfigCache.get(key);
+                if (esRegistroMasReciente(row, existing)) {
+                    discordConfigCache.set(key, { ...existing, ...row, discord_id: key });
+                }
             }
         }
     } catch {
@@ -123,7 +225,14 @@ function guardarConfigsDiscordEnDisco() {
         for (const [k, v] of discordConfigCache.entries()) {
             obj[k] = v;
         }
-        fs.writeFileSync(DISCORD_CONFIG_FILE, JSON.stringify(obj, null, 2), 'utf8');
+        const serialized = JSON.stringify(obj, null, 2);
+        fs.writeFileSync(DISCORD_CONFIG_FILE, serialized, 'utf8');
+        fs.writeFileSync(DISCORD_CONFIG_BACKUP_FILE, serialized, 'utf8');
+        try {
+            lastDiscordConfigMtime = fs.statSync(DISCORD_CONFIG_FILE).mtimeMs;
+        } catch {
+            // Silencioso
+        }
         if (Array.isArray(supabase.memoryTables?.discord_configs)) {
             supabase.memoryTables.discord_configs = Array.from(discordConfigCache.values());
             if (typeof supabase.guardarSnapshotEnDisco === 'function') {
@@ -698,6 +807,16 @@ function obtenerCuentaVinculadaSync(discordId) {
 
 function obtenerConfigDiscord(discordId) {
     const key = String(discordId || '');
+    try {
+        if (fs.existsSync(DISCORD_CONFIG_FILE)) {
+            const mtime = fs.statSync(DISCORD_CONFIG_FILE).mtimeMs;
+            if (mtime > lastDiscordConfigMtime) {
+                cargarConfigsDiscordDesdeDisco();
+            }
+        }
+    } catch {
+        // Silencioso
+    }
     const saved = discordConfigCache.get(key) || {};
     return {
         discord_id: key,
@@ -711,8 +830,17 @@ function obtenerConfigDiscord(discordId) {
         lang: saved.lang === 'en' ? 'en' : 'es',
         language_selected: Boolean(saved.language_selected),
         default_tier: saved.default_tier || 'TIER_100',
+        default_category: saved.default_category || 'cat_economy',
+        default_chart_range: saved.default_chart_range || '7d',
+        default_camera_mode: saved.default_camera_mode || 'full',
+        auto_cashback_40: saved.auto_cashback_40 !== false,
         ephemeral_config: Boolean(saved.ephemeral_config),
         dm_alerts_enabled: saved.dm_alerts_enabled !== false,
+        pending_web_code: saved.pending_web_code || null,
+        pending_web_digits: saved.pending_web_digits || null,
+        pending_web_expires_at: Number(saved.pending_web_expires_at || 0) || null,
+        web_approved_in_discord: Boolean(saved.web_approved_in_discord),
+        web_approved_until: Number(saved.web_approved_until || 0) || null,
         updated_at: saved.updated_at || null
     };
 }
@@ -852,7 +980,15 @@ async function guardarCuentaVinculada(discordId, profileData, { recordHistory = 
 async function eliminarCuentaVinculada(discordId, provider = 'roblox') {
     const key = String(discordId || 'default_session').trim();
     if (provider === 'discord') {
-        discordConfigCache.delete(key);
+        const current = obtenerConfigDiscord(key);
+        discordConfigCache.set(key, {
+            ...current,
+            oauth_verified: false,
+            access_token: null,
+            refresh_token: null,
+            verified_at: null,
+            updated_at: new Date().toISOString()
+        });
         guardarConfigsDiscordEnDisco();
         depurarHistorialSegunCuentasActivas(key);
         return true;
@@ -1441,6 +1577,424 @@ cargarCuentaBotRobloxDesdeDisco();
 // Registro de verificaciones completadas automáticamente en segundo plano para notificar a la web o Discord
 const recentlyAutoVerifiedRoblox = new Map();
 
+// Almacenes de verificación y protección Anti-Spam para Conexión Directa por ID (Discord y Roblox)
+const pendingDiscordVerifications = new Map();
+const discordVerifyCooldowns = new Map();
+const blockedWebDiscordIds = new Set();
+const robloxTargetCooldowns = new Map();
+const ROBLOX_TARGET_COOLDOWN_MS = 3 * 60 * 1000; // 3 min por cuenta destino de Roblox
+const ROBLOX_REQUESTER_COOLDOWN_MS = 30 * 1000;  // 30 seg por solicitante
+const DISCORD_DM_COOLDOWN_MS = 2 * 60 * 1000;    // 2 min entre envíos de código por MD
+
+/**
+ * Comprueba si un Discord ID ya interactuó previamente con el bot o tiene datos registrados.
+ */
+function usuarioInteractuoConBot(discordId) {
+    const key = String(discordId || '').trim();
+    if (!key || key === 'default_session') return false;
+    if (discordConfigCache.has(key) || fastLinkCache.has(key) || accountHistoryCache.has(key)) {
+        return true;
+    }
+    try {
+        const { hasUserChosenLanguage } = require('./i18n');
+        if (typeof hasUserChosenLanguage === 'function' && hasUserChosenLanguage(key)) {
+            return true;
+        }
+    } catch {
+        // Silencioso
+    }
+    const tables = supabase.memoryTables || {};
+    if (Array.isArray(tables.roblox_wishlist) && tables.roblox_wishlist.some(r => String(r?.user_id) === key)) return true;
+    if (Array.isArray(tables.tycoon_profiles) && tables.tycoon_profiles.some(r => String(r?.user_id) === key)) return true;
+    return false;
+}
+
+/**
+ * Comprueba si un Discord ID comparte al menos un servidor en común con el bot
+ * o si ya interactuó previamente con comandos del bot.
+ */
+async function verificarMiembroMutuoDiscord(client, discordId) {
+    const key = String(discordId || '').trim();
+    if (!/^\d{15,22}$/.test(key)) {
+        return { allowed: false, inMutualGuild: false, hasPriorInteraction: false, userObj: null };
+    }
+
+    const hasPriorInteraction = usuarioInteractuoConBot(key);
+    let inMutualGuild = false;
+    let userObj = null;
+
+    if (client && typeof client.isReady === 'function' && client.isReady()) {
+        for (const guild of client.guilds.cache.values()) {
+            if (guild.members?.cache?.has(key)) {
+                inMutualGuild = true;
+                userObj = guild.members.cache.get(key)?.user || null;
+                break;
+            }
+        }
+        if (!inMutualGuild) {
+            for (const guild of client.guilds.cache.values()) {
+                try {
+                    const member = await guild.members.fetch(key);
+                    if (member) {
+                        inMutualGuild = true;
+                        userObj = member.user || null;
+                        break;
+                    }
+                } catch {
+                    // No está en este servidor
+                }
+            }
+        }
+    } else {
+        // Si el bot de Discord no está en línea en este proceso, solo permitir si el usuario ya interactuó con el bot o generó su código en /config
+        const hasPendingCode = pendingDiscordVerifications.has(key);
+        return {
+            allowed: hasPriorInteraction || hasPendingCode,
+            inMutualGuild: false,
+            hasPriorInteraction,
+            botOfflinePreview: true,
+            userObj: null
+        };
+    }
+
+    return {
+        allowed: inMutualGuild || hasPriorInteraction || pendingDiscordVerifications.has(key),
+        inMutualGuild,
+        hasPriorInteraction,
+        botOfflinePreview: false,
+        userObj
+    };
+}
+
+/**
+ * Genera un código temporal de 6 dígitos (ej. KTX-482910) para vincular la sesión web de Discord
+ * sin permitir vinculaciones en 1 clic sin permiso y sin hacer spam a terceros.
+ * Se persiste también en disco para que nunca se pierda ni expire por recargas del servidor.
+ */
+function generarCodigoVinculacionDiscord(discordId, userMeta = null, { forceNew = false } = {}) {
+    const key = String(discordId || '').trim();
+    if (!/^\d{15,22}$/.test(key)) return null;
+
+    const now = Date.now();
+    const existing = !forceNew ? obtenerVerificacionPendienteDiscord(key) : null;
+    if (existing && now < existing.expiresAt && existing.code) {
+        if (userMeta) {
+            existing.userMeta = userMeta;
+            const uname = userMeta.globalName || userMeta.global_name || userMeta.username || null;
+            guardarConfigDiscord(key, {
+                ...(uname ? { discord_username: uname } : {}),
+                pending_web_code: existing.code,
+                pending_web_digits: existing.rawDigits,
+                pending_web_expires_at: existing.expiresAt
+            });
+        }
+        return existing;
+    }
+
+    const rawDigits = String(Math.floor(100000 + Math.random() * 900000));
+    const code = `KTX-${rawDigits}`;
+    const expiresAt = now + 30 * 60 * 1000; // 30 minutos alojado en /config
+    const challenge = {
+        discordId: key,
+        code,
+        rawDigits,
+        createdAt: now,
+        expiresAt,
+        attempts: 0,
+        dmSent: false,
+        hostedInConfig: true,
+        approvedInDiscord: false,
+        userMeta: userMeta || null
+    };
+    pendingDiscordVerifications.set(key, challenge);
+
+    const uname = userMeta?.globalName || userMeta?.global_name || userMeta?.username || null;
+    // Persistir siempre el código alojado en /config en disco para que funcione al instante en la web sin enviar MDs
+    guardarConfigDiscord(key, {
+        ...(uname ? { discord_username: uname } : {}),
+        pending_web_code: code,
+        pending_web_digits: rawDigits,
+        pending_web_expires_at: expiresAt,
+        web_approved_in_discord: false
+    });
+
+    return challenge;
+}
+
+function obtenerVerificacionPendienteDiscord(discordId) {
+    const key = String(discordId || '').trim();
+    const now = Date.now();
+    const pending = pendingDiscordVerifications.get(key);
+    if (pending) {
+        if (now > pending.expiresAt) {
+            pendingDiscordVerifications.delete(key);
+        } else {
+            // Sincronizar flag de aprobación desde disco por si se aprobó en otro proceso/instancia
+            const savedCfg = obtenerConfigDiscord(key);
+            if (savedCfg.web_approved_in_discord && savedCfg.web_approved_until && now < savedCfg.web_approved_until) {
+                pending.approvedInDiscord = true;
+            }
+            return pending;
+        }
+    }
+
+    // Recuperar desde disco si existe un código alojado en /config o aprobación vigente
+    const saved = obtenerConfigDiscord(key);
+    if (saved && saved.pending_web_code && saved.pending_web_expires_at && now < saved.pending_web_expires_at) {
+        const rawDigits = String(saved.pending_web_digits || saved.pending_web_code.replace(/^KTX-?/i, '')).trim();
+        const restored = {
+            discordId: key,
+            code: saved.pending_web_code,
+            rawDigits,
+            createdAt: now,
+            expiresAt: Number(saved.pending_web_expires_at),
+            attempts: 0,
+            dmSent: false,
+            hostedInConfig: true,
+            approvedInDiscord: Boolean(saved.web_approved_in_discord && (!saved.web_approved_until || now < saved.web_approved_until)),
+            userMeta: saved.discord_username ? { id: key, username: saved.discord_username } : null
+        };
+        pendingDiscordVerifications.set(key, restored);
+        return restored;
+    }
+
+    return null;
+}
+
+/**
+ * Inicia el desafío de verificación para conectar una cuenta de Discord por ID desde la Web:
+ * - CERO SPAM POR MD: Nunca envía Mensajes Directos (MD) al buzón del usuario.
+ * - El código `KTX-XXXXXX` se aloja directamente dentro del comando `/config` en Discord (`Cuentas y Datos Guardados`).
+ * - Verifica que el usuario comparta servidor con el bot o haya ejecutado `/config` antes.
+ */
+async function iniciarVerificacionDiscordWeb(discordIdInput, { client = null, requesterIp = 'local' } = {}) {
+    const key = String(discordIdInput || '').trim();
+    if (!/^\d{15,22}$/.test(key)) {
+        return {
+            ok: false,
+            reason: 'invalid_id',
+            step: 'invalid_id',
+            message: 'Ingresá tu Discord ID numérico válido (17 a 20 dígitos) y el código KTX-XXXXXX alojado en el comando /config.'
+        };
+    }
+
+    if (blockedWebDiscordIds.has(key)) {
+        return {
+            ok: false,
+            reason: 'blocked_by_user',
+            step: 'blocked_by_owner',
+            message: '🔒 El propietario de esta cuenta de Discord bloqueó las solicitudes de vinculación por ID desde la web. Podés desbloquearlo ejecutando /config en Discord.'
+        };
+    }
+
+    const mutualCheck = await verificarMiembroMutuoDiscord(client, key);
+    if (!mutualCheck.allowed) {
+        return {
+            ok: false,
+            reason: 'not_in_mutual_guild',
+            step: 'not_in_guild',
+            message: '🛡️ Para evitar spam, primero probá el bot en Discord ejecutando el comando /config: ahí se aloja tu código personal KTX-XXXXXX para conectar tu ID en la web.'
+        };
+    }
+
+    // Asegurar que exista un código alojado para consultar desde /config (NUNCA envía MD para no hacer spam en el buzón)
+    generarCodigoVinculacionDiscord(key, mutualCheck.userObj);
+
+    return {
+        ok: true,
+        step: 'verify_required',
+        discordId: key,
+        dmSent: false,
+        hostedInConfig: true,
+        expiresInMinutes: 30,
+        message: '🔑 Sin spam por MD: escribí el comando /config en el bot de Discord, abrí "Cuentas y Datos Guardados" y copiá tu código KTX-XXXXXX alojado en el apartado 1. Cuenta de Discord.'
+    };
+}
+
+/**
+ * Confirma el acceso de Discord en la web usando el código `KTX-XXXXXX` alojado en `/config`:
+ * - También mantiene compatibilidad si el usuario ya aprobó desde Discord.
+ * - Conserva el código vigente durante su ventana de tiempo para no fallar si vuelve a consultar.
+ */
+async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client = null, { isPoll = false } = {}) {
+    const key = String(discordIdInput || '').trim();
+    const now = Date.now();
+    const pending = obtenerVerificacionPendienteDiscord(key);
+    const savedCfgDisk = obtenerConfigDiscord(key);
+
+    const approvedViaDiscordButton =
+        Boolean(pending && pending.approvedInDiscord) ||
+        Boolean(savedCfgDisk.web_approved_in_discord && savedCfgDisk.web_approved_until && now < savedCfgDisk.web_approved_until);
+
+    if (!pending && !approvedViaDiscordButton) {
+        return {
+            ok: false,
+            step: 'verify_required',
+            message: '🔑 Para conectar tu ID sin spam por MD, ejecutá el comando /config en Discord (apartado 1. Cuenta de Discord), copiá tu código KTX-XXXXXX alojado ahí y pegalo acá.'
+        };
+    }
+
+    const cleanInput = String(codeInput || '').trim().toUpperCase().replace(/\s+/g, '');
+
+    if (isPoll && !approvedViaDiscordButton) {
+        return {
+            ok: true,
+            step: 'verify_required',
+            discordId: key,
+            approvedInDiscord: false
+        };
+    }
+
+    if (!cleanInput && !approvedViaDiscordButton) {
+        return {
+            ok: false,
+            step: 'verify_required',
+            message: '💡 Ejecutá el comando /config en el bot de Discord, copiá tu código KTX-XXXXXX alojado en "1. Cuenta de Discord" y pegalo en la casilla de código.'
+        };
+    }
+
+    if (!approvedViaDiscordButton && pending) {
+        pending.attempts = (pending.attempts || 0) + 1;
+        if (pending.attempts > 5) {
+            pendingDiscordVerifications.delete(key);
+            return {
+                ok: false,
+                step: 'too_many_attempts',
+                message: '❌ Demasiados intentos fallidos. Ejecutá /config en Discord para generar un código KTX-XXXXXX nuevo.'
+            };
+        }
+
+        const matchesCode =
+            cleanInput === pending.code.toUpperCase() ||
+            cleanInput === pending.rawDigits ||
+            cleanInput === `KTX${pending.rawDigits}`;
+
+        if (!matchesCode) {
+            return {
+                ok: false,
+                step: 'invalid_code',
+                message: `❌ El código ingresado no coincide. Abrí el comando /config en Discord y copiá el código KTX-XXXXXX que aparece en "1. Cuenta de Discord". Te quedan ${Math.max(0, 5 - pending.attempts)} intento(s).`
+            };
+        }
+    }
+
+    let discordUserObj = {
+        ...(pending?.userMeta || {}),
+        id: key,
+        username: pending?.userMeta?.username || savedCfgDisk.discord_username || `Usuario_${String(key).slice(-4)}`,
+        globalName: pending?.userMeta?.globalName || pending?.userMeta?.global_name || savedCfgDisk.discord_username || null,
+        avatar: pending?.userMeta?.avatar || null
+    };
+
+    if (client && typeof client.isReady === 'function' && client.isReady() && !pending?.userMeta?.id) {
+        const fetched = await client.users.fetch(key).catch(() => null);
+        if (fetched) discordUserObj = fetched;
+    }
+
+    const savedCfg = await activarSesionDiscordDirecta(discordUserObj);
+
+    return {
+        ok: true,
+        step: 'verified',
+        discordId: key,
+        discordConfig: savedCfg,
+        message: `✅ Identidad verificada con tu código de /config: Cuenta de Discord @${savedCfg?.discord_username || key} (ID ${key}) conectada.`
+    };
+}
+
+/**
+ * Permite aprobar o bloquear una solicitud de vinculación web directamente desde los botones del MD de Discord.
+ * - NUNCA borra ni oculta el código `KTX-XXXXXX` del mensaje en Discord cuando el usuario toca "✅ Sí, fui yo".
+ * - Si el usuario toca "✅ Sí, fui yo", deja autorizada la sesión web automáticamente para que no le pida escribir el código en la página.
+ */
+async function procesarAccionSeguridadDiscordWeb(discordUser, action, tokenDigits = '') {
+    const uid = String(discordUser?.id || '').trim();
+    if (!uid) return { ok: false, message: 'Usuario no válido.' };
+
+    if (action === 'block') {
+        pendingDiscordVerifications.delete(uid);
+        blockedWebDiscordIds.add(uid);
+        if (discordConfigCache.has(uid)) {
+            guardarConfigDiscord(uid, {
+                pending_web_code: null,
+                pending_web_digits: null,
+                pending_web_expires_at: null,
+                web_approved_in_discord: false,
+                web_approved_until: null
+            });
+        }
+        return {
+            ok: true,
+            blocked: true,
+            message:
+                `🚫 **Solicitudes Web Bloqueadas para tu Discord ID (\`${uid}\`)**\n` +
+                `Anulamos el código de inmediato y bloqueamos las solicitudes de conexión por ID desde la web hacia tu cuenta.\n` +
+                `> • Si en algún momento querés volver a habilitarlo, ejecutá \`/config\` en Discord.`
+        };
+    }
+
+    if (action === 'unblock') {
+        blockedWebDiscordIds.delete(uid);
+        return {
+            ok: true,
+            blocked: false,
+            message: '🔓 Solicitudes web desbloqueadas para tu cuenta de Discord.'
+        };
+    }
+
+    const now = Date.now();
+    const expiresAt = now + 15 * 60 * 1000;
+    let pending = obtenerVerificacionPendienteDiscord(uid);
+
+    // Garantizar que si el dueño legítimo toca "✅ Sí, fui yo" en su MD de Discord, NUNCA falle por expiración y conserve el código exacto del botón
+    const cleanButtonDigits = String(tokenDigits || '').replace(/\D/g, '').slice(0, 6);
+    const activeDigits = cleanButtonDigits || pending?.rawDigits || String(Math.floor(100000 + Math.random() * 900000));
+    const activeCode = `KTX-${activeDigits}`;
+
+    if (!pending) {
+        pending = {
+            discordId: uid,
+            code: activeCode,
+            rawDigits: activeDigits,
+            createdAt: now,
+            expiresAt,
+            attempts: 0,
+            dmSent: true,
+            approvedInDiscord: true,
+            userMeta: discordUser
+        };
+    } else {
+        pending.code = activeCode;
+        pending.rawDigits = activeDigits;
+        pending.expiresAt = expiresAt;
+        pending.approvedInDiscord = true;
+        pending.userMeta = discordUser;
+    }
+    pendingDiscordVerifications.set(uid, pending);
+
+    const savedCfg = await activarSesionDiscordDirecta(discordUser);
+    guardarConfigDiscord(uid, {
+        pending_web_code: activeCode,
+        pending_web_digits: activeDigits,
+        pending_web_expires_at: expiresAt,
+        web_approved_in_discord: true,
+        web_approved_until: expiresAt
+    });
+
+    return {
+        ok: true,
+        approved: true,
+        discordConfig: savedCfg,
+        code: activeCode,
+        rawDigits: activeDigits,
+        message:
+            `🔐 **Verificación de Seguridad — Kortex Web (✅ Confirmada por vos)**\n` +
+            `Confirmaste que sos el titular de **@${savedCfg?.discord_username || discordUser.username}** (\`${uid}\`).\n` +
+            `> • **Acceso Automático en la Web:** 🟢 **¡Ya estás verificado!** Volvé a la página web: tu cuenta se conectará sola automáticamente (o simplemente tocá **✅ Verificar / Ya confirmé** en la web **sin escribir ningún código**).\n` +
+            `> • **Tu Código de Seguridad (se mantiene visible por si lo necesitás):** **\`${activeCode}\`** *(activo por 15 minutos)*`
+    };
+}
+
 function obtenerVerificacionPendienteRoblox(discordId) {
     const key = String(discordId || 'default_session').trim();
     const pending = pendingRobloxVerifications.get(key);
@@ -1454,17 +2008,22 @@ function obtenerVerificacionPendienteRoblox(discordId) {
 
 function cancelarVerificacionCodigoRoblox(discordId) {
     const key = String(discordId || 'default_session').trim();
+    const pending = pendingRobloxVerifications.get(key);
+    if (pending && pending.profile?.roblox_user_id) {
+        robloxTargetCooldowns.delete(`rblx_target:${pending.profile.roblox_user_id}`);
+    }
     pendingRobloxVerifications.delete(key);
     return true;
 }
 
 /**
- * Inicia el proceso de vinculación rápida en Roblox:
- * - Si la cuenta del Bot está conectada, le envía una Solicitud de Amistad en Roblox al usuario destino.
- * - Apenas el usuario acepta la solicitud de amistad, el sistema verifica su cuenta automáticamente y lo elimina de amigos.
- * - Incluye también el código de respaldo `KORTEX-XXXX` en la descripción por si el usuario prefiere verificar por biografía.
+ * Inicia el proceso de vinculación segura en Roblox por @Usuario o ID (Paso 1 de 2):
+ * - NUNCA vincula la cuenta en el Paso 1 sin demostrar propiedad (evita que alguien se vincule la cuenta de otro jugador).
+ * - Protege contra spam aplicando enfriamiento (cooldown) por cuenta de Roblox destino y por solicitante.
+ * - Genera un código único `KORTEX-XXXX` que el usuario coloca en su descripción ("Acerca de") de Roblox
+ *   (o valida mediante solicitud de amistad con la cuenta del bot si está activa).
  */
-async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
+async function iniciarVerificacionCodigoRoblox(discordId, robloxInput, options = {}) {
     const key = String(discordId || 'default_session').trim();
     const raw = String(robloxInput || '').trim();
     if (!raw) {
@@ -1476,37 +2035,57 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
         return { ok: false, message: `No se encontró ningún usuario de Roblox con "${raw}". Verificá el nombre o ID.` };
     }
 
-    const robloxProfileVerifyPhrase = `KORTEX-${Math.floor(1000 + Math.random() * 9000)}`;
-    const createdAt = Date.now();
-    const expiresAt = createdAt + 10 * 60 * 1000; // 10 minutos
+    const now = Date.now();
+    const targetCooldownKey = `rblx_target:${resolved.roblox_user_id}`;
+    const existingTargetLock = robloxTargetCooldowns.get(targetCooldownKey);
 
-    const delivery = await enviarSolicitudAmistadEnRoblox(resolved, robloxProfileVerifyPhrase);
-    const botAccount = delivery.botAccount || obtenerEstadoCuentaBotRoblox();
-
-    // Si ya eran amigos o tenía solicitud entrante previa, verificar y auto-eliminar de amigos en el acto
-    if (delivery.alreadyFriends) {
-        await eliminarAmigoDeCuentaBotRoblox(resolved.roblox_user_id).catch(() => null);
-        robloxBotAccountState.verified_by_friendship_count = Number(robloxBotAccountState.verified_by_friendship_count || 0) + 1;
-        guardarCuentaBotRobloxEnDisco();
-
-        const saved = await guardarCuentaVinculada(key, {
-            ...resolved,
-            auth_method: 'roblox_friendship',
-            roblox_oauth_verified: false,
-            roblox_access_token: null
-        });
-
+    // Si OTRO usuario distinto acaba de solicitar verificación sobre la misma cuenta de Roblox hace menos de 3 min, bloquear por anti-spam
+    if (existingTargetLock && existingTargetLock.requesterDiscordId !== key && (now - existingTargetLock.timestamp < ROBLOX_TARGET_COOLDOWN_MS)) {
         return {
-            ok: true,
-            step: 'verified',
-            discordId: key,
-            linkedAccount: saved,
-            profile: resolved,
-            robloxMessageDelivered: true,
-            deliveryChannel: 'roblox_friend_instant',
-            message: `✅ ¡Solicitud de amistad detectada! Cuenta **@${saved.roblox_username}** verificada automáticamente y eliminada de la lista de amigos de **@${botAccount.roblox_username}** para mantener limpio el cupo.`
+            ok: false,
+            reason: 'target_cooldown',
+            step: 'cooldown',
+            message: `⏳ Ya hay una solicitud de verificación reciente en curso para @${resolved.roblox_username}. Por protección anti-spam, esperá unos minutos o iniciá sesión con Roblox OAuth 2.0.`
         };
     }
+
+    const existingPending = obtenerVerificacionPendienteRoblox(key);
+    // Si el mismo usuario ya tiene un código vigente para la misma cuenta de Roblox, reutilizarlo para no cambiarle el código mientras edita su perfil
+    const robloxProfileVerifyPhrase =
+        (existingPending && Number(existingPending.profile?.roblox_user_id) === Number(resolved.roblox_user_id) && existingPending.robloxProfileVerifyPhrase)
+            ? existingPending.robloxProfileVerifyPhrase
+            : `KORTEX-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const createdAt = now;
+    const expiresAt = createdAt + 10 * 60 * 1000; // 10 minutos
+
+    // Protección Anti-Spam: No permitir bombardear con solicitudes de amistad a cuentas de Roblox ajenas
+    const reqCooldownKey = `rblx_req:${options.requesterKey || options.requesterIp || key}`;
+    const lastTargetAttempt = existingTargetLock ? existingTargetLock.timestamp : 0;
+    const lastReqAttempt = robloxTargetCooldowns.get(reqCooldownKey) || 0;
+    const canSendFriendReq =
+        (now - lastTargetAttempt >= ROBLOX_TARGET_COOLDOWN_MS) &&
+        (now - lastReqAttempt >= ROBLOX_REQUESTER_COOLDOWN_MS);
+
+    robloxTargetCooldowns.set(targetCooldownKey, {
+        timestamp: now,
+        requesterDiscordId: key
+    });
+
+    let delivery = {
+        delivered: false,
+        alreadyFriends: false,
+        channel: 'roblox_bio_code',
+        botAccount: obtenerEstadoCuentaBotRoblox(),
+        reason: null
+    };
+
+    if (canSendFriendReq && robloxBotAccountState.connected) {
+        robloxTargetCooldowns.set(reqCooldownKey, now);
+        delivery = await enviarSolicitudAmistadEnRoblox(resolved, robloxProfileVerifyPhrase);
+    }
+
+    const botAccount = delivery.botAccount || obtenerEstadoCuentaBotRoblox();
 
     const botProfileUrl = botAccount.roblox_user_id
         ? `https://www.roblox.com/users/${botAccount.roblox_user_id}/profile`
@@ -1515,7 +2094,7 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
     const safePublicMetadata = {
         sender: botAccount.connected
             ? `Bot Verificador en Roblox: @${botAccount.roblox_username} (ID ${botAccount.roblox_user_id})`
-            : 'Verificador en Plataforma Roblox',
+            : 'Verificador de Propiedad en Roblox',
         recipient: `@${resolved.roblox_username} (ID ${resolved.roblox_user_id})`,
         sentAt: new Date(createdAt).toISOString(),
         expiresInMinutes: 10,
@@ -1536,6 +2115,7 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
 
     const challenge = {
         discordId: key,
+        verifyCode: robloxProfileVerifyPhrase,
         robloxProfileVerifyPhrase,
         profile: resolved,
         createdAt,
@@ -1553,23 +2133,22 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
     pendingRobloxVerifications.set(key, challenge);
 
     let statusMessage = '';
-    if (delivery.delivered && delivery.channel === 'roblox_friend_request') {
+    if (botAccount.connected) {
         statusMessage =
-            `🤝 La cuenta de Roblox del bot (**@${botAccount.roblox_username}**) le envió una **Solicitud de Amistad en Roblox** a **@${resolved.roblox_username}**. ` +
-            `Aceptala en Roblox: apenas la aceptes, el bot **verificará tu cuenta automáticamente y te eliminará de sus amigos** para mantener su lista limpia.`;
-    } else if (botAccount.connected) {
-        statusMessage =
-            `🤝 Para verificar **@${resolved.roblox_username}**, aceptá la solicitud de **@${botAccount.roblox_username}** en Roblox (o entrá al perfil de **@${botAccount.roblox_username}** y enviale solicitud de amistad). ` +
-            `Apenas se conecten como amigos, el bot verificará tu cuenta automáticamente y se eliminará de tu lista de amigos (también podés usar \`${robloxProfileVerifyPhrase}\` en tu descripción).`;
+            `🛡️ **Verificación de propiedad requerida para @${resolved.roblox_username} (ID \`${resolved.roblox_user_id}\`):**\n` +
+            `• **Opción A (Descripción del Perfil — Cero Spam):** Pegá el código \`${robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en Roblox y tocá **✅ Comprobar Verificación**.\n` +
+            `• **Opción B (Amistad con el Bot):** Aceptá o enviale solicitud de amistad a **@${botAccount.roblox_username}** en Roblox y tocá **✅ Comprobar Verificación**.`;
     } else {
         statusMessage =
-            `🛡️ Verificación en Roblox para **@${resolved.roblox_username}**: Colocá \`${robloxProfileVerifyPhrase}\` en tu descripción ("Acerca de") en Roblox y tocá Comprobar (o conectá la Cuenta de Roblox del Bot en \`/config\` para verificar con Solicitud de Amistad automática + Auto-Unfriend).`;
+            `🛡️ **Verificación de propiedad requerida para @${resolved.roblox_username} (ID \`${resolved.roblox_user_id}\`):**\n` +
+            `Para demostrar que esta cuenta de Roblox es tuya, pegá temporalmente el código \`${robloxProfileVerifyPhrase}\` en la descripción (**"Acerca de"**) de tu perfil de Roblox y tocá **✅ Comprobar Verificación** (podés borrarlo apenas se vincule).`;
     }
 
     return {
         ok: true,
         step: 'verify_required',
         discordId: key,
+        verifyCode: robloxProfileVerifyPhrase,
         profile: resolved,
         robloxMessageDelivered: Boolean(delivery.delivered),
         friendRequestSent: Boolean(delivery.delivered),
@@ -1580,8 +2159,9 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput) {
 }
 
 /**
- * Comprueba si el usuario ya aceptó la solicitud de amistad del Bot en Roblox (o colocó la frase en su perfil).
- * Apenas detecta la amistad, verifica la cuenta y ELIMINA AUTOMÁTICAMENTE al usuario de la lista de amigos del bot.
+ * Comprueba si el usuario ya colocó el código `KORTEX-XXXX` en su perfil de Roblox
+ * (o si aceptó/envió solicitud de amistad a la cuenta del Bot en Roblox).
+ * Solo vincula la cuenta cuando la propiedad queda demostrada.
  */
 async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
     const key = String(discordId || 'default_session').trim();
@@ -1600,7 +2180,8 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
         }
         return {
             ok: false,
-            message: 'No hay una verificación pendiente o ya expiró. Escribí tu usuario o ID de Roblox nuevamente.'
+            step: 'no_pending',
+            message: 'No hay una verificación pendiente o ya expiró. Escribí tu @Usuario o ID de Roblox primero para generar tu código.'
         };
     }
 
@@ -1609,14 +2190,15 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
         pendingRobloxVerifications.delete(key);
         return {
             ok: false,
-            message: '❌ La solicitud de verificación expiró por exceso de intentos. Iniciá una nueva solicitud en Roblox.'
+            step: 'too_many_attempts',
+            message: '❌ La solicitud de verificación expiró por exceso de intentos. Iniciá una nueva solicitud con tu @Usuario o ID.'
         };
     }
 
     let verifiedMethodNote = null;
     let authMethodTag = 'roblox_verified';
 
-    // 1. Verificar si el usuario aceptó la Solicitud de Amistad del Bot en Roblox (y auto-eliminar de amigos de inmediato)
+    // 1. Verificar si el usuario aceptó o envió Solicitud de Amistad al Bot en Roblox (y auto-eliminar de amigos de inmediato)
     if (pending.botRobloxConnected || robloxBotAccountState.connected) {
         const friendCheck = await verificarAmistadYEliminarAmigoBotRoblox(pending.profile.roblox_user_id);
         if (friendCheck.verified) {
@@ -1625,17 +2207,15 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
         }
     }
 
-    // 2. Respaldo: Validar en vivo en users.roblox.com si el usuario colocó la etiqueta KORTEX-XXXX en la descripción de su perfil
+    // 2. Validar en vivo en users.roblox.com/v1/users/{id} si el usuario colocó el código KORTEX-XXXX en la descripción de su perfil
     if (!verifiedMethodNote) {
-        const cleanInput = String(codeInput || '').trim().toUpperCase();
         const phraseToMatch = pending.robloxProfileVerifyPhrase;
         const hasPhraseOnRobloxProfile = await verificarFraseEnPerfilRoblox(
             pending.profile.roblox_user_id,
             phraseToMatch
         );
-        if (hasPhraseOnRobloxProfile || (cleanInput && cleanInput === phraseToMatch && hasPhraseOnRobloxProfile)) {
-            verifiedMethodNote = 'Verificada mediante código en descripción del perfil de Roblox';
-            // Si además había aceptado amistad, limpiar amigo por seguridad
+        if (hasPhraseOnRobloxProfile) {
+            verifiedMethodNote = `Código ${phraseToMatch} verificado en la descripción del perfil de Roblox`;
             await eliminarAmigoDeCuentaBotRoblox(pending.profile.roblox_user_id).catch(() => null);
         }
     }
@@ -1645,16 +2225,22 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
             const botName = pending.botRobloxUsername || robloxBotAccountState.roblox_username || 'Bot';
             return {
                 ok: false,
+                step: 'verify_required',
+                verifyCode: pending.robloxProfileVerifyPhrase,
+                profile: pending.profile,
                 message:
-                    `⏳ Aún no figura aceptada la solicitud de amistad con **@${botName}** para **@${pending.profile.roblox_username}**. ` +
-                    `Entrá a **Solicitudes de Amistad en Roblox** y aceptá a **@${botName}** (o colocá \`${pending.robloxProfileVerifyPhrase}\` en la descripción de tu perfil de Roblox) y el bot te verificará y borrará de amigos automáticamente.`
+                    `⏳ Aún no se detectó el código \`${pending.robloxProfileVerifyPhrase}\` en la descripción del perfil de **@${pending.profile.roblox_username}** ni amistad con **@${botName}**. ` +
+                    `Pegá \`${pending.robloxProfileVerifyPhrase}\` en "Acerca de" de tu perfil en Roblox y volvé a tocar **Comprobar Verificación**.`
             };
         }
         return {
             ok: false,
+            step: 'verify_required',
+            verifyCode: pending.robloxProfileVerifyPhrase,
+            profile: pending.profile,
             message:
-                `⏳ Aún no se detectó la etiqueta \`${pending.robloxProfileVerifyPhrase}\` en el perfil de **@${pending.profile.roblox_username}**. ` +
-                `Colocá \`${pending.robloxProfileVerifyPhrase}\` en la descripción ("Acerca de") de tu perfil en **Roblox** y volvé a tocar Comprobar.`
+                `⏳ Aún no se detectó el código \`${pending.robloxProfileVerifyPhrase}\` en el perfil de **@${pending.profile.roblox_username}**. ` +
+                `Pegá \`${pending.robloxProfileVerifyPhrase}\` en la descripción (**"Acerca de"**) de tu perfil en **Roblox**, guardá los cambios y volvé a tocar **Comprobar Verificación**.`
         };
     }
 
@@ -1668,7 +2254,7 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
     });
 
     const finalMsg =
-        `✅ Identidad verificada en Roblox (${verifiedMethodNote}). Cuenta **@${saved.roblox_username}** vinculada y lista de amigos del bot depurada automáticamente.`;
+        `✅ **Propiedad de cuenta verificada (${verifiedMethodNote}):** Cuenta **@${saved.roblox_username}** (ID \`${saved.roblox_user_id}\`) vinculada correctamente. Ya podés quitar el código de tu perfil.`;
 
     recentlyAutoVerifiedRoblox.set(key, {
         timestamp: Date.now(),
@@ -1714,8 +2300,8 @@ async function verificarAutorizacionRobloxOAuth(discordId) {
 
 /**
  * PANEL DE CUENTA DE ROBLOX (Dentro de /roblox y /config):
- * Muestra el estado de la cuenta de Roblox autorizada exclusivamente mediante Roblox OAuth 2.0 Oficial
- * y el historial únicamente cuando la cuenta está activa.
+ * Muestra el estado de la cuenta de Roblox autorizada mediante Roblox OAuth 2.0 Oficial
+ * o mediante Verificación de Propiedad por Código en Perfil (`KORTEX-XXXX`).
  */
 async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
     const {
@@ -1731,36 +2317,44 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
 
     const uid = String(discordId);
     const cuenta = await verificarAutorizacionRobloxOAuth(uid).catch(() => null);
+    const pendingRoblox = obtenerVerificacionPendienteRoblox(uid);
     const hist = obtenerHistorialCuenta(uid).slice(0, 3);
-    const baseAppUrl = (process.env.APP_URL || process.env.PUBLIC_GUIDE_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app').replace(/\/+$/, '');
+    const baseAppUrl = obtenerUrlBasePublica();
 
     const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
     const tieneCuenta = Boolean(cuenta && cuenta.roblox_user_id);
 
-    const container = new ContainerBuilder().setAccentColor(tieneCuenta ? COLORES.exito : COLORES.primario);
+    const container = new ContainerBuilder().setAccentColor(
+        pendingRoblox ? COLORES.alerta : (tieneCuenta ? COLORES.exito : COLORES.primario)
+    );
 
     const fichaEstado = tieneCuenta
         ? (
             `# 🎮 Mi Cuenta de Roblox\n` +
-            `👤 **Jugador:** **${cuenta.display_name || cuenta.roblox_username}** (\`@${cuenta.roblox_username}\`)\n` +
-            `🟢 **Estado:** Cuenta vinculada`
+            `👤 **Jugador:** **${cuenta.display_name || cuenta.roblox_username}** (\`@${cuenta.roblox_username}\` • ID \`${cuenta.roblox_user_id}\`)\n` +
+            `🟢 **Estado:** Cuenta verificada y activa`
         )
         : (
             `# 🎮 Vincular Cuenta de Roblox\n` +
             `⚪ **Estado:** Sin cuenta vinculada\n` +
-            `-# Conectá tu cuenta de Roblox para cargar tu avatar automáticamente.`
+            `-# Conectá tu cuenta de Roblox con verificación de propiedad por **@Usuario / ID** o mediante **OAuth 2.0 Web**.`
         );
 
     const headerDisplay = new TextDisplayBuilder().setContent(
         fichaEstado + (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
     );
 
-    if (tieneCuenta && (cuenta.avatar_url || cuenta.avatar_full_url)) {
+    const thumbUrl =
+        (pendingRoblox?.profile?.avatar_url) ||
+        (tieneCuenta && (cuenta.avatar_url || cuenta.avatar_full_url)) ||
+        null;
+
+    if (thumbUrl) {
         container.addSectionComponents(
             new SectionBuilder()
                 .addTextDisplayComponents(headerDisplay)
-                .setThumbnailAccessory(thumb => thumb.setURL(cuenta.avatar_url || cuenta.avatar_full_url))
+                .setThumbnailAccessory(thumb => thumb.setURL(thumbUrl))
         );
     } else {
         container.addTextDisplayComponents(headerDisplay);
@@ -1768,18 +2362,56 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
 
     container.addSeparatorComponents(separador(true));
 
+    if (pendingRoblox && pendingRoblox.profile) {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            `### 🛡️ Paso 2: Confirmar Propiedad de @${pendingRoblox.profile.roblox_username}\n` +
+            `• **Código Único de Verificación:** \`${pendingRoblox.robloxProfileVerifyPhrase}\` *(válido 10 min)*\n` +
+            `• **Cómo verificar:** Entrá a tu perfil en Roblox (\`@${pendingRoblox.profile.roblox_username}\`), pegá \`${pendingRoblox.robloxProfileVerifyPhrase}\` en tu descripción (**"Acerca de"**), guardá y tocá **✅ Comprobar Verificación** abajo.`
+        ));
+        container.addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                boton('btn_fastlink_verify_now', 'Comprobar Verificación', '✅', ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setLabel('Abrir Mi Perfil en Roblox')
+                    .setEmoji('🔗')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(`https://www.roblox.com/users/${pendingRoblox.profile.roblox_user_id}/profile`),
+                boton('btn_fastlink_cancel_verify', 'Cancelar', '✖️', ButtonStyle.Secondary)
+            )
+        );
+        container.addSeparatorComponents(separador());
+    }
+
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### 🔗 Conexión con Roblox\n` +
-                `Iniciá sesión en Roblox para vincular o cambiar tu perfil.`
+                `### ⚡ Opción 1: Vincular Aquí por @Usuario o ID (Con Código en Perfil)\n` +
+                `Escribí tu nombre de usuario o ID de Roblox y confirmá que sos el dueño con un código temporal en tu perfil.`
+            ))
+            .setButtonAccessory(
+                boton(
+                    'btn_fastlink_open_modal',
+                    tieneCuenta ? 'Cambiar @Usuario / ID' : 'Vincular @Usuario / ID',
+                    '🎮',
+                    ButtonStyle.Primary
+                )
+            )
+    );
+
+    container.addSeparatorComponents(separador());
+
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `### 🔐 Opción 2: Permisos de la Aplicación y Portal Web\n` +
+                `En Roblox, donde está alojado el bot y sus permisos es en **Configuración → Permisos de la aplicación** (*Settings → App Permissions*).`
             ))
             .setButtonAccessory(
                 new ButtonBuilder()
-                    .setLabel(tieneCuenta ? 'Cambiar Cuenta' : 'Conectar Roblox')
-                    .setEmoji('🎮')
+                    .setLabel(tieneCuenta ? 'Abrir Panel Web' : 'Conectar en Web')
+                    .setEmoji('🌐')
                     .setStyle(ButtonStyle.Link)
-                    .setURL(directRobloxOAuthUrl)
+                    .setURL(baseAppUrl)
             )
     );
 
@@ -1854,7 +2486,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         ? discordUser.displayAvatarURL({ extension: 'png', size: 256 })
         : null;
 
-    const { obtenerPreferenciasUsuario, TIER_LABELS } = require('./i18n');
+    const { obtenerPreferenciasUsuario, TIER_LABELS, REGIONAL_TIERS_LIST } = require('./i18n');
     const prefs = obtenerPreferenciasUsuario(uid);
     const isEn = prefs.lang === 'en';
 
@@ -1922,7 +2554,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         .addOptions(selectOptions);
 
     // =========================================================
-    // CATEGORÍA: IDIOMA Y PREFERENCIAS (cat_preferences)
+    // CATEGORÍA: IDIOMA Y PREFERENCIAS DE COMODIDAD (cat_preferences)
     // =========================================================
     if (activeCat === 'cat_preferences') {
         const container = new ContainerBuilder().setAccentColor(0x5865F2);
@@ -1934,12 +2566,56 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         const tierMap = TIER_LABELS[isEn ? 'en' : 'es'] || TIER_LABELS.es;
         const tierActualLabel = tierMap[prefs.default_tier] || tierMap.TIER_100;
 
+        const catNames = isEn
+            ? {
+                cat_economy: '💰 1. Economy & Pricing',
+                cat_avatar: '👕 2. Avatars & 3D/2D Studio',
+                cat_games: '🎮 3. Games & Servers',
+                cat_status: '📊 4. Roblox Analytics & Status'
+            }
+            : {
+                cat_economy: '💰 1. Economía y Precios',
+                cat_avatar: '👕 2. Avatares y Estudio 3D/2D',
+                cat_games: '🎮 3. Juegos y Servidores',
+                cat_status: '📊 4. Estadísticas y Estado'
+            };
+
+        const rangeNames = isEn
+            ? {
+                '24h': '⏱️ 24 Hours (Intraday)',
+                '7d': '📅 7 Days (Weekly)',
+                '30d': '🗓️ 30 Days (Monthly)',
+                'all': '🏛️ Full History (All-Time)'
+            }
+            : {
+                '24h': '⏱️ 24 Horas (Intradía)',
+                '7d': '📅 7 Días (Semanal)',
+                '30d': '🗓️ 30 Días (Mensual)',
+                'all': '🏛️ Histórico Completo'
+            };
+
+        const cameraLabel = prefs.default_camera_mode === 'headshot'
+            ? (isEn ? '🔍 Head / Face Zoom' : '🔍 Zoom Cabeza / Rostro')
+            : (isEn ? '🧍 Full Body 3D' : '🧍 Cuerpo Completo 3D');
+
+        const cashbackLabel = prefs.auto_cashback_40 !== false
+            ? (isEn ? '🟢 Pre-enabled (40% Group Method)' : '🟢 Pre-activado (Método Grupo 40%)')
+            : (isEn ? '⚪ Manual Selection' : '⚪ Selección Manual');
+
+        const alertsBadge = prefs.dm_alerts_enabled !== false
+            ? (isEn ? '🟢 **Active** (Receives DM notifications)' : '🟢 **Activas** (Recibís avisos por MD)')
+            : (isEn ? '🔕 **Do Not Disturb** (DM alerts paused)' : '🔕 **No Molestar** (Avisos por MD en pausa)');
+
+        const privacyBadge = prefs.ephemeral_config
+            ? (isEn ? '🔒 **Private Mode (Only visible to me)**' : '🔒 **Modo Privado (Solo visible para mí)**')
+            : (isEn ? '👁️ **Public Mode (Visible in channel)**' : '👁️ **Modo Público (Visible en el canal)**');
+
         const headerPref = new TextDisplayBuilder().setContent(
             (isEn
-                ? `# 🌐 Language & Preferences\n` +
-                  `🗣️ **Language:** ${langActualBadge}`
-                : `# 🌐 Idioma y Preferencias\n` +
-                  `🗣️ **Idioma:** ${langActualBadge}`) +
+                ? `# 🌐 Language & Comfort Preferences\n` +
+                  `🗣️ **Language:** ${langActualBadge}  •  🔔 **Alerts:** ${ prefs.dm_alerts_enabled !== false ? '🟢 ON' : '🔕 DND' }  •  ${prefs.ephemeral_config ? '🔒 Private' : '👁️ Public'}`
+                : `# 🌐 Idioma y Preferencias de Uso\n` +
+                  `🗣️ **Idioma:** ${langActualBadge}  •  🔔 **Alertas:** ${ prefs.dm_alerts_enabled !== false ? '🟢 Activas' : '🔕 No Molestar' }  •  ${prefs.ephemeral_config ? '🔒 Privado' : '👁️ Público'}`) +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         );
 
@@ -1956,73 +2632,202 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
         container.addSeparatorComponents(separador(true));
 
-        // 1. SELECCIÓN DE IDIOMA (SOLO ESPAÑOL E INGLÉS)
+        // =====================================================
+        // SECCIÓN 1: CATEGORÍA DE INICIO EN /ROBLOX (Exclusiva)
+        // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 🗣️ 1. Language\nChoose the language for all panels and tools.`
-                : `### 🗣️ 1. Idioma\nElegí el idioma de todos los paneles y herramientas.`
+                ? `### 📂 1. Default Starting Category in \`/roblox\`\n` +
+                  `**Active:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
+                  `-# Choose which category opens first whenever you run \`/roblox\`.`
+                : `### 📂 1. Categoría de Inicio en \`/roblox\`\n` +
+                  `**Activa:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
+                  `-# Elegí en cuál de las 4 categorías querés que abra directamente el comando \`/roblox\`.`
         ));
 
-        container.addActionRowComponents(
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('btn_pref_lang:es')
-                    .setLabel(isEn ? 'Español' : 'Español (Activo)')
-                    .setEmoji('🇪🇸')
-                    .setStyle(!isEn ? ButtonStyle.Success : ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('btn_pref_lang:en')
-                    .setLabel(isEn ? 'English (Active)' : 'English')
-                    .setEmoji('🇺🇸')
-                    .setStyle(isEn ? ButtonStyle.Success : ButtonStyle.Secondary)
+        const selectPrefDefaultCat = new StringSelectMenuBuilder()
+            .setCustomId('select_pref_default_cat')
+            .setPlaceholder(
+                isEn
+                    ? '📂 Choose your default starting category for /roblox...'
+                    : '📂 Elegí con qué categoría iniciar el comando /roblox...'
             )
-        );
+            .addOptions([
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Category 1: Economy & Pricing' : 'Categoría 1: Economía y Precios')
+                    .setDescription(isEn ? 'Price Tracker, Calculator, Price Floors, Pending Robux & Groups' : 'Seguimiento de Precios, Calculadora, Pisos, Robux Pendientes y Grupos')
+                    .setValue('cat_economy')
+                    .setEmoji('💰')
+                    .setDefault(prefs.default_category === 'cat_economy'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Category 2: Avatars & 3D/2D Studio' : 'Categoría 2: Avatares y Estudio 3D/2D')
+                    .setDescription(isEn ? 'Outfit Sandbox, Clones, 2D Templates, 3D Models & Color-Match' : 'Probador de Ropa, Similares, Plantillas 2D, Modelos 3D y Colores')
+                    .setValue('cat_avatar')
+                    .setEmoji('👕')
+                    .setDefault(prefs.default_category === 'cat_avatar'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Category 3: Games & Servers' : 'Categoría 3: Juegos y Servidores')
+                    .setDescription(isEn ? 'Empty Servers, Gamepasses, Promo Codes, Patch Alerts & Maps' : 'Servidores Vacíos, Pases, Códigos Activos, Parches y Mapas')
+                    .setValue('cat_games')
+                    .setEmoji('🎮')
+                    .setDefault(prefs.default_category === 'cat_games'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn ? 'Category 4: Analytics & Server Status' : 'Categoría 4: Estadísticas y Estado')
+                    .setDescription(isEn ? 'Live Roblox Status, Trending Games, Profiles, Limiteds & Versus' : 'Estado de Roblox en Vivo, Tendencias, Perfiles, Limiteds y Versus')
+                    .setValue('cat_status')
+                    .setEmoji('📊')
+                    .setDefault(prefs.default_category === 'cat_status')
+            ]);
 
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefDefaultCat));
         container.addSeparatorComponents(separador());
 
-        // 2. REGIÓN DE PRECIOS PREDETERMINADA (TIERS DE ROBLOX)
+        // =====================================================
+        // SECCIÓN 2: REGIÓN DE PRECIOS PREDETERMINADA (Exclusiva — 4 Tiers 100% / 80% / 60% / 40%)
+        // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 🌎 2. Pricing Region\n**Current:** ${tierActualLabel}`
-                : `### 🌎 2. Región de Precios\n**Actual:** ${tierActualLabel}`
+                ? `### 🌎 2. Default Pricing Region (Regional Tiers)\n` +
+                  `**Active:** ${tierActualLabel}\n` +
+                  `-# Pre-selected automatically in **1.2 Economy Calculator** and regional price analyses.`
+                : `### 🌎 2. Región de Precios Predeterminada (Tiers Regionales)\n` +
+                  `**Activa:** ${tierActualLabel}\n` +
+                  `-# Se aplica automáticamente en **1.2 Calculadora de Economía** y análisis regionales.`
         ));
 
         const selectPrefTier = new StringSelectMenuBuilder()
             .setCustomId('select_pref_tier')
             .setPlaceholder(
                 isEn
-                    ? '🌎 Choose your default pricing region...'
-                    : '🌎 Elegí tu región de precios...'
+                    ? '🌎 Choose your default pricing region (100% / 80% / 60% / 40%)...'
+                    : '🌎 Elegí tu Tier de región predeterminada (100% / 80% / 60% / 40%)...'
+            )
+            .addOptions(
+                REGIONAL_TIERS_LIST.map((tier) =>
+                    new StringSelectMenuOptionBuilder()
+                        .setLabel(isEn ? tier.labelEn : tier.labelEs)
+                        .setDescription(isEn ? tier.descEn : tier.descEs)
+                        .setValue(tier.id)
+                        .setEmoji(tier.emoji)
+                        .setDefault(prefs.default_tier === tier.id)
+                )
+            );
+
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefTier));
+        container.addSeparatorComponents(separador());
+
+        // =====================================================
+        // SECCIÓN 3: AJUSTES DE HERRAMIENTAS (Gráficas, Cámara y Calculadora)
+        // =====================================================
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            isEn
+                ? `### 🛠️ 3. Tool Defaults (Charts, Sandbox & Calculator)\n` +
+                  `• **📈 Price Chart Range (1.1):** ${rangeNames[prefs.default_chart_range] || rangeNames['7d']}\n` +
+                  `• **📸 Outfit Sandbox Camera (2.1):** ${cameraLabel}\n` +
+                  `• **🧮 Economy Calculator (1.2):** ${cashbackLabel}`
+                : `### 🛠️ 3. Ajustes de Herramientas (Gráficas, Probador y Calculadora)\n` +
+                  `• **📈 Rango de Gráfica (1.1):** ${rangeNames[prefs.default_chart_range] || rangeNames['7d']}\n` +
+                  `• **📸 Cámara del Probador (2.1):** ${cameraLabel}\n` +
+                  `• **🧮 Calculadora de Economía (1.2):** ${cashbackLabel}`
+        ));
+
+        const selectPrefComfort = new StringSelectMenuBuilder()
+            .setCustomId('select_pref_comfort')
+            .setPlaceholder(
+                isEn
+                    ? '🛠️ Adjust chart timeframe, sandbox camera, or calculator...'
+                    : '🛠️ Ajustar rango de gráfica, cámara del probador o calculadora...'
             )
             .addOptions([
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? 'Tier 100% — US, Spain, Global' : 'Tier 100% — EE.UU., España, Global')
-                    .setDescription(isEn ? 'Standard catalog price (0% discount)' : 'Precio estándar (Sin descuento regional)')
-                    .setValue('TIER_100')
-                    .setEmoji('🌐')
-                    .setDefault(prefs.default_tier === 'TIER_100'),
+                    .setLabel(isEn ? '1.1 Price Charts: 24 Hours (24h)' : 'Gráficas 1.1: Vista de 24 Horas (24h)')
+                    .setDescription(isEn ? 'Open price charts in 24-hour intraday view by default' : 'Abrir las gráficas de precios en vista intradía de 24 horas')
+                    .setValue('range:24h')
+                    .setEmoji('⏱️'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? 'Tier 80% — Mexico, Chile, Uruguay' : 'Tier 80% — México, Chile, Uruguay')
-                    .setDescription(isEn ? '20% regional discount' : '20% de descuento regional')
-                    .setValue('TIER_80')
-                    .setEmoji('🇲🇽')
-                    .setDefault(prefs.default_tier === 'TIER_80'),
+                    .setLabel(isEn ? '1.1 Price Charts: 7 Days (7d)' : 'Gráficas 1.1: Vista de 7 Días (7d)')
+                    .setDescription(isEn ? 'Open price charts in 7-day weekly view by default' : 'Abrir las gráficas de precios en vista semanal de 7 días')
+                    .setValue('range:7d')
+                    .setEmoji('📅'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? 'Tier 60% — Argentina, Brazil, Colombia, Peru' : 'Tier 60% — Argentina, Brasil, Colombia, Perú')
-                    .setDescription(isEn ? '40% regional discount' : '40% de descuento regional')
-                    .setValue('TIER_60')
-                    .setEmoji('🇦🇷')
-                    .setDefault(prefs.default_tier === 'TIER_60'),
+                    .setLabel(isEn ? '1.1 Price Charts: 30 Days (30d)' : 'Gráficas 1.1: Vista de 30 Días (30d)')
+                    .setDescription(isEn ? 'Open price charts in 30-day monthly view by default' : 'Abrir las gráficas de precios en vista mensual de 30 días')
+                    .setValue('range:30d')
+                    .setEmoji('🗓️'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? 'Tier 40% — Venezuela, Bolivia, Paraguay' : 'Tier 40% — Venezuela, Bolivia, Paraguay')
-                    .setDescription(isEn ? '60% regional discount' : '60% de descuento regional')
-                    .setValue('TIER_40')
-                    .setEmoji('🇻🇪')
-                    .setDefault(prefs.default_tier === 'TIER_40')
+                    .setLabel(isEn ? '1.1 Price Charts: Full History (All)' : 'Gráficas 1.1: Histórico Completo')
+                    .setDescription(isEn ? 'Open price charts with all recorded historical data' : 'Abrir las gráficas mostrando todo el historial registrado')
+                    .setValue('range:all')
+                    .setEmoji('🏛️'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(
+                        prefs.default_camera_mode === 'headshot'
+                            ? (isEn ? '2.1 Sandbox Camera: Switch to Full Body 3D' : 'Cámara Probador 2.1: Usar Cuerpo Completo 3D')
+                            : (isEn ? '2.1 Sandbox Camera: Switch to Head/Face Zoom' : 'Cámara Probador 2.1: Usar Zoom Cabeza / Rostro')
+                    )
+                    .setDescription(isEn ? 'Change your starting camera view in 2.1 Outfit Sandbox' : 'Cambiar el enfoque inicial de cámara al abrir el Probador 2.1')
+                    .setValue('toggle_camera')
+                    .setEmoji('📸'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(
+                        prefs.auto_cashback_40 !== false
+                            ? (isEn ? '1.2 Calculator: Switch to Manual Selection' : 'Calculadora 1.2: Cambiar a Selección Manual')
+                            : (isEn ? '1.2 Calculator: Pre-enable 40% Group Cashback' : 'Calculadora 1.2: Pre-activar Cashback 40%')
+                    )
+                    .setDescription(isEn ? 'Keep 40% Group Method discount pre-selected in Calculator 1.2' : 'Dejar marcado automáticamente el ahorro de grupo (40%) en 1.2')
+                    .setValue('toggle_cashback')
+                    .setEmoji('🧮')
             ]);
 
-        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefTier));
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefComfort));
         container.addSeparatorComponents(separador(true));
+
+        // =====================================================
+        // SECCIÓN 4: IDIOMA, ALERTAS MD Y VISIBILIDAD (Botones 1-Clic)
+        // =====================================================
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            isEn
+                ? `### 🔔 4. Language, DM Alerts & Privacy\n` +
+                  `• **🔔 Personal DM Alerts:** ${alertsBadge}\n` +
+                  `• **👁️ Command Visibility:** ${privacyBadge}`
+                : `### 🔔 4. Idioma, Alertas por MD y Privacidad\n` +
+                  `• **🔔 Alertas por MD:** ${alertsBadge}\n` +
+                  `• **👁️ Visibilidad de Comandos:** ${privacyBadge}`
+        ));
+
+        container.addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(isEn ? 'btn_pref_lang:es' : 'btn_pref_lang:en')
+                    .setLabel(isEn ? 'Cambiar a Español' : 'Switch to English')
+                    .setEmoji(isEn ? '🇪🇸' : '🇺🇸')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_toggle_alerts')
+                    .setLabel(
+                        prefs.dm_alerts_enabled !== false
+                            ? (isEn ? 'Alerts: ON' : 'Alertas MD: ON')
+                            : (isEn ? 'Alerts: DND' : 'No Molestar')
+                    )
+                    .setEmoji(prefs.dm_alerts_enabled !== false ? '🔔' : '🔕')
+                    .setStyle(prefs.dm_alerts_enabled !== false ? ButtonStyle.Success : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_toggle_ephemeral')
+                    .setLabel(
+                        prefs.ephemeral_config
+                            ? (isEn ? 'Mode: Only Me' : 'Modo: Solo Yo')
+                            : (isEn ? 'Mode: Public' : 'Modo: Público')
+                    )
+                    .setEmoji(prefs.ephemeral_config ? '🔒' : '👁️')
+                    .setStyle(prefs.ephemeral_config ? ButtonStyle.Primary : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_reset')
+                    .setLabel(isEn ? 'Reset Defaults' : 'Restaurar')
+                    .setEmoji('🔄')
+                    .setStyle(ButtonStyle.Secondary)
+            )
+        );
+
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             footer(isEn ? 'Settings • /config' : 'Configuración • /config')
         ));
@@ -2115,29 +2920,42 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             ? (isEn ? '🟢 Web OAuth Required' : '🟢 Login Web Requerido')
             : (isEn ? '🔓 Direct Save (No Web)' : '🔓 Guardado Directo (Sin Web)');
         const fmtLoading = ownerCfg.dynamicLoadingEnabled
-            ? (isEn ? '🟢 Step-by-Step (Rows 1–4)' : '🟢 Progresiva (Filas 1–4)')
-            : (isEn ? '⚡ Instant Reply' : '⚡ Respuesta Directa');
+            ? (isEn ? '🟡 Queue Notice on Heavy Traffic' : '🟡 Aviso solo si hay Cola Real')
+            : (isEn ? '⚡ Direct 1-Step Reply (Zero Overhead)' : '⚡ Respuesta Directa en 1 Paso (Sin Sobrecarga)');
         const fmtTycoon = ownerCfg.tycoonEnabled !== false
             ? (isEn ? '🟢 Active' : '🟢 Activo')
             : (isEn ? '⏸️ Paused' : '⏸️ Pausado');
+        const fmtAlertsGlobal = ownerCfg.alertsEnabled !== false
+            ? (isEn ? '🟢 Active (1.1 / 1.4 / 3.4)' : '🟢 Activas (1.1 / 1.4 / 3.4)')
+            : (isEn ? '⏸️ Paused Globally' : '⏸️ Pausadas Globalmente');
+        const presenceLabels = {
+            online: isEn ? '🟢 Online' : '🟢 En línea',
+            idle: isEn ? '🌙 Idle / Away' : '🌙 Ausente (Idle)',
+            dnd: isEn ? '⛔ Do Not Disturb' : '⛔ No Molestar (DND)'
+        };
+        const fmtPresence = `${presenceLabels[ownerCfg.botPresenceStatus] || presenceLabels.online} — \`${ownerCfg.botActivityText || '/roblox • /tycoon • /help • /config'}\``;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
                 ? `### ⚡ Active Mechanics & Parameters\n` +
-                  `• **Performance & RAM:** ${recursos.limites.nombreModo} (\`${recursos.rssMB} MB\`)\n` +
+                  `• **Discord Presence & Status:** ${fmtPresence}\n` +
+                  `• **Performance & RAM:** ${recursos.limites.nombreModo} (\`${recursos.rssMB.toFixed(1)} MB\`)\n` +
                   `• **Limits per User:** Watchlist \`${ownerCfg.maxWishlistItems}\` • Sandbox \`${ownerCfg.maxSandboxItems}\` • Patches \`${ownerCfg.maxGameSubs}\`\n` +
                   `• **Auto-Scan Timers:** Prices every \`${ownerCfg.priceCheckIntervalMinutes} min\` • Robux/Patches every \`${ownerCfg.workersIntervalMinutes} min\`\n` +
+                  `• **Global Background Alerts:** ${fmtAlertsGlobal}\n` +
                   `• **Personal Data Saving:** ${fmtOAuth}\n` +
                   `• **Tycoon Ecosystem (\`/tycoon\`):** ${fmtTycoon}\n` +
-                  `• **Loading Screen:** ${fmtLoading}\n` +
+                  `• **Execution Mode:** ${fmtLoading}\n` +
                   `• **Maintenance Mode:** ${fmtMant}`
                 : `### ⚡ Mecánicas y Parámetros Activos\n` +
-                  `• **Rendimiento y RAM:** ${recursos.limites.nombreModo} (\`${recursos.rssMB} MB\`)\n` +
+                  `• **Estado del Bot en Discord:** ${fmtPresence}\n` +
+                  `• **Rendimiento y RAM:** ${recursos.limites.nombreModo} (\`${recursos.rssMB.toFixed(1)} MB\`)\n` +
                   `• **Límites por Usuario:** Mi Lista \`${ownerCfg.maxWishlistItems}\` • Probador \`${ownerCfg.maxSandboxItems}\` • Parches \`${ownerCfg.maxGameSubs}\`\n` +
                   `• **Escaneo Automático:** Precios cada \`${ownerCfg.priceCheckIntervalMinutes} min\` • Robux/Parches cada \`${ownerCfg.workersIntervalMinutes} min\`\n` +
+                  `• **Alertas Automáticas Globales:** ${fmtAlertsGlobal}\n` +
                   `• **Guardado de Datos:** ${fmtOAuth}\n` +
                   `• **Ecosistema Tycoon (\`/tycoon\`):** ${fmtTycoon}\n` +
-                  `• **Pantalla de Carga:** ${fmtLoading}\n` +
+                  `• **Modo de Respuesta:** ${fmtLoading}\n` +
                   `• **Mantenimiento:** ${fmtMant}`
         ));
 
@@ -2145,6 +2963,24 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             .setCustomId('select_owner_mechanic')
             .setPlaceholder(isEn ? '⚙️ Select a setting or mechanic to modify...' : '⚙️ Elegí un ajuste o mecánica para modificar...')
             .addOptions([
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn
+                        ? `Cycle Bot Discord Status (${(ownerCfg.botPresenceStatus || 'online').toUpperCase()})`
+                        : `Cambiar Estado en Discord (${presenceLabels[ownerCfg.botPresenceStatus] || 'En línea'})`)
+                    .setDescription(isEn
+                        ? 'Switch between Online (🟢), Idle (🌙), and Do Not Disturb (⛔)'
+                        : 'Alternar en vivo entre En línea (🟢), Ausente (🌙) y No Molestar (⛔)')
+                    .setValue('owner_cycle_presence')
+                    .setEmoji('🟢'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn
+                        ? 'Edit Custom Bot Activity Text'
+                        : 'Personalizar Frase de Estado del Bot')
+                    .setDescription(isEn
+                        ? 'Open modal to customize the activity text shown under the bot in Discord'
+                        : 'Abrir ventana para cambiar el texto de actividad que muestra el bot en Discord')
+                    .setValue('owner_modal_presence')
+                    .setEmoji('💬'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel(isEn
                         ? `Edit User Limits (${ownerCfg.maxWishlistItems} / ${ownerCfg.maxSandboxItems} / ${ownerCfg.maxGameSubs})`
@@ -2163,6 +2999,15 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                         : 'Abrir ventana para ajustar cada cuántos minutos revisa precios y parches')
                     .setValue('owner_modal_intervals')
                     .setEmoji('⏱️'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn
+                        ? `Global Auto-Alerts (${ownerCfg.alertsEnabled !== false ? 'Pause' : 'Enable'})`
+                        : `Alertas Automáticas Globales (${ownerCfg.alertsEnabled !== false ? 'Pausar' : 'Activar'})`)
+                    .setDescription(isEn
+                        ? 'Pause or resume automatic background notifications (1.1, 1.4, 3.4)'
+                        : 'Pausar o reanudar el envío global de avisos automáticos (1.1, 1.4, 3.4)')
+                    .setValue('owner_toggle_alerts')
+                    .setEmoji('🔔'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel(isEn
                         ? `Tycoon Module /tycoon (${ownerCfg.tycoonEnabled !== false ? 'Pause' : 'Enable'})`
@@ -2192,13 +3037,13 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                     .setEmoji('🔐'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel(isEn
-                        ? `Step-by-Step Loading Screen (${ownerCfg.dynamicLoadingEnabled ? 'Disable' : 'Enable'})`
-                        : `Pantalla de Carga por Filas (${ownerCfg.dynamicLoadingEnabled ? 'Desactivar' : 'Activar'})`)
+                        ? `Queue Notice on Heavy Load (${ownerCfg.dynamicLoadingEnabled ? 'Disable' : 'Enable'})`
+                        : `Aviso de Cola en Tráfico Alto (${ownerCfg.dynamicLoadingEnabled ? 'Desactivar' : 'Activar'})`)
                     .setDescription(isEn
-                        ? 'Toggle between 4-row progress screen or instant direct response'
-                        : 'Alternar entre el progreso de 4 filas o respuesta directa al instante')
+                        ? 'Toggle between direct 1-step reply or showing a queue notice when slots are full'
+                        : 'Alternar entre respuesta directa en 1 paso o mostrar aviso si hay cola real')
                     .setValue('owner_toggle_loading')
-                    .setEmoji('📋'),
+                    .setEmoji('⚡'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel(isEn
                         ? `Performance Mode (${ownerCfg.engineMode.toUpperCase()})`
@@ -2216,7 +3061,16 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                         ? 'Temporarily restrict bot commands to the owner only'
                         : 'Restringir temporalmente el bot solo al propietario')
                     .setValue('owner_toggle_maintenance')
-                    .setEmoji('🛠️')
+                    .setEmoji('🛠️'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn
+                        ? 'Reset Bot Parameters to Safe Defaults'
+                        : 'Restaurar Parámetros del Bot por Defecto')
+                    .setDescription(isEn
+                        ? 'Restore limits, intervals, presence, and engine settings to factory defaults'
+                        : 'Restablecer límites, intervalos, estado y rendimiento a los valores óptimos')
+                    .setValue('owner_reset_defaults')
+                    .setEmoji('🔄')
             ]);
 
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectOwnerMechanics));
@@ -2255,8 +3109,10 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     // =========================================================
     const cfg = await verificarAutorizacionDiscordOAuth(uid);
     const cuentaRoblox = await verificarAutorizacionRobloxOAuth(uid).catch(() => null);
+    const pendingRoblox = obtenerVerificacionPendienteRoblox(uid);
+    const webDiscordChallenge = generarCodigoVinculacionDiscord(uid, discordUser);
     const resumen = await obtenerHistorialYEstadoCuenta(uid).catch(() => null);
-    const baseAppUrl = (process.env.APP_URL || process.env.PUBLIC_GUIDE_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app').replace(/\/+$/, '');
+    const baseAppUrl = obtenerUrlBasePublica();
     const directDiscordOAuthUrl = `${baseAppUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
     const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
@@ -2265,9 +3121,11 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     const ambasConectadas = tieneDiscord && tieneRoblox;
     const algunaConectada = tieneDiscord || tieneRoblox;
 
-    const colorBorde = ambasConectadas
-        ? 0x23A55A
-        : (algunaConectada ? 0x5865F2 : 0x4E5058);
+    const colorBorde = pendingRoblox
+        ? COLORES.alerta
+        : ambasConectadas
+            ? 0x23A55A
+            : (algunaConectada ? 0x5865F2 : 0x4E5058);
 
     const container = new ContainerBuilder().setAccentColor(colorBorde);
 
@@ -2305,88 +3163,163 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
     container.addSeparatorComponents(separador(true));
 
-    // 1. CUENTA DE DISCORD
+    // 1. CUENTA DE DISCORD (Aloja aquí mismo el código KTX-XXXXXX para evitar spam por MD)
+    const webCodeNoteEs = webDiscordChallenge?.code
+        ? `\n🔑 **Tu código de verificación para conectar tu ID (\`${uid}\`) en la Web:** \`${webDiscordChallenge.code}\` *(alojado aquí en \`/config\` para no enviar spam por MD)*`
+        : '';
+    const webCodeNoteEn = webDiscordChallenge?.code
+        ? `\n🔑 **Your verification code to link your ID (\`${uid}\`) on the Web:** \`${webDiscordChallenge.code}\` *(hosted right here in \`/config\` with zero DM spam)*`
+        : '';
+
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 isEn
                     ? `### 💬 1. Discord Account\n` +
                       (tieneDiscord
-                          ? `🟢 **Connected:** \`@${cfg.discord_username || username}\``
-                          : `🔴 **Not connected**\n-# Connect to save your watchlist and alerts.`)
+                          ? `🟢 **Connected:** \`@${cfg.discord_username || username}\`\n-# Linked to your personal settings and saved watchlists. Permissions are managed in **Settings → App Permissions / Authorized Apps**.${webCodeNoteEn}`
+                          : `🔴 **Not connected**\n-# Click the button on the right to activate your Discord account here and generate your web code.${webCodeNoteEn}`)
                     : `### 💬 1. Cuenta de Discord\n` +
                       (tieneDiscord
-                          ? `🟢 **Conectada:** \`@${cfg.discord_username || username}\``
-                          : `🔴 **Sin conectar**\n-# Conectala para guardar tu lista de precios y alertas.`)
+                          ? `🟢 **Conectada:** \`@${cfg.discord_username || username}\`\n-# Sincronizada con tus preferencias y datos del bot. Los permisos están alojados en **Configuración → Permisos de la aplicación**.${webCodeNoteEs}`
+                          : `🔴 **Sin conectar**\n-# Tocá el botón de la derecha para activar tu cuenta de Discord acá mismo y generar tu código web.${webCodeNoteEs}`)
             ))
             .setButtonAccessory(
-                new ButtonBuilder()
-                    .setLabel(
-                        tieneDiscord
-                            ? (isEn ? 'Reconnect Discord' : 'Reconectar Discord')
-                            : (isEn ? 'Connect Discord' : 'Conectar Discord')
-                    )
-                    .setEmoji('🔗')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(directDiscordOAuthUrl)
+                boton(
+                    'btn_config_direct_discord',
+                    tieneDiscord
+                        ? (isEn ? 'New Web Code' : 'Renovar Código')
+                        : (isEn ? 'Connect Discord' : 'Conectar Discord'),
+                    tieneDiscord ? '🔑' : '⚡',
+                    tieneDiscord ? ButtonStyle.Secondary : ButtonStyle.Primary
+                )
             )
     );
 
     container.addSeparatorComponents(separador());
 
-    // 2. CUENTA DE ROBLOX
+    // 2. CUENTA DE ROBLOX (La autorización y desvinculación están alojadas en Configuración -> Permisos de la aplicación)
+    const pendingRobloxNoteEs = pendingRoblox && pendingRoblox.profile
+        ? `\n🛡️ **Verificación pendiente para \`@${pendingRoblox.profile.roblox_username}\`:** Pegá \`${pendingRoblox.robloxProfileVerifyPhrase}\` en "Acerca de" de tu perfil en Roblox y tocá **✅ Comprobar Verificación**.`
+        : '';
+    const pendingRobloxNoteEn = pendingRoblox && pendingRoblox.profile
+        ? `\n🛡️ **Pending verification for \`@${pendingRoblox.profile.roblox_username}\`:** Paste \`${pendingRoblox.robloxProfileVerifyPhrase}\` in your Roblox profile "About" and click **✅ Verify Now**.`
+        : '';
+
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 isEn
                     ? `### 🎮 2. Roblox Account\n` +
                       (tieneRoblox
-                          ? `🟢 **Connected:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)`
-                          : `🔴 **Not linked**\n-# Link your account to load your avatar automatically.`)
+                          ? `🟢 **Connected:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)\n-# Where the bot and permissions are located in Roblox: **Settings → App Permissions** (*Configuración → Permisos de la aplicación*).${pendingRobloxNoteEn}`
+                          : `🔴 **Not linked**\n-# Click the button on the right to link by **@Username / ID** with profile code verification. App permissions live in **Settings → App Permissions**.${pendingRobloxNoteEn}`)
                     : `### 🎮 2. Cuenta de Roblox\n` +
                       (tieneRoblox
-                          ? `🟢 **Conectada:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)`
-                          : `🔴 **Sin vincular**\n-# Vinculala para cargar tu avatar automáticamente.`)
+                          ? `🟢 **Conectada:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)\n-# En Roblox, donde está alojado el bot y sus permisos para gestionar o desvincular tu cuenta es en **Configuración → Permisos de la aplicación**.${pendingRobloxNoteEs}`
+                          : `🔴 **Sin vincular**\n-# Tocá el botón de la derecha para vincular por **@Usuario / ID** con código de propiedad. En Roblox los permisos se alojan en **Configuración → Permisos de la aplicación**.${pendingRobloxNoteEs}`)
             ))
             .setButtonAccessory(
-                new ButtonBuilder()
-                    .setLabel(
-                        tieneRoblox
-                            ? (isEn ? 'Switch Account' : 'Cambiar Cuenta')
-                            : (isEn ? 'Connect Roblox' : 'Conectar Roblox')
-                    )
-                    .setEmoji('🎮')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(directRobloxOAuthUrl)
+                boton(
+                    'btn_fastlink_open_modal',
+                    tieneRoblox
+                        ? (isEn ? 'Change Roblox' : 'Cambiar Roblox')
+                        : (isEn ? 'Link Roblox' : 'Vincular Roblox'),
+                    '🎮',
+                    tieneRoblox ? ButtonStyle.Secondary : ButtonStyle.Primary
+                )
             )
     );
 
+    if (pendingRoblox && pendingRoblox.profile) {
+        container.addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                boton('btn_fastlink_verify_now', isEn ? 'Verify Now' : 'Comprobar Verificación', '✅', ButtonStyle.Success),
+                boton('btn_fastlink_cancel_verify', isEn ? 'Cancel' : 'Cancelar', '✖️', ButtonStyle.Secondary)
+            )
+        );
+    }
+
     container.addSeparatorComponents(separador());
 
-    // 3. DATOS GUARDADOS
+    // 3. DATOS GUARDADOS (Enfocado en datos permanentes de valor real: Mi Lista 1.1, Estudio /tycoon y Preferencias Activas)
     const ownerLimits = obtenerConfigPropietario();
     const maxWishlist = Number(ownerLimits.maxWishlistItems || MAX_WISHLIST_ITEMS);
-    const maxGameSubs = Number(ownerLimits.maxGameSubs || 3);
-    const wishlistCount = Number(resumen?.stats?.wishlistCount || 0);
-    const pendingCount = Number(resumen?.stats?.pendingRobuxCount || 0);
-    const gameSubsCount = Number(resumen?.stats?.gameSubsCount || 0);
-    const codesCount = Number(resumen?.stats?.redeemedCodesCount || 0);
+
+    let wishlistItemsDirect = Array.isArray(resumen?.savedItems?.wishlist) ? resumen.savedItems.wishlist : [];
+    if (wishlistItemsDirect.length === 0) {
+        try {
+            const { data: wlRows } = await supabase.from('roblox_wishlist').select('*').eq('user_id', uid);
+            if (Array.isArray(wlRows)) {
+                wishlistItemsDirect = wlRows.slice(0, maxWishlist).map(i => ({
+                    id: i.id_objet,
+                    name: i.item_name,
+                    price: i.last_price,
+                    targetPrice: i.target_price
+                }));
+            }
+        } catch {
+            // Silencioso
+        }
+    }
+    const wishlistCount = Math.max(Number(resumen?.stats?.wishlistCount || 0), wishlistItemsDirect.length);
+
+    const wishlistSummaryLine = wishlistItemsDirect.length > 0
+        ? wishlistItemsDirect.slice(0, 3).map((item) => {
+            const nombreCorto = String(item.name || `ID ${item.id}`).slice(0, 26);
+            const metaTxt = item.targetPrice ? ` → 🎯 ${Number(item.targetPrice).toLocaleString('en-US')} R$` : '';
+            return `\`${nombreCorto}\` (${Number(item.price || 0).toLocaleString('en-US')} R$${metaTxt})`;
+        }).join(' • ') + (wishlistItemsDirect.length > 3 ? ` *(+${wishlistItemsDirect.length - 3})*` : '')
+        : (isEn
+            ? '*No items tracked yet in `1.1 Price Tracker & Watchlist`.*'
+            : '*Sin ítems monitoreados actualmente en `1.1 Seguimiento de Precios y Mi Lista`.*');
+
+    // Progreso guardado en /tycoon (si existe perfil en memoria/disco)
+    const tycoonRows = Array.isArray(supabase.memoryTables?.tycoon_profiles) ? supabase.memoryTables.tycoon_profiles : [];
+    const tycoonProfile = tycoonRows.find(r => r && String(r.user_id) === uid) || null;
+    const tycoonLine = tycoonProfile
+        ? (isEn
+            ? `🏭 **Studio Progress (\`/tycoon\`):** Level \`${tycoonProfile.studio_level || 1}/6\`  •  ♻️ Rebirth \`x${tycoonProfile.rebirths || 0}\`  •  🎟️ \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\`  •  💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``
+            : `🏭 **Estudio Tycoon (\`/tycoon\`):** Nivel \`${tycoonProfile.studio_level || 1}/6\`  •  ♻️ Rebirth \`x${tycoonProfile.rebirths || 0}\`  •  🎟️ \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\`  •  💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``)
+        : (isEn
+            ? `🏭 **Studio Progress (\`/tycoon\`):** *Not started yet — run \`/tycoon\` to open your studio*`
+            : `🏭 **Estudio Tycoon (\`/tycoon\`):** *Sin iniciar — ejecutá \`/tycoon\` para abrir tu estudio*`);
+
+    const tierMapSaved = TIER_LABELS[isEn ? 'en' : 'es'] || TIER_LABELS.es;
+    const activeTierShort = tierMapSaved[prefs.default_tier] || tierMapSaved.TIER_100;
+    const catShortNames = isEn
+        ? {
+            cat_economy: '💰 1. Economy',
+            cat_avatar: '👕 2. Avatars',
+            cat_games: '🎮 3. Games',
+            cat_status: '📊 4. Analytics'
+        }
+        : {
+            cat_economy: '💰 1. Economía',
+            cat_avatar: '👕 2. Avatares',
+            cat_games: '🎮 3. Juegos',
+            cat_status: '📊 4. Estadísticas'
+        };
 
     const textoBoveda = isEn
-        ? `### 🗂️ 3. Saved Data\n` +
-          `🎯 **Watchlist:** \`${wishlistCount}/${maxWishlist}\`  •  ⏳ **Pending Robux:** \`${pendingCount}\`  •  🔔 **Alerts:** \`${gameSubsCount}/${maxGameSubs}\`  •  🎁 **Codes:** \`${codesCount}\``
+        ? `### 🗂️ 3. Saved Account Data\n` +
+          `• 🎯 **My Watchlist (\`1.1\`):** \`${wishlistCount}/${maxWishlist}\` — ${wishlistSummaryLine}\n` +
+          `• ${tycoonLine}\n` +
+          `• ⚙️ **Saved Preferences:** ${isEn ? '🇺🇸 English' : '🇪🇸 Español'}  •  ${activeTierShort}  •  Start in ${catShortNames[prefs.default_category] || catShortNames.cat_economy}`
         : `### 🗂️ 3. Datos Guardados\n` +
-          `🎯 **Mi Lista:** \`${wishlistCount}/${maxWishlist}\`  •  ⏳ **Robux Pendientes:** \`${pendingCount}\`  •  🔔 **Alertas:** \`${gameSubsCount}/${maxGameSubs}\`  •  🎁 **Códigos:** \`${codesCount}\``;
+          `• 🎯 **Mi Lista de Seguimiento (\`1.1\`):** \`${wishlistCount}/${maxWishlist}\` — ${wishlistSummaryLine}\n` +
+          `• ${tycoonLine}\n` +
+          `• ⚙️ **Preferencias Guardadas:** ${isEn ? '🇺🇸 English' : '🇪🇸 Español'}  •  ${activeTierShort}  •  Inicio en ${catShortNames[prefs.default_category] || catShortNames.cat_economy}`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(textoBoveda));
 
     container.addSeparatorComponents(separador(true));
 
-    // 4. BARRA INFERIOR DE CONTROLES
+    // 4. BARRA INFERIOR DE CONTROLES (Limpia: solo Actualizar + Panel Web, sin duplicar botones 1 y 2 ni desvincular)
     const filaBotonesInferior = [
         boton(
             'btn_config_refresh',
-            isEn ? 'Refresh Status' : 'Actualizar Estado',
+            isEn ? 'Refresh' : 'Actualizar',
             '🔄',
             ButtonStyle.Success
         ),
@@ -2396,16 +3329,6 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             .setStyle(ButtonStyle.Link)
             .setURL(baseAppUrl)
     ];
-
-    if (tieneRoblox) {
-        filaBotonesInferior.push(
-            new ButtonBuilder()
-                .setLabel(isEn ? 'Roblox Profile' : 'Perfil de Roblox')
-                .setEmoji('👤')
-                .setStyle(ButtonStyle.Link)
-                .setURL(`https://www.roblox.com/users/${cuentaRoblox.roblox_user_id}/profile`)
-        );
-    }
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(filaBotonesInferior));
 
@@ -2419,6 +3342,40 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
+}
+
+/**
+ * Activa y verifica la cuenta de Discord del usuario directamente desde su interacción autenticada en Discord
+ * o desde el verificador del bot sin depender de redirecciones externas.
+ */
+async function activarSesionDiscordDirecta(discordUser) {
+    const uid = String(discordUser?.id || '').trim();
+    if (!uid) return null;
+    const username = discordUser?.globalName || discordUser?.global_name || discordUser?.username || 'Usuario';
+    const tag = discordUser?.username || username;
+    const avatarUrl = typeof discordUser?.displayAvatarURL === 'function'
+        ? discordUser.displayAvatarURL({ extension: 'png', size: 256 })
+        : (discordUser?.avatar
+            ? `https://cdn.discordapp.com/avatars/${uid}/${discordUser.avatar}.png?size=256`
+            : (discordUser?.avatarUrl || null));
+
+    await migrarDatosDeSesion('default_session', uid);
+
+    const saved = guardarConfigDiscord(uid, {
+        discord_username: username,
+        discord_tag: tag,
+        discord_avatar: avatarUrl,
+        oauth_verified: true,
+        verified_at: new Date().toISOString()
+    });
+
+    registrarEventoHistorialCuenta(uid, {
+        category: 'discord',
+        title: `Cuenta de Discord conectada: @${username}`,
+        detail: `ID ${uid} • Verificación directa activa`
+    });
+
+    return saved;
 }
 
 /**
@@ -2444,7 +3401,7 @@ function construirPanelDesbloqueoRequerido({
     const { footer, separador, boton } = require('../../utils/ui');
 
     const uid = String(userId || '');
-    const baseAppUrl = (process.env.APP_URL || process.env.PUBLIC_GUIDE_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app').replace(/\/+$/, '');
+    const baseAppUrl = obtenerUrlBasePublica();
 
     if (tipo === 'roblox') {
         const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
@@ -2459,12 +3416,12 @@ function construirPanelDesbloqueoRequerido({
                 new SectionBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `### 🎮 Vincular Cuenta de Roblox\n` +
-                        `Conectá tu perfil para usar esta función.`
+                        `Podés vincularla verificando tu propiedad por **@Usuario / ID** o desde el portal web.`
                     ))
                     .setButtonAccessory(
                         new ButtonBuilder()
-                            .setLabel('Conectar Roblox')
-                            .setEmoji('🎮')
+                            .setLabel('Portal Web / OAuth')
+                            .setEmoji('🌐')
                             .setStyle(ButtonStyle.Link)
                             .setURL(directRobloxOAuthUrl)
                     )
@@ -2472,7 +3429,8 @@ function construirPanelDesbloqueoRequerido({
             .addSeparatorComponents(separador(true))
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton('btn_fastlink_modal', 'Mi Cuenta Roblox', '🎮', ButtonStyle.Success),
+                    boton('btn_fastlink_open_modal', 'Vincular @Usuario / ID', '🎮', ButtonStyle.Primary),
+                    boton('btn_fastlink_modal', 'Mi Cuenta Roblox', '👤', ButtonStyle.Success),
                     boton(backButtonId, backLabel, '⬅️', ButtonStyle.Secondary)
                 )
             )
@@ -2500,11 +3458,11 @@ function construirPanelDesbloqueoRequerido({
             new SectionBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### 💬 Conectar Cuenta de Discord\n` +
-                    `Conectá tu cuenta para habilitar el guardado y las alertas.`
+                    `Tocá **⚡ Activar Mi Cuenta Aquí (1 Clic)** abajo o conectala desde el portal web.`
                 ))
                 .setButtonAccessory(
                     new ButtonBuilder()
-                        .setLabel('Conectar Discord')
+                        .setLabel('Portal Web / OAuth')
                         .setEmoji('🔗')
                         .setStyle(ButtonStyle.Link)
                         .setURL(directDiscordOAuthUrl)
@@ -2513,6 +3471,7 @@ function construirPanelDesbloqueoRequerido({
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
+                boton('btn_config_direct_discord', 'Activar Mi Cuenta Aquí (1 Clic)', '⚡', ButtonStyle.Primary),
                 boton(backButtonId, backLabel, '⬅️', ButtonStyle.Secondary)
             )
         )
@@ -2602,11 +3561,28 @@ async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemTy
 
 module.exports = {
     MAX_WISHLIST_ITEMS,
+    DEFAULT_APP_URL,
+    normalizarUrlPublica,
+    setDetectedPublicAppUrl,
+    obtenerUrlBasePublica,
+    activarSesionDiscordDirecta,
     fastLinkCache,
     discordConfigCache,
     accountHistoryCache,
     pendingRobloxVerifications,
     recentlyAutoVerifiedRoblox,
+    pendingDiscordVerifications,
+    discordVerifyCooldowns,
+    blockedWebDiscordIds,
+    robloxTargetCooldowns,
+    usuarioInteractuoConBot,
+    verificarMiembroMutuoDiscord,
+    generarCodigoVinculacionDiscord,
+    obtenerVerificacionPendienteDiscord,
+    iniciarVerificacionDiscordWeb,
+    confirmarVerificacionDiscordWeb,
+    procesarAccionSeguridadDiscordWeb,
+    verificarFraseEnPerfilRoblox,
     onAccountLinked,
     resolverUsuarioRoblox,
     obtenerCuentaVinculada,
@@ -2622,6 +3598,7 @@ module.exports = {
     confirmarVerificacionCodigoRoblox,
     cancelarVerificacionCodigoRoblox,
     obtenerVerificacionPendienteRoblox,
+    obtenerVerificacionRobloxPendiente: obtenerVerificacionPendienteRoblox,
     obtenerConfigDiscord,
     guardarConfigDiscord,
     verificarAutorizacionDiscordOAuth,

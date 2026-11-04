@@ -7,6 +7,7 @@ const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { obtenerConfigPropietario, MAX_WISHLIST_ITEMS } = require('../../src/utils/fastLink');
 
 module.exports = {
     customIdPrefix: 'btn_save_no_target:',
@@ -15,16 +16,25 @@ module.exports = {
         await interaction.deferUpdate();
         const [, itemType, idObjet] = interaction.customId.split(':');
 
-        const { data: existente } = await supabase
+        const { data: listaUsuario } = await supabase
             .from('roblox_wishlist')
-            .select('id')
-            .eq('user_id', interaction.user.id)
-            .eq('id_objet', idObjet)
-            .maybeSingle();
+            .select('id, id_objet')
+            .eq('user_id', interaction.user.id);
+
+        const itemsActuales = listaUsuario || [];
+        const existente = itemsActuales.find(i => String(i.id_objet) === String(idObjet));
 
         if (existente) {
             return await interaction.followUp({
                 content: `⚠️ El objeto (ID: \`${idObjet}\`) ya está en tu lista de seguimiento.`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const maxItems = Number(obtenerConfigPropietario().maxWishlistItems || MAX_WISHLIST_ITEMS || 5);
+        if (itemsActuales.length >= maxItems) {
+            return await interaction.followUp({
+                content: `🚫 Llegaste al límite de **${maxItems} objetos** en tu lista de seguimiento. Eliminá alguno desde **Mi Lista** para agregar uno nuevo.`,
                 flags: MessageFlags.Ephemeral
             });
         }

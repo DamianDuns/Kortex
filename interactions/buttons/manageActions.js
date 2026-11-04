@@ -17,13 +17,88 @@ const {
     MessageFlags 
 } = require('discord.js');
 const supabase = require('../../db');
-const { obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../../utils/roblox');
+const PriceItem = require('../../models/PriceItem');
+const { obtenerDetallesCompletos, obtenerMiniaturasBatch, obtenerUrlRoblox } = require('../../utils/roblox');
 const { enviarAlertaPrueba } = require('../../services/priceTracker');
-const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
+const { renderizarVistaGrafica } = require('./chartView');
+const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
 
-async function renderizarPanelConfig(item) {
-    const miniaturas = await obtenerMiniaturasBatch([item]);
+async function ejecutarCheckInObjeto(item) {
+    const type = (item.item_type || 'catalog').toLowerCase();
+    const esUSD = type === 'plugin';
+    const precioPrevio = Number(item.last_price || 0);
+
+    let precioVerificado = precioPrevio;
+    let detallesLive = null;
+    try {
+        detallesLive = await obtenerDetallesCompletos(item.id_objet, type, true);
+        if (detallesLive && detallesLive.exito && !detallesLive.sinVendedores && !isNaN(Number(detallesLive.precio))) {
+            precioVerificado = Number(detallesLive.precio);
+        }
+    } catch {
+        // Conservar último precio conocido si la red de Roblox no responde
+    }
+
+    if (precioVerificado !== precioPrevio) {
+        try {
+            await supabase
+                .from('roblox_wishlist')
+                .update({ last_price: precioVerificado })
+                .eq('id', item.id);
+        } catch {
+            // Silencioso
+        }
+    }
+
+    const updatedItem = { ...item, last_price: precioVerificado };
+    const priceRecord = await PriceItem.recordPrice(
+        item.id_objet,
+        detallesLive?.nombre || item.item_name,
+        precioVerificado,
+        {
+            previousPrice: precioPrevio,
+            existingHistory: item.price_history,
+            createdAt: item.created_at
+        }
+    ).catch(() => null);
+
+    const summary = PriceItem.getPriceCheckSummary(updatedItem, priceRecord?.history || null);
+    const fmtActual = formatearPrecio(summary.lastPrice, esUSD);
+    const fmtOrig = formatearPrecio(summary.firstPrice, esUSD);
+
+    let notice = '';
+    if (summary.isTargetMet) {
+        const fmtMeta = formatearPrecio(summary.targetPrice, esUSD);
+        const ahorroOrigTxt = summary.isBelowOriginal
+            ? ` y está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo** que su precio original (${fmtOrig})`
+            : '';
+        const bajoMetaTxt = summary.belowTargetAmount > 0
+            ? ` *(**-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)}** más barato que tu meta de ${fmtMeta})*`
+            : ` *(alcanzó tu meta de ${fmtMeta})*`;
+        notice = `🎯 **Check-in completado — ¡META ALCANZADA!:** Precio actual verificado en **${fmtActual}**${bajoMetaTxt}${ahorroOrigTxt}.`;
+    } else if (summary.isBelowOriginal) {
+        const pctStr = summary.pctSavedVsOriginal.toFixed(1).replace('.0', '');
+        const faltaMeta = summary.hasTarget
+            ? ` • Faltan **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** para tu meta (${formatearPrecio(summary.targetPrice, esUSD)})`
+            : '';
+        notice = `📉 **Check-in completado:** Precio verificado en **${fmtActual}** — está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${pctStr}%) más bajo** que el precio original (${fmtOrig})${faltaMeta}.`;
+    } else {
+        const faltaMeta = summary.hasTarget
+            ? ` • Faltan **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** para tu meta (${formatearPrecio(summary.targetPrice, esUSD)})`
+            : '';
+        notice = `🔄 **Check-in completado:** Precio verificado en **${fmtActual}** (Precio original: ${fmtOrig})${faltaMeta}.`;
+    }
+
+    return { updatedItem, summary, notice };
+}
+
+async function renderizarPanelConfig(item, checkInFeedback = null) {
+    const [miniaturas, priceRecord] = await Promise.all([
+        obtenerMiniaturasBatch([item]).catch(() => new Map()),
+        PriceItem.getOrInitItem(item).catch(() => null)
+    ]);
     const imagenUrl = miniaturas.get(String(item.id_objet)) || null;
+    const summary = PriceItem.getPriceCheckSummary(item, priceRecord?.history || null);
 
     const tipo = (item.item_type || 'catalog').toLowerCase();
     const esUSD = tipo === 'plugin';
@@ -42,27 +117,43 @@ async function renderizarPanelConfig(item) {
         defaultDest = 'dest_channel';
     }
 
-    const fmtActual = formatearPrecio(item.last_price, esUSD);
-    const tieneMeta = item.target_price !== null && item.target_price !== undefined;
+    const fmtActual = formatearPrecio(summary.lastPrice, esUSD);
+    const fmtOriginal = formatearPrecio(summary.firstPrice, esUSD);
+    const tieneMeta = summary.hasTarget;
     const fmtMeta = tieneMeta
-        ? formatearPrecio(item.target_price, esUSD)
+        ? `${formatearPrecio(summary.targetPrice, esUSD)}${summary.isTargetMet ? '  ✅ **¡META COMPLETADA!**' : ` *(⏳ faltan ${formatearPrecioTexto(summary.remainingToTarget, esUSD)})*`}`
         : '`Sin meta (avisa todo cambio)`';
+
+    const lineaOriginal = summary.isBelowOriginal
+        ? `🕒 **Precio original:** ~~${fmtOriginal}~~  ➔  📉 **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo**`
+        : `🕒 **Precio original:** ${fmtOriginal}`;
+
+    const bannerMetaCompletada = summary.isTargetMet
+        ? `\n\n> 🎉 **¡META COMPLETADA!** El precio actual (**${fmtActual}**) ya llegó a la meta que estableciste` +
+          (summary.belowTargetAmount > 0 ? ` (**-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)}** por debajo de tu meta)` : '') +
+          (summary.isBelowOriginal ? ` y está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)}** más bajo que el precio original.` : '.')
+        : '';
+
+    const bannerFeedback = checkInFeedback ? `> ${checkInFeedback}\n\n` : '';
 
     const labelPausa = item.is_paused ? 'Reanudar' : 'Pausar';
     const emojiPausa = item.is_paused ? '▶️' : '⏸️';
     const stylePausa = item.is_paused ? ButtonStyle.Success : ButtonStyle.Secondary;
 
     const textoConfig = new TextDisplayBuilder().setContent(
+        `${bannerFeedback}` +
         `# ⚙️ Configuración — ${item.item_name || 'Objeto'}\n` +
         `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
         `🏷️ **Precio actual:** ${fmtActual}\n` +
+        `${lineaOriginal}\n` +
         `🎯 **Meta objetivo:** ${fmtMeta}\n` +
         `🔔 **Destino de alerta:** ${canalTexto}\n` +
-        `📡 **Estado:** ${estadoTexto}`
+        `📡 **Estado:** ${estadoTexto}` +
+        `${bannerMetaCompletada}`
     );
 
     const container = new ContainerBuilder()
-        .setAccentColor(item.is_paused ? COLORES.alerta : COLORES.lista);
+        .setAccentColor(summary.isTargetMet ? COLORES.exito : (item.is_paused ? COLORES.alerta : COLORES.lista));
 
     if (imagenUrl) {
         const section = new SectionBuilder()
@@ -76,6 +167,7 @@ async function renderizarPanelConfig(item) {
     container.addSeparatorComponents(separador(true));
 
     const rowButtons = new ActionRowBuilder().addComponents(
+        boton(`btn_action_checkin:${item.id}:config`, 'Check-in', '🔄', ButtonStyle.Success),
         boton(`btn_action_edit_target:${item.id}:${item.item_type}:${item.id_objet}`, tieneMeta ? 'Editar Meta' : 'Fijar Meta', '✏️', ButtonStyle.Primary),
         boton(`btn_action_toggle_pause:${item.id}`, labelPausa, emojiPausa, stylePausa),
         boton(`btn_action_test_alert:${item.id}`, 'Probar Alerta', '🔔', ButtonStyle.Secondary),
@@ -142,6 +234,7 @@ async function renderizarPanelConfig(item) {
 module.exports = {
     customIdPrefix: 'btn_action_',
     renderizarPanelConfig,
+    ejecutarCheckInObjeto,
 
     async execute(interaction) {
         if (interaction.customId.startsWith('btn_action_edit_target:')) {
@@ -181,7 +274,32 @@ module.exports = {
         }
 
         await interaction.deferUpdate();
-        const selectedDbId = interaction.customId.split(':')[1];
+        const parts = interaction.customId.split(':');
+        const selectedDbId = parts[1];
+
+        if (interaction.customId.startsWith('btn_action_checkin:')) {
+            const originView = parts[2] || 'chart';
+            const { data: itemsUsuario } = await supabase
+                .from('roblox_wishlist')
+                .select('*')
+                .eq('user_id', interaction.user.id)
+                .order('id', { ascending: true });
+
+            const item = (itemsUsuario || []).find(i => String(i.id) === String(selectedDbId));
+            if (!item) {
+                return await interaction.followUp({
+                    content: '❌ No se encontró el objeto en tu lista.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const { updatedItem, notice } = await ejecutarCheckInObjeto(item);
+            if (originView === 'config') {
+                return await interaction.editReply(await renderizarPanelConfig(updatedItem, notice));
+            }
+            const updatedList = (itemsUsuario || []).map(i => String(i.id) === String(updatedItem.id) ? updatedItem : i);
+            return await interaction.editReply(await renderizarVistaGrafica(updatedItem, updatedList, null, notice));
+        }
 
         if (interaction.customId.startsWith('btn_action_test_alert:')) {
             const { data: item } = await supabase

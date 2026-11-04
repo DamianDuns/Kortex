@@ -12,12 +12,28 @@ const logger = require('./utils/logger');
 const supabase = require('./db');
 const {
     generatePriceChart,
+    generateWatchlistOverviewCanvas,
     generatePriceFloorsChart,
+    generateCalculatorBreakdownCard,
+    generatePendingRobuxCard,
+    generateEmptyServersRadarCard,
     generateOutfitSandboxCard,
     generateClonesComparisonCanvas,
     generateMannequinTemplateCanvas,
     generateColorMatchCanvas
 } = require('./src/utils/chartGenerator');
+const { renderTycoonSnapshot, renderTycoonSectionCanvas } = require('./utils/tycoonRenderer');
+const { getOrCreatePlayerState, getTycoonLeaderboard } = require('./services/tycoonEngine');
+const {
+    obtenerEstadoServidoresRoblox,
+    obtenerJuegosEnTendenciaRoblox,
+    obtenerPerfilAnaliticoRoblox,
+    generateRobloxStatusCanvas,
+    generateTrendingGamesCanvas,
+    generateProfileInspectorCanvas,
+    generateLimitedsRadarCanvas,
+    generateCompareGamesCanvas
+} = require('./src/modules/statusModule');
 
 const modoDeploy = process.argv.includes('--deploy') || process.env.DEPLOY_COMMANDS === 'true';
 logger.imprimirBanner(modoDeploy);
@@ -96,6 +112,14 @@ const axios = require('axios');
 const {
     fastLinkCache,
     discordConfigCache,
+    normalizarUrlPublica,
+    setDetectedPublicAppUrl,
+    obtenerUrlBasePublica,
+    activarSesionDiscordDirecta,
+    iniciarVerificacionDiscordWeb,
+    confirmarVerificacionDiscordWeb,
+    iniciarVerificacionCodigoRoblox,
+    confirmarVerificacionCodigoRoblox,
     resolverUsuarioRoblox,
     guardarCuentaVinculada,
     eliminarCuentaVinculada,
@@ -192,13 +216,30 @@ function resolveActiveSessionDiscordId(hintId) {
     return cleanHint || 'default_session';
 }
 
-function getBaseOrigin(req) {
-    if (process.env.APP_URL) {
-        return process.env.APP_URL.replace(/\/+$/, '');
+function getBaseOrigin(req, urlObj = null) {
+    const queryOrigin = urlObj ? normalizarUrlPublica(urlObj.searchParams.get('origin')) : '';
+    if (queryOrigin && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(queryOrigin)) {
+        setDetectedPublicAppUrl(queryOrigin);
+        return queryOrigin;
     }
-    const proto = req.headers['x-forwarded-proto'] || 'https';
-    const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
-    return `${proto}://${host}`;
+
+    const headerOrigin = normalizarUrlPublica(req.headers.origin);
+    if (headerOrigin && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(headerOrigin)) {
+        setDetectedPublicAppUrl(headerOrigin);
+        return headerOrigin;
+    }
+
+    const rawHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+    const rawProto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+    if (rawHost && !/^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(rawHost)) {
+        const detected = normalizarUrlPublica(`${rawProto}://${rawHost}`);
+        if (detected) {
+            setDetectedPublicAppUrl(detected);
+            return detected;
+        }
+    }
+
+    return obtenerUrlBasePublica();
 }
 
 function readJsonBody(req) {
@@ -288,6 +329,257 @@ function renderOAuthCallbackPage({ ok, title, subtitle, payload }) {
 </html>`;
 }
 
+function renderOAuthGatewayPage({ provider, discordId, authUrl, callbackUrl, baseOrigin }) {
+    const isDiscord = provider === 'discord';
+    const accent = isDiscord ? '#5865F2' : '#23A55A';
+    const title = isDiscord
+        ? '💬 Conectar Cuenta de Discord — Kortex'
+        : '🎮 Conectar Cuenta de Roblox — Kortex';
+    const sharedOrigin = baseOrigin.replace('https://ais-dev-', 'https://ais-pre-');
+    const sharedCallbackUrl = `${sharedOrigin}/auth/${isDiscord ? 'discord' : 'roblox'}/callback`;
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #090B10;
+      color: #F3F5F9;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 18px;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: #121621;
+      border: 1px solid #242B3D;
+      border-top: 4px solid ${accent};
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.65);
+    }
+    h1 { font-size: 1.22rem; margin: 0 0 8px; }
+    p { color: #9BA5BA; font-size: 0.88rem; line-height: 1.5; margin: 0 0 16px; }
+    .box {
+      background: #0C0F17;
+      border: 1px solid #22293A;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .box-title {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #F3F5F9;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(35, 165, 90, 0.18);
+      color: #4ADE80;
+      font-weight: 700;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    input {
+      flex: 1;
+      background: #151A28;
+      border: 1px solid #2C354D;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #F3F5F9;
+      font-size: 0.88rem;
+      outline: none;
+    }
+    input:focus { border-color: ${accent}; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 11px 16px;
+      border-radius: 9px;
+      background: ${accent};
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.88rem;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #1C2335;
+      border: 1px solid #2E3852;
+      color: #E2E8F0;
+      margin-top: 8px;
+    }
+    .uri-code {
+      display: block;
+      background: #080A0F;
+      border: 1px solid #1E2536;
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-family: monospace;
+      font-size: 0.74rem;
+      color: #A5B4FC;
+      word-break: break-all;
+      margin: 6px 0;
+    }
+    .status-msg {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${title}</h1>
+    <p>Elegí cómo querés conectar tu cuenta. La <strong>Opción 1 (Rápida)</strong> funciona al instante sin depender de redirecciones externas.</p>
+
+    <div class="box">
+      <div class="box-title">
+        <span>🛡️ Opción 1: Conexión con Código Alojado en <code>/config</code> (Sin Spam por MD)</span>
+        <span class="badge">RECOMENDADO</span>
+      </div>
+      ${isDiscord ? `
+        <p style="margin-bottom:8px;font-size:0.8rem;">Para no enviar spam a tu buzón de MDs, tu clave personal se aloja en el comando <strong><code>/config</code></strong> dentro de Discord (apartado <strong>1. Cuenta de Discord</strong>). Copiala de ahí y pegala abajo:</p>
+        <div class="input-row">
+          <input id="quick-input" type="text" value="${discordId && discordId !== 'default_session' ? discordId : ''}" placeholder="Tu Discord ID (ej: 957207733017387038)" />
+        </div>
+        <div id="verify-step2-box" style="margin-top:8px;">
+          <div class="input-row">
+            <input id="quick-code-input" type="text" placeholder="Tu código de /config (Ej: KTX-123456)" />
+          </div>
+          <button type="button" class="btn" style="margin-top:8px;background:#23A55A;" onclick="runQuickLink('verify')">✅ Conectar con Código de /config</button>
+        </div>
+      ` : `
+        <p style="margin-bottom:8px;font-size:0.8rem;">Paso 1: Escribí tu <strong>@Usuario de Roblox</strong> o tu <strong>ID numérico</strong> para generar tu código de propiedad (en Roblox los permisos del bot están en <strong>Configuración → Permisos de la aplicación</strong>):</p>
+        <div class="input-row">
+          <input id="quick-input" type="text" placeholder="Ej: damianpro13 o tu ID de Roblox" />
+        </div>
+        <button type="button" class="btn" id="btn-step1" style="margin-top:8px;" onclick="runQuickLink('start')">🛡️ Paso 1: Generar Código de Propiedad</button>
+        <div id="verify-step2-box" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid #22293A;">
+          <p style="margin-bottom:6px;font-size:0.78rem;color:#E2E8F0;">Paso 2: Pegá este código único en la descripción (<strong>"Acerca de"</strong>) de tu perfil en Roblox y guardá:</p>
+          <code class="uri-code" id="roblox-verify-phrase" style="font-size:0.9rem;font-weight:800;color:#4ADE80;text-align:center;">KORTEX-0000</code>
+          <a id="roblox-profile-link" class="btn btn-secondary" href="https://www.roblox.com" target="_blank" rel="noopener" style="margin-bottom:6px;">🔗 Abrir Mi Perfil en Roblox</a>
+          <button type="button" class="btn" style="background:#23A55A;" onclick="runQuickLink('verify')">✅ Ya pegué el código / Comprobar Propiedad</button>
+        </div>
+      `}
+      <div id="quick-status" class="status-msg"></div>
+    </div>
+
+    <div class="box">
+      <div class="box-title">
+        <span>🔐 Opción 2: Portal Oficial OAuth 2.0 (${isDiscord ? 'Discord' : 'Roblox'})</span>
+      </div>
+      <p style="margin-bottom:6px;font-size:0.78rem;">Si el portal de ${isDiscord ? 'Discord' : 'Roblox'} muestra <em>"Invalid redirect_uri / URL no válida"</em>, asegurate de agregar estas 2 URLs en <strong>Redirects</strong> de tu aplicación:</p>
+      <code class="uri-code">${callbackUrl}</code>
+      ${sharedCallbackUrl !== callbackUrl ? `<code class="uri-code">${sharedCallbackUrl}</code>` : ''}
+      <a class="btn btn-secondary" href="${authUrl}">🌐 Continuar a ${isDiscord ? 'Discord' : 'Roblox'} OAuth 2.0 Oficial</a>
+    </div>
+  </div>
+
+  <script>
+    var gatewayPollTimer = null;
+    function startGatewayAutoPoll() {
+      if (!${isDiscord ? 'true' : 'false'}) return;
+      if (gatewayPollTimer) clearInterval(gatewayPollTimer);
+      gatewayPollTimer = setInterval(function() {
+        runQuickLink('poll');
+      }, 2200);
+    }
+
+    async function runQuickLink(actionMode) {
+      var val = (document.getElementById('quick-input').value || '').trim();
+      var codeEl = document.getElementById('quick-code-input');
+      var codeVal = codeEl ? (codeEl.value || '').trim() : '';
+      var st = document.getElementById('quick-status');
+      if (actionMode !== 'poll') {
+        st.style.color = '#9BA5BA';
+        st.textContent = actionMode === 'verify' ? 'Comprobando confirmación de la cuenta...' : 'Iniciando verificación de seguridad...';
+      }
+      try {
+        var res = await fetch('/api/auth/${isDiscord ? 'discord' : 'roblox'}/quick-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: actionMode || 'start',
+            discordId: val || '${discordId || ''}',
+            query: val,
+            code: codeVal
+          })
+        });
+        var data = await res.json();
+        if (!data.ok) {
+          if (actionMode === 'poll') return;
+          st.style.color = '#F23F43';
+          st.textContent = data.message || 'No se pudo verificar la cuenta.';
+          if (data.step === 'verify_required') {
+            var box = document.getElementById('verify-step2-box');
+            if (box) box.style.display = 'block';
+            startGatewayAutoPoll();
+          }
+          return;
+        }
+        if (data.step === 'verify_required') {
+          if (actionMode !== 'poll') {
+            st.style.color = '#F0B232';
+            st.textContent = data.message;
+            var step2 = document.getElementById('verify-step2-box');
+            if (step2) step2.style.display = 'block';
+            var phraseEl = document.getElementById('roblox-verify-phrase');
+            if (phraseEl && data.verifyCode) phraseEl.textContent = data.verifyCode;
+            var profLink = document.getElementById('roblox-profile-link');
+            if (profLink && data.profile && data.profile.roblox_user_id) {
+              profLink.href = 'https://www.roblox.com/users/' + data.profile.roblox_user_id + '/profile';
+            }
+            startGatewayAutoPoll();
+          }
+          return;
+        }
+        if (gatewayPollTimer) {
+          clearInterval(gatewayPollTimer);
+          gatewayPollTimer = null;
+        }
+        st.style.color = '#4ADE80';
+        st.textContent = data.message || '¡Cuenta verificada y conectada con éxito!';
+        if (window.opener) {
+          try {
+            window.opener.postMessage(data.payload, '*');
+            setTimeout(function() { window.close(); }, 900);
+          } catch (e) {}
+        }
+      } catch (err) {
+        if (actionMode !== 'poll') {
+          st.style.color = '#F23F43';
+          st.textContent = 'Error de red al conectar la cuenta.';
+        }
+      }
+    }
+  </script>
+</body>
+</html>`;
+}
+
 const server = http.createServer(async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -299,8 +591,8 @@ const server = http.createServer(async (req, res) => {
         }
 
         const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-        const pathname = urlObj.pathname;
-        const baseOrigin = getBaseOrigin(req);
+        const pathname = urlObj.pathname.replace(/\/+$/, '') || '/';
+        const baseOrigin = getBaseOrigin(req, urlObj);
 
         if (pathname === '/api/health') {
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -311,8 +603,8 @@ const server = http.createServer(async (req, res) => {
                 supabaseMode: supabase.isMemoryFallback ? 'in-memory-fallback' : 'connected',
                 commands: nombresComandos,
                 handlersCount: resumenInteracciones?.total || 0,
-                categories: 3,
-                tools: 15
+                categories: 4,
+                tools: 20
             }));
         }
 
@@ -533,7 +825,7 @@ const server = http.createServer(async (req, res) => {
             <article class="clause-card">
                 <span class="clause-num">SECCIÓN 04</span>
                 <h2>Revocación de Permisos y Desvinculación Automática</h2>
-                <p>En cualquier momento podés retirar la autorización desde <em>Ajustes de Usuario → Aplicaciones Autorizadas</em> en Discord o desde los ajustes de seguridad de tu cuenta de Roblox. El bot detecta automáticamente la revocación del permiso y limpia el estado de conexión sin requerir pasos adicionales.</p>
+                <p>En cualquier momento podés retirar la autorización desde <em>Configuración → Permisos de la aplicación / Aplicaciones Autorizadas</em> en Discord o desde <em>Configuración → Permisos de la aplicación</em> en tu cuenta de Roblox (donde está alojado el bot y sus permisos). El bot detecta automáticamente la revocación del permiso y limpia el estado de conexión sin requerir pasos adicionales.</p>
             </article>
             ` : `
             <article class="clause-card">
@@ -682,12 +974,177 @@ const server = http.createServer(async (req, res) => {
             }));
         }
 
+        // Endpoint de Vinculación Directa de Discord con Verificación de Propiedad y Anti-Spam
+        if (pathname === '/api/auth/discord/quick-link' && req.method === 'POST') {
+            const body = await readJsonBody(req);
+            const rawInput = String(body.query || body.discordId || '').trim();
+            const action = String(body.action || (body.code ? 'verify' : 'start')).trim().toLowerCase();
+            const requesterIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').split(',')[0].trim();
+
+            if (!rawInput || rawInput === 'default_session') {
+                res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: false,
+                    message: 'Ingresá tu Discord ID numérico (17 a 20 dígitos) o usá Discord OAuth 2.0.'
+                }));
+            }
+
+            if (action === 'verify' || action === 'poll') {
+                const verifyRes = await confirmarVerificacionDiscordWeb(rawInput, body.code || '', client, {
+                    isPoll: action === 'poll'
+                });
+                if (!verifyRes.ok) {
+                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                    return res.end(JSON.stringify(verifyRes));
+                }
+                if (verifyRes.step === 'verify_required') {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    return res.end(JSON.stringify(verifyRes));
+                }
+
+                const targetId = String(verifyRes.discordId);
+                const savedCfg = verifyRes.discordConfig;
+                lastActiveDiscordId = targetId;
+                verifiedDiscordSessions.set(targetId, {
+                    id: targetId,
+                    username: savedCfg.discord_username,
+                    tag: savedCfg.discord_tag || savedCfg.discord_username,
+                    avatar: savedCfg.discord_avatar || null,
+                    verifiedAt: savedCfg.verified_at
+                });
+
+                const summary = await obtenerHistorialYEstadoCuenta(targetId).catch(() => null);
+                const payload = {
+                    type: 'KORTEX_OAUTH_SUCCESS',
+                    provider: 'discord',
+                    discordId: targetId,
+                    discordUsername: savedCfg.discord_username,
+                    discordConfig: savedCfg,
+                    linkedAccount: summary?.linkedAccount || null,
+                    history: summary?.history || []
+                };
+
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: true,
+                    step: 'verified',
+                    message: verifyRes.message,
+                    discordId: targetId,
+                    discordConfig: savedCfg,
+                    linkedAccount: summary?.linkedAccount || null,
+                    history: summary?.history || [],
+                    payload
+                }));
+            }
+
+            // Paso 1: Iniciar desafío de verificación (o auto-completar si el titular YA tocó "✅ Sí, fui yo" en Discord)
+            const startRes = await iniciarVerificacionDiscordWeb(rawInput, { client, requesterIp });
+            if (startRes.ok && startRes.step === 'verified' && startRes.discordConfig) {
+                const targetId = String(startRes.discordId);
+                const savedCfg = startRes.discordConfig;
+                lastActiveDiscordId = targetId;
+                verifiedDiscordSessions.set(targetId, {
+                    id: targetId,
+                    username: savedCfg.discord_username,
+                    tag: savedCfg.discord_tag || savedCfg.discord_username,
+                    avatar: savedCfg.discord_avatar || null,
+                    verifiedAt: savedCfg.verified_at
+                });
+                const summary = await obtenerHistorialYEstadoCuenta(targetId).catch(() => null);
+                const payload = {
+                    type: 'KORTEX_OAUTH_SUCCESS',
+                    provider: 'discord',
+                    discordId: targetId,
+                    discordUsername: savedCfg.discord_username,
+                    discordConfig: savedCfg,
+                    linkedAccount: summary?.linkedAccount || null,
+                    history: summary?.history || []
+                };
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: true,
+                    step: 'verified',
+                    message: startRes.message,
+                    discordId: targetId,
+                    discordConfig: savedCfg,
+                    linkedAccount: summary?.linkedAccount || null,
+                    history: summary?.history || [],
+                    payload
+                }));
+            }
+
+            res.writeHead(startRes.ok ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8' });
+            return res.end(JSON.stringify(startRes));
+        }
+
+        // Endpoint de Vinculación de Roblox por @Usuario o ID numérico con Verificación Obligatoria de Propiedad
+        if (pathname === '/api/auth/roblox/quick-link' && req.method === 'POST') {
+            const body = await readJsonBody(req);
+            const query = String(body.query || body.username || '').trim();
+            const action = String(body.action || 'start').trim().toLowerCase();
+            const targetDiscordId = resolveActiveSessionDiscordId(body.discordId);
+            const requesterIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').split(',')[0].trim();
+
+            if (action === 'verify') {
+                const verifyRes = await confirmarVerificacionCodigoRoblox(targetDiscordId, body.code || '');
+                if (!verifyRes.ok) {
+                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                    return res.end(JSON.stringify(verifyRes));
+                }
+
+                if (targetDiscordId !== 'default_session') {
+                    lastActiveDiscordId = targetDiscordId;
+                }
+
+                const linkedRecord = verifyRes.linkedAccount;
+                const summary = await obtenerHistorialYEstadoCuenta(targetDiscordId).catch(() => null);
+                const payload = {
+                    type: 'KORTEX_OAUTH_SUCCESS',
+                    provider: 'roblox',
+                    discordId: targetDiscordId,
+                    linkedAccount: linkedRecord,
+                    discordConfig: summary?.discordConfig || null,
+                    history: summary?.history || []
+                };
+
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: true,
+                    step: 'verified',
+                    message: verifyRes.message,
+                    discordId: targetDiscordId,
+                    linkedAccount: linkedRecord,
+                    discordConfig: summary?.discordConfig || null,
+                    history: summary?.history || [],
+                    payload
+                }));
+            }
+
+            if (!query) {
+                res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify({
+                    ok: false,
+                    message: 'Escribí tu @Usuario de Roblox o tu ID numérico para iniciar la verificación de propiedad.'
+                }));
+            }
+
+            // Paso 1: Iniciar verificación de propiedad con código KORTEX-XXXX en el perfil (nunca vincular en 1 clic sin permiso)
+            const challengeRes = await iniciarVerificacionCodigoRoblox(targetDiscordId, query, { requesterIp });
+            if (!challengeRes.ok) {
+                res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(JSON.stringify(challengeRes));
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            return res.end(JSON.stringify(challengeRes));
+        }
+
         // Construir URL OAuth2 de Discord (exclusivo para /config y sesión de Discord)
         if (pathname === '/api/auth/discord/url' || pathname === '/api/auth/discord/redirect') {
             const discordIdHint = resolveActiveSessionDiscordId(urlObj.searchParams.get('discord_id'));
             const clientId = process.env.DISCORD_CLIENT_ID || process.env.CLIENT_ID || DEFAULT_DISCORD_CLIENT_ID;
             const clientSecret = process.env.DISCORD_CLIENT_SECRET || DEFAULT_DISCORD_CLIENT_SECRET;
-            const redirectUri = process.env.DISCORD_REDIRECT_URI || `${baseOrigin}/auth/discord/callback`;
+            const redirectUri = normalizarUrlPublica(process.env.DISCORD_REDIRECT_URI) || `${baseOrigin}/auth/discord/callback`;
 
             if (!clientId || !clientSecret) {
                 if (pathname.endsWith('/redirect')) {
@@ -715,16 +1172,32 @@ const server = http.createServer(async (req, res) => {
             const authUrl = `https://discord.com/oauth2/authorize?${params.toString()}`;
 
             if (pathname.endsWith('/redirect')) {
-                res.writeHead(302, { Location: authUrl });
-                return res.end();
+                if (urlObj.searchParams.get('direct') === '1') {
+                    res.writeHead(302, { Location: authUrl });
+                    return res.end();
+                }
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                return res.end(renderOAuthGatewayPage({
+                    provider: 'discord',
+                    discordId: discordIdHint,
+                    authUrl,
+                    callbackUrl: redirectUri,
+                    baseOrigin
+                }));
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(JSON.stringify({ ok: true, configured: true, url: authUrl }));
+            return res.end(JSON.stringify({
+                ok: true,
+                configured: true,
+                url: authUrl,
+                gatewayUrl: `${baseOrigin}/api/auth/discord/redirect?discord_id=${encodeURIComponent(discordIdHint)}`,
+                callbackUrl: redirectUri
+            }));
         }
 
         // Callback OAuth2 de Discord
-        if (pathname === '/auth/discord/callback') {
+        if (pathname === '/auth/discord/callback' || pathname === '/api/auth/discord/callback') {
             const code = urlObj.searchParams.get('code');
             const state = urlObj.searchParams.get('state');
             const stateData = state ? oauthStates.get(state) : null;
@@ -732,7 +1205,7 @@ const server = http.createServer(async (req, res) => {
 
             const clientId = process.env.DISCORD_CLIENT_ID || process.env.CLIENT_ID || DEFAULT_DISCORD_CLIENT_ID;
             const clientSecret = process.env.DISCORD_CLIENT_SECRET || DEFAULT_DISCORD_CLIENT_SECRET;
-            const redirectUri = stateData?.redirectUri || process.env.DISCORD_REDIRECT_URI || `${baseOrigin}/auth/discord/callback`;
+            const redirectUri = stateData?.redirectUri || normalizarUrlPublica(process.env.DISCORD_REDIRECT_URI) || `${baseOrigin}/auth/discord/callback`;
 
             if (!code || !clientId || !clientSecret) {
                 res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -836,12 +1309,18 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/auth/roblox/url' || pathname === '/api/auth/roblox/redirect') {
             const discordId = resolveActiveSessionDiscordId(urlObj.searchParams.get('discord_id'));
             const robloxClientId = process.env.ROBLOX_CLIENT_ID;
-            const redirectUri = process.env.ROBLOX_REDIRECT_URI || `${baseOrigin}/auth/roblox/callback`;
+            const redirectUri = normalizarUrlPublica(process.env.ROBLOX_REDIRECT_URI) || `${baseOrigin}/auth/roblox/callback`;
 
             if (!robloxClientId || !process.env.ROBLOX_CLIENT_SECRET) {
                 if (pathname.endsWith('/redirect')) {
-                    res.writeHead(302, { Location: `${baseOrigin}/?oauth_notice=roblox_missing` });
-                    return res.end();
+                    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                    return res.end(renderOAuthGatewayPage({
+                        provider: 'roblox',
+                        discordId,
+                        authUrl: `${baseOrigin}/?oauth_notice=roblox_missing`,
+                        callbackUrl: redirectUri,
+                        baseOrigin
+                    }));
                 }
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 return res.end(JSON.stringify({
@@ -864,16 +1343,32 @@ const server = http.createServer(async (req, res) => {
             const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
 
             if (pathname.endsWith('/redirect')) {
-                res.writeHead(302, { Location: authUrl });
-                return res.end();
+                if (urlObj.searchParams.get('direct') === '1') {
+                    res.writeHead(302, { Location: authUrl });
+                    return res.end();
+                }
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                return res.end(renderOAuthGatewayPage({
+                    provider: 'roblox',
+                    discordId,
+                    authUrl,
+                    callbackUrl: redirectUri,
+                    baseOrigin
+                }));
             }
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(JSON.stringify({ ok: true, configured: true, url: authUrl }));
+            return res.end(JSON.stringify({
+                ok: true,
+                configured: true,
+                url: authUrl,
+                gatewayUrl: `${baseOrigin}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(discordId)}`,
+                callbackUrl: redirectUri
+            }));
         }
 
         // Callback OAuth 2.0 de Roblox
-        if (pathname === '/auth/roblox/callback') {
+        if (pathname === '/auth/roblox/callback' || pathname === '/api/auth/roblox/callback') {
             const code = urlObj.searchParams.get('code');
             const state = urlObj.searchParams.get('state');
             const stateData = state ? oauthStates.get(state) : null;
@@ -881,7 +1376,7 @@ const server = http.createServer(async (req, res) => {
 
             const robloxClientId = process.env.ROBLOX_CLIENT_ID;
             const robloxClientSecret = process.env.ROBLOX_CLIENT_SECRET;
-            const redirectUri = stateData?.redirectUri || process.env.ROBLOX_REDIRECT_URI || `${baseOrigin}/auth/roblox/callback`;
+            const redirectUri = stateData?.redirectUri || normalizarUrlPublica(process.env.ROBLOX_REDIRECT_URI) || `${baseOrigin}/auth/roblox/callback`;
 
             if (!code || !robloxClientId || !robloxClientSecret) {
                 res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -955,7 +1450,7 @@ const server = http.createServer(async (req, res) => {
                 return res.end(renderOAuthCallbackPage({
                     ok: false,
                     title: '❌ Error al verificar Roblox OAuth2',
-                    subtitle: `No se pudo completar el intercambio OAuth2 con Roblox (${err.response?.data?.error_description || err.message}).`,
+                    subtitle: `No se pudo completar el intercambio OAuth2 con Roblox (${err.response?.data?.error_description || err.message}). Asegurate de registrar ${redirectUri} en Roblox Creator Hub.`,
                     payload: { type: 'KORTEX_OAUTH_ERROR', provider: 'roblox' }
                 }));
             }
@@ -1006,6 +1501,92 @@ const server = http.createServer(async (req, res) => {
                 );
             } else if (kind === 'mannequin') {
                 pngBuffer = await generateMannequinTemplateCanvas(null, 'Plantilla Clásica 585×559');
+            } else if (kind === 'watchlist') {
+                pngBuffer = await generateWatchlistOverviewCanvas(
+                    [
+                        { id: 1, id_objet: '1365767', item_name: 'Valkyrie Helm', item_type: 'catalog', last_price: 42000, target_price: 45000, is_paused: false },
+                        { id: 2, id_objet: '1029025', item_name: 'Classic Roblox Fedora', item_type: 'catalog', last_price: 58000, target_price: 50000, is_paused: false },
+                        { id: 3, id_objet: '96678548', item_name: 'Black Shades', item_type: 'catalog', last_price: 95, target_price: 100, is_paused: false }
+                    ],
+                    new Map()
+                );
+            } else if (kind === 'calc') {
+                pngBuffer = await generateCalculatorBreakdownCard({
+                    basePrice: 1000,
+                    regionalPrice: 600,
+                    cashback: 240,
+                    plusDiscount: 60,
+                    finalPrice: 300,
+                    totalSaved: 700,
+                    pctSaved: 70
+                });
+            } else if (kind === 'pending') {
+                pngBuffer = await generatePendingRobuxCard([
+                    { source_type: 'group_funds', source_label: '👥 Fondos de Grupo', amount_robux: 450, estimated_release_min: new Date(Date.now() - 3600000).toISOString() },
+                    { source_type: 'gamepass_sale', source_label: '🎟️ Venta de Gamepass', amount_robux: 800, estimated_release_min: new Date(Date.now() + 86400000).toISOString() }
+                ]);
+            } else if (kind === 'servers') {
+                pngBuffer = await generateEmptyServersRadarCard(
+                    { name: 'Blox Fruits', playing: 412900, maxPlayers: 12 },
+                    [
+                        { id: 'srv-1', playing: 1, maxPlayers: 12, ping: 48, fps: 60 },
+                        { id: 'srv-2', playing: 2, maxPlayers: 12, ping: 62, fps: 60 },
+                        { id: 'srv-3', playing: 2, maxPlayers: 12, ping: 74, fps: 59 }
+                    ]
+                );
+            } else if (kind === 'tycoon') {
+                const demoState = await getOrCreatePlayerState('demo_preview_player');
+                const sectionParam = urlObj.searchParams.get('section') || 'sec_studio';
+                const langParam = urlObj.searchParams.get('lang') === 'en' ? 'en' : 'es';
+                if (sectionParam === 'sec_studio') {
+                    pngBuffer = await renderTycoonSnapshot({
+                        state: demoState,
+                        username: 'damianpro13',
+                        avatarUrl: null,
+                        lang: langParam
+                    });
+                } else {
+                    const leaderboard = sectionParam === 'sec_perks' ? await getTycoonLeaderboard(5) : [];
+                    pngBuffer = await renderTycoonSectionCanvas(sectionParam, {
+                        state: demoState,
+                        username: 'damianpro13',
+                        avatarUrl: null,
+                        lang: langParam,
+                        leaderboard
+                    });
+                }
+            } else if (kind === 'status') {
+                const statusSnapshot = await obtenerEstadoServidoresRoblox(false);
+                pngBuffer = await generateRobloxStatusCanvas(
+                    statusSnapshot,
+                    urlObj.searchParams.get('lang') === 'en' ? 'en' : 'es'
+                );
+            } else if (kind === 'trending') {
+                const trendingSnapshot = await obtenerJuegosEnTendenciaRoblox(false);
+                pngBuffer = await generateTrendingGamesCanvas(
+                    trendingSnapshot,
+                    urlObj.searchParams.get('lang') === 'en' ? 'en' : 'es'
+                );
+            } else if (kind === 'profile') {
+                const profileSnapshot = await obtenerPerfilAnaliticoRoblox(urlObj.searchParams.get('user') || 'Roblox');
+                pngBuffer = await generateProfileInspectorCanvas(
+                    profileSnapshot,
+                    urlObj.searchParams.get('lang') === 'en' ? 'en' : 'es'
+                );
+            } else if (kind === 'limiteds') {
+                pngBuffer = await generateLimitedsRadarCanvas(
+                    null,
+                    urlObj.searchParams.get('lang') === 'en' ? 'en' : 'es'
+                );
+            } else if (kind === 'compare') {
+                const trendingSnapshot = await obtenerJuegosEnTendenciaRoblox(false);
+                const gameA = trendingSnapshot.games?.[0] || { name: 'Brookhaven RP', playing: 448200, visits: 58400000000, favoritedCount: 24500000, maxPlayers: 26 };
+                const gameB = trendingSnapshot.games?.[1] || { name: 'Blox Fruits', playing: 412900, visits: 43100000000, favoritedCount: 16900000, maxPlayers: 12 };
+                pngBuffer = await generateCompareGamesCanvas(
+                    gameA,
+                    gameB,
+                    urlObj.searchParams.get('lang') === 'en' ? 'en' : 'es'
+                );
             } else {
                 const now = Date.now();
                 pngBuffer = await generatePriceChart(

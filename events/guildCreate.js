@@ -20,8 +20,7 @@ const {
 const supabase = require('../db');
 const logger = require('../utils/logger');
 const { COLORES, footer, separador } = require('../utils/ui');
-
-const DOCS_URL = process.env.DOCS_URL || process.env.PUBLIC_GUIDE_URL || process.env.APP_URL || 'https://ais-dev-dmpwse4jqkfkz4vfkzt6pu-494677195769.us-west1.run.app';
+const { obtenerUrlBasePublica } = require('../src/utils/fastLink');
 
 const SECCIONES_TOUR_BIENVENIDA = {
     overview: {
@@ -29,7 +28,8 @@ const SECCIONES_TOUR_BIENVENIDA = {
         subtitulo: '👋 Comandos Principales',
         contenido: (guildName, memberCount) =>
             `¡Gracias por sumar a **Kortex** a **${guildName}**${memberCount ? ` (\`${memberCount.toLocaleString('es-AR')}\` miembros)` : ''}!\n\n` +
-            '> • **`/roblox`** *(o mencionar `@Kortex`)* — Panel de herramientas de Roblox (**Economía**, **Avatares 3D/2D** y **Juegos y Servidores**).\n' +
+            '> • **`/roblox`** *(o mencionar `@Kortex`)* — 20 herramientas en 4 categorías (**Economía**, **Avatares 3D/2D**, **Juegos** y **Estadísticas y Análisis**).\n' +
+            '> • **`/tycoon`** — Simulador 3D de Estudio de Desarrollo Roblox con Tix, Cristales Kortex, Cofres y Misiones Semanales.\n' +
             '> • **`/config`** — Configuración de cuentas vinculadas, datos guardados, **idioma** y región de precios.\n' +
             '> • **`/help`** — Guía interactiva de comandos y herramientas.\n' +
             '> • **`/ping`** — Estado y latencia del bot en tiempo real.'
@@ -38,9 +38,9 @@ const SECCIONES_TOUR_BIENVENIDA = {
         color: COLORES.sniper,
         subtitulo: '💰 Categoría 1: Economía y Precios',
         contenido: () =>
-            '> 🎯 **1.1 Seguimiento de Precios y Mi Lista:** Monitoreá hasta 5 objetos con gráficas e historial de precios + alertas.\n' +
+            '> 🎯 **1.1 Seguimiento de Precios y Mi Lista:** Monitoreá hasta 5 objetos con gráficas ECharts + alertas.\n' +
             '> 🧮 **1.2 Calculadora de Economía:** Calculá descuentos de grupo, Roblox Plus y precios regionales.\n' +
-            '> 📉 **1.3 Pisos de Precio del Catálogo:** Consultá los precios mínimos actuales por categoría de accesorios.\n' +
+            '> 📉 **1.3 Pisos de Precio del Catálogo:** Consultá los precios mínimos actuales con infografías ECharts.\n' +
             '> ⏳ **1.4 Agenda de Robux Pendientes:** Registrá tus ventas y recibí un aviso cuando se liberen tus Robux.\n' +
             '> 🏛️ **1.5 Auditor y Catálogo de Grupos:** Explorá cualquier grupo de Roblox y su tienda de ropa.'
     },
@@ -64,19 +64,29 @@ const SECCIONES_TOUR_BIENVENIDA = {
             '> 🔔 **3.4 Alertas de Actualizaciones:** Seguí hasta 3 juegos favoritos y recibí avisos de parches.\n' +
             '> 🗺️ **3.5 Explorador de Mapas Conectados:** Descubrí los sub-lugares y mundos dentro de cualquier juego.'
     },
+    cat_status: {
+        color: 0x38BDF8,
+        subtitulo: '📊 Categoría 4: Estadísticas y Análisis de Roblox',
+        contenido: () =>
+            '> 📡 **4.1 Estado de Servidores Roblox:** Latencia en tiempo real de los 5 subsistemas oficiales y diagnóstico de red.\n' +
+            '> 📈 **4.2 Rendimiento por Plataforma y Red:** Ping medio, uso y estabilidad en Móvil, PC, Consola, CDN 3D y Cloud.\n' +
+            '> 🕵️ **4.3 Inspector Analítico de Perfil:** Auditoría de antigüedad, alcance social y valor de inventario (RAP).\n' +
+            '> 💎 **4.4 Radar de Limiteds y Economía:** Seguimiento de objetos coleccionables, mejor precio y demanda.\n' +
+            '> ⚔️ **4.5 Comparador Head-to-Head de Juegos:** Enfrentá 2 juegos cara a cara en CCU, votos, favoritos y visitas.'
+    },
     oauth_setup: {
         color: COLORES.exito,
         subtitulo: '🔗 Cuentas de Discord y Roblox',
         contenido: () =>
             '> 💬 **Cuenta de Discord (`/config`):** Conectala para guardar tu lista de precios, Robux pendientes, códigos y alertas.\n' +
-            '> 🎮 **Cuenta de Roblox (`/roblox` o `/config`):** Vinculala para cargar automáticamente tu avatar en el Probador de Ropa, el Exportador 3D y el Combinador por Color.'
+            '> 🎮 **Cuenta de Roblox (`/roblox` o `/config`):** Vinculala para cargar automáticamente tu avatar en el Probador de Ropa, el Exportador 3D, el Combinador por Color y `/tycoon`.'
     }
 };
 
 /**
  * Construye el panel interactivo de bienvenida de Kortex (Components V2).
  * @param {import('discord.js').Guild | null} guild
- * @param {string} activeTab 'overview' | 'cat_economy' | 'cat_avatar' | 'cat_games' | 'oauth_setup'
+ * @param {string} activeTab 'overview' | 'cat_economy' | 'cat_avatar' | 'cat_games' | 'cat_status' | 'oauth_setup'
  */
 function construirPanelBienvenidaServidor(guild, activeTab = 'overview') {
     const tabKey = SECCIONES_TOUR_BIENVENIDA[activeTab] ? activeTab : 'overview';
@@ -116,7 +126,7 @@ function construirPanelBienvenidaServidor(guild, activeTab = 'overview') {
         .addOptions([
             new StringSelectMenuOptionBuilder()
                 .setLabel('Comandos Principales')
-                .setDescription('Vista general de /roblox, /config, /help y /ping')
+                .setDescription('Vista general de /roblox, /tycoon, /config, /help y /ping')
                 .setValue('overview')
                 .setEmoji('👋')
                 .setDefault(tabKey === 'overview'),
@@ -138,6 +148,12 @@ function construirPanelBienvenidaServidor(guild, activeTab = 'overview') {
                 .setValue('cat_games')
                 .setEmoji('🕹️')
                 .setDefault(tabKey === 'cat_games'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Categoría 4: Estadísticas y Análisis')
+                .setDescription('Estado de Servidores, Tendencias, Inspector de Perfil, Limiteds y VS')
+                .setValue('cat_status')
+                .setEmoji('📊')
+                .setDefault(tabKey === 'cat_status'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Cuentas de Discord y Roblox')
                 .setDescription('Cómo vincular tus cuentas para alertas y funciones de avatar')
@@ -173,13 +189,13 @@ function construirPanelBienvenidaServidor(guild, activeTab = 'overview') {
             .setLabel('Guía Web')
             .setEmoji('🌐')
             .setStyle(ButtonStyle.Link)
-            .setURL(DOCS_URL)
+            .setURL(obtenerUrlBasePublica())
     );
 
     container.addActionRowComponents(rowBotones);
     container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Comandos: /roblox • /config • /help • /ping')
+        footer('Comandos: /roblox • /tycoon • /config • /help • /ping')
     ));
 
     return {

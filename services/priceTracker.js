@@ -127,8 +127,8 @@ async function procesarItem(client, item, stats) {
             let colorAlerta = COLORES.lista;
 
             if (alcanzoMeta) {
-                tituloEstado = '🎯 ¡Meta de Precio Alcanzada!';
-                subtituloWebhook = '🎯 **¡El objeto llegó al precio objetivo que configuraste!**';
+                tituloEstado = '🎯 ¡META DE PRECIO COMPLETADA!';
+                subtituloWebhook = '🎉 **¡El objeto llegó (o bajó aún más) de la meta de precio que estableciste!**';
                 colorAlerta = COLORES.exito;
             } else if (!bajoPrecio) {
                 tituloEstado = '📈 Subió de Precio';
@@ -145,6 +145,18 @@ async function procesarItem(client, item, stats) {
                 '7d',
                 precioNuevo
             );
+            const summary = PriceItem.getPriceCheckSummary(
+                { ...item, last_price: precioNuevo },
+                statsGrafica.filtered
+            );
+            const fmtOriginal = formatearPrecio(summary.firstPrice, esUSD);
+            const lineaOriginal = summary.isBelowOriginal
+                ? `> 🕒 **vs. Precio Original (${fmtOriginal}):** **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo** 🎉\n`
+                : `> 🕒 **Precio Original:** ${fmtOriginal}\n`;
+            const extraBajoMeta = (alcanzoMeta && summary.belowTargetAmount > 0)
+                ? ` *(¡**-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)}** más barato que tu meta!)*`
+                : (alcanzoMeta ? ' *(¡Objetivo cumplido!)*' : '');
+
             const chartBuffer = await generatePriceChart(statsGrafica.filtered, nombreObj, {
                 itemId: item.id_objet,
                 daysRange: '7d',
@@ -168,7 +180,8 @@ async function procesarItem(client, item, stats) {
                                 `${subtituloWebhook}\n\n` +
                                 `> ⚡ **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
                                 `> 📉 **Precio anterior:** ~~${fmtAnterior}~~\n` +
-                                `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? '  ✅' : ''}\n\n` +
+                                `${lineaOriginal}` +
+                                `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? `  ✅ **¡META COMPLETADA!**${extraBajoMeta}` : ''}\n\n` +
                                 `──────────────────────────────\n` +
                                 `📦 **Categoría:** ${emojiCat} ${nombreCat}   •   🆔 **ID:** \`${item.id_objet}\`\n` +
                                 `🔗 **[Abrir objeto en Roblox ↗](${robloxUrl})**`,
@@ -195,9 +208,11 @@ async function procesarItem(client, item, stats) {
                     `# ${tituloEstado}\n` +
                     `## ${emojiCat} __**${nombreObj}**__\n` +
                     `-# ${emojiCat} Categoría: **${nombreCat}**  •  ID \`${item.id_objet}\`\n\n` +
+                    (alcanzoMeta ? `> 🎉 **¡YA SE COMPLETÓ LA META QUE ESTABLECISTE!**\n` : '') +
                     `> ⚡ **Nuevo precio:** **${fmtNuevo}**  *(${difTexto}${porcentajeStr})*\n` +
                     `> 📉 **Precio anterior:** ~~${fmtAnterior}~~\n` +
-                    `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? '  ✅' : ''}`
+                    `${lineaOriginal}` +
+                    `> 🎯 **Tu meta:** ${fmtTarget}${alcanzoMeta ? `  ✅ **¡CUMPLIDA!**${extraBajoMeta}` : ''}`
                 );
 
                 const container = new ContainerBuilder()
@@ -242,7 +257,7 @@ async function procesarItem(client, item, stats) {
             };
 
             // 2. CANAL DE SERVIDOR
-            if (!notificado && item.channel_id) {
+            if (!notificado && item.channel_id && client?.channels?.fetch) {
                 try {
                     const canal = await client.channels.fetch(item.channel_id);
                     if (canal && canal.isTextBased()) {
@@ -255,8 +270,11 @@ async function procesarItem(client, item, stats) {
                 }
             }
 
-            // 3. DM (Mensaje Directo)
-            if (!notificado) {
+            // 3. DM (Mensaje Directo — respeta el Modo No Molestar del usuario en /config y el interruptor global)
+            const { obtenerPreferenciasUsuario } = require('../src/utils/i18n');
+            const userPrefs = obtenerPreferenciasUsuario(item.user_id);
+            const ownerAlertsOn = obtenerConfigPropietario().alertsEnabled !== false;
+            if (!notificado && ownerAlertsOn && userPrefs.dm_alerts_enabled !== false && client?.users?.fetch) {
                 try {
                     const user = await client.users.fetch(item.user_id);
                     await user.send(construirAlertaV2(false));
@@ -369,7 +387,7 @@ function programarTemporizadoresActivos(client) {
         await revisarParchesJuegosWorker(activeDiscordClient).catch(() => null);
     }, minWorkers * 60 * 1000);
 
-    return { minPrecios, minWorkers };
+    return { minPrecios, minWorkers, priceMinutes: minPrecios, workerMinutes: minWorkers };
 }
 
 function iniciarMonitoreo(client, intervaloMinutos = null) {
@@ -394,8 +412,10 @@ async function ejecutarEscaneoManualCompleto(client = null) {
         revisarRobuxPendientesWorker(targetClient).catch(() => null),
         revisarParchesJuegosWorker(targetClient).catch(() => null)
     ]);
+    const totalCount = Number(priceStats?.total || 0);
     return {
-        totalItems: Number(priceStats?.total || 0),
+        total: totalCount,
+        totalItems: totalCount,
         cambios: Number(priceStats?.cambios || 0),
         alertas: Number(priceStats?.alertas || 0),
         enCurso: Boolean(priceStats?.enCurso)

@@ -108,6 +108,176 @@ const POTIONS_CATALOG = {
     }
 };
 
+// Misiones Semanales (Weekly Quests) que se reinician cada semana ISO y otorgan Cristales Kortex (💠) gratuitos
+const WEEKLY_QUESTS_POOL = [
+    {
+        id: 'q_collect_tix',
+        target: 2500,
+        rewardCrystals: 25,
+        rewardTix: 600,
+        emoji: '🟢',
+        title_es: 'Cosechador de Tix',
+        title_en: 'Tix Harvester',
+        desc_es: 'Recolectá un total de 2,500 Tix del Colector Verde esta semana.',
+        desc_en: 'Collect a total of 2,500 Tix from your Green Collector Pad this week.'
+    },
+    {
+        id: 'q_build_pads',
+        target: 3,
+        rewardCrystals: 30,
+        rewardTix: 750,
+        emoji: '🏗️',
+        title_es: 'Arquitecto de Roblox Studio',
+        title_en: 'Roblox Studio Architect',
+        desc_es: 'Construí 3 Pads de máquinas en tu Estudio Tycoon.',
+        desc_en: 'Build 3 Machine Purchase Pads inside your Tycoon Studio.'
+    },
+    {
+        id: 'q_use_potions',
+        target: 2,
+        rewardCrystals: 35,
+        rewardTix: 900,
+        emoji: '🧪',
+        title_es: 'Alquimista y Explorador',
+        title_en: 'Alchemist & Vault Explorer',
+        desc_es: 'Activá 2 Pociones de Laboratorio o abrí Cofres de Ascensión.',
+        desc_en: 'Activate 2 Laboratory Potions or unbox Ascension Chests.'
+    },
+    {
+        id: 'q_rebirth_or_bot',
+        target: 5,
+        rewardCrystals: 45,
+        rewardTix: 1200,
+        emoji: '⚡',
+        title_es: 'Maestro de Kortex y Ascensión',
+        title_en: 'Kortex Master & Ascension',
+        desc_es: 'Completá 5 acciones en el bot o hacé 1 Rebirth (cuenta como 5/5).',
+        desc_en: 'Complete 5 bot actions or perform 1 Rebirth (counts as 5/5).'
+    }
+];
+
+const WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS = 30;
+
+function getCurrentWeekKey(nowMs = Date.now()) {
+    const d = new Date(nowMs);
+    const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dayNum = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+    return `${utc.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function getNextWeekResetInfo(nowMs = Date.now()) {
+    const d = new Date(nowMs);
+    const dayOfWeek = d.getUTCDay() || 7; // 1 (Lun) .. 7 (Dom)
+    const daysUntilMonday = 8 - dayOfWeek;
+    const nextMondayUtc = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + daysUntilMonday, 0, 0, 0);
+    const diffMs = Math.max(0, nextMondayUtc - nowMs);
+    const days = Math.floor(diffMs / 86400000);
+    const hours = Math.floor((diffMs % 86400000) / 3600000);
+    return { days, hours, nextMondayUtc };
+}
+
+function syncWeeklyQuestsState(profile, nowMs = Date.now()) {
+    const currentWeekKey = getCurrentWeekKey(nowMs);
+    let raw = profile.weekly_quests_state;
+    if (typeof raw === 'string') {
+        try {
+            raw = JSON.parse(raw);
+        } catch {
+            raw = null;
+        }
+    }
+
+    let mutated = false;
+    if (!raw || typeof raw !== 'object' || raw.weekKey !== currentWeekKey) {
+        raw = {
+            weekKey: currentWeekKey,
+            progress: {
+                q_collect_tix: 0,
+                q_build_pads: 0,
+                q_use_potions: 0,
+                q_rebirth_or_bot: 0
+            },
+            claimed: {},
+            allBonusClaimed: false
+        };
+        profile.weekly_quests_state = raw;
+        mutated = true;
+    } else {
+        if (!raw.progress || typeof raw.progress !== 'object') {
+            raw.progress = {};
+            mutated = true;
+        }
+        if (!raw.claimed || typeof raw.claimed !== 'object') {
+            raw.claimed = {};
+            mutated = true;
+        }
+        for (const q of WEEKLY_QUESTS_POOL) {
+            if (typeof raw.progress[q.id] !== 'number') {
+                raw.progress[q.id] = Number(raw.progress[q.id] || 0);
+                mutated = true;
+            }
+        }
+    }
+
+    if (profile.crystal_balance === undefined || profile.crystal_balance === null) {
+        profile.crystal_balance = 15; // 15 Cristales de bienvenida
+        mutated = true;
+    }
+
+    return { stateObj: raw, mutated };
+}
+
+function incrementQuestProgress(profile, questId, amount = 1, nowMs = Date.now()) {
+    const { stateObj } = syncWeeklyQuestsState(profile, nowMs);
+    const questDef = WEEKLY_QUESTS_POOL.find(q => q.id === questId);
+    if (!questDef) return false;
+
+    const prev = Number(stateObj.progress[questId] || 0);
+    const next = Math.min(questDef.target, prev + Math.max(0, Number(amount || 0)));
+    if (next !== prev) {
+        stateObj.progress[questId] = next;
+        profile.weekly_quests_state = stateObj;
+        return true;
+    }
+    return false;
+}
+
+function buildWeeklyQuestsSummary(profile, nowMs = Date.now()) {
+    const { stateObj } = syncWeeklyQuestsState(profile, nowMs);
+    const resetInfo = getNextWeekResetInfo(nowMs);
+    const quests = WEEKLY_QUESTS_POOL.map(q => {
+        const current = Math.min(q.target, Number(stateObj.progress[q.id] || 0));
+        const completed = current >= q.target;
+        const claimed = Boolean(stateObj.claimed[q.id]);
+        return {
+            ...q,
+            current,
+            completed,
+            claimed,
+            claimable: completed && !claimed
+        };
+    });
+
+    const claimableCount = quests.filter(q => q.claimable).length;
+    const allCompleted = quests.every(q => q.completed);
+    const allClaimed = quests.every(q => q.claimed);
+
+    return {
+        weekKey: stateObj.weekKey,
+        resetDays: resetInfo.days,
+        resetHours: resetInfo.hours,
+        quests,
+        claimableCount,
+        allCompleted,
+        allClaimed,
+        allBonusClaimed: Boolean(stateObj.allBonusClaimed),
+        bonusCrystals: WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS
+    };
+}
+
 // Palabras prohibidas en el Taller UGC para evitar suplantación de Limiteds o staff
 const UGC_FORBIDDEN_REGEX = /\b(limited|limited\s*u|lim\s*u|oficial|official|admin|administrador|staff|moderator|mod|kortex|dominus|valkyrie|sparkle\s*time|clockwork|robux\s*gratis|free\s*robux|scam|hack|exploit|nsfw|sex|porn)\b/i;
 
@@ -268,6 +438,7 @@ async function getOrCreatePlayerState(userId) {
         const initialProfile = {
             user_id: uid,
             tix_balance: 150,
+            crystal_balance: 15,
             collector_tix: 25,
             collector_cap: 500,
             studio_stage: 1,
@@ -283,11 +454,15 @@ async function getOrCreatePlayerState(userId) {
             last_collected_at: now.toISOString(),
             last_silent_reward_at: null,
             unlocked_pads: ['pad_dropper1'],
+            weekly_quests_state: null,
             created_at: now.toISOString()
         };
+        syncWeeklyQuestsState(initialProfile, nowMs);
         await supabase.from('tycoon_profiles').upsert(initialProfile, { onConflict: 'user_id' });
         profile = initialProfile;
     }
+
+    const { mutated: questsMutated } = syncWeeklyQuestsState(profile, nowMs);
 
     const { items: inventory, totalRap, catalogMap } = await getUserInventory(uid);
     const equippedItem = profile.equipped_item_id
@@ -304,7 +479,7 @@ async function getOrCreatePlayerState(userId) {
     const generatedTix = Math.floor(elapsedMinutes * metrics.effectiveTixPerMin);
 
     let currentCollector = Number(profile.collector_tix || 0);
-    let dirty = false;
+    let dirty = questsMutated;
 
     if (generatedTix > 0) {
         currentCollector = Math.min(metrics.collectorCap, currentCollector + generatedTix);
@@ -329,12 +504,17 @@ async function getOrCreatePlayerState(userId) {
         await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
     }
 
+    const weeklyQuests = buildWeeklyQuestsSummary(profile, nowMs);
+    const dailyStreak = buildDailyStreakSummary(profile, nowMs);
+
     return {
         profile,
         inventory,
         totalRap,
         equippedItem,
         metrics,
+        weeklyQuests,
+        dailyStreak,
         catalogMap
     };
 }
@@ -367,6 +547,7 @@ async function rewardSilentActivity(userId) {
             const starter = {
                 user_id: uid,
                 tix_balance: 150 + bonusTix,
+                crystal_balance: 15,
                 collector_tix: 25,
                 collector_cap: 500,
                 studio_stage: 1,
@@ -382,8 +563,11 @@ async function rewardSilentActivity(userId) {
                 last_collected_at: nowIso,
                 last_silent_reward_at: nowIso,
                 unlocked_pads: ['pad_dropper1'],
+                weekly_quests_state: null,
                 created_at: nowIso
             };
+            syncWeeklyQuestsState(starter, nowMs);
+            incrementQuestProgress(starter, 'q_rebirth_or_bot', 1, nowMs);
             await supabase.from('tycoon_profiles').upsert(starter, { onConflict: 'user_id' });
             return { rewarded: bonusTix };
         }
@@ -397,6 +581,7 @@ async function rewardSilentActivity(userId) {
 
         existing.tix_balance = Number(existing.tix_balance || 0) + bonusTix;
         existing.last_silent_reward_at = nowIso;
+        incrementQuestProgress(existing, 'q_rebirth_or_bot', 1, nowMs);
         await supabase.from('tycoon_profiles').upsert(existing, { onConflict: 'user_id' });
         return { rewarded: bonusTix };
     } catch {
@@ -424,6 +609,7 @@ async function collectPadTix(userId) {
     profile.tix_balance = Number(profile.tix_balance || 0) + available;
     profile.collector_tix = 0;
     profile.last_collected_at = new Date().toISOString();
+    incrementQuestProgress(profile, 'q_collect_tix', available);
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
     const updatedState = await getOrCreatePlayerState(userId);
@@ -477,6 +663,7 @@ async function buyNextStudioPad(userId, targetPadId = null) {
     profile.unlocked_pads = newUnlocked;
     profile.studio_stage = maxStage;
     profile.collector_cap = calculateCollectorCap(newUnlocked, profile.rebirth_count);
+    incrementQuestProgress(profile, 'q_build_pads', 1);
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
     const updatedState = await getOrCreatePlayerState(userId);
@@ -513,6 +700,10 @@ async function performRebirth(userId) {
     profile.ascension_tokens = Number(profile.ascension_tokens || 0) + 1;
     profile.collector_cap = calculateCollectorCap(['pad_dropper1'], profile.rebirth_count);
     profile.last_collected_at = new Date().toISOString();
+    incrementQuestProgress(profile, 'q_rebirth_or_bot', 5);
+    if (pendingCollector > 0) {
+        incrementQuestProgress(profile, 'q_collect_tix', pendingCollector);
+    }
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
     const updatedState = await getOrCreatePlayerState(userId);
@@ -526,12 +717,17 @@ async function performRebirth(userId) {
 }
 
 /**
- * Compra un ítem de la Tienda Normal.
+ * Compra un ítem de la Tienda Normal (en Tix).
  */
 async function buyNormalShopItem(userId, itemId) {
     const state = await getOrCreatePlayerState(userId);
     const { profile, inventory, catalogMap } = state;
     const item = catalogMap.get(String(itemId));
+
+    const isCrystalItem = item && (item.currency_type === 'CRYSTAL' || String(item.item_id).startsWith('crys_'));
+    if (isCrystalItem) {
+        return await buyCrystalShopItem(userId, itemId);
+    }
 
     if (!item || item.category !== 'NORMAL' || Number(item.base_price) <= 0) {
         return { ok: false, reason: 'invalid_item', state };
@@ -572,6 +768,123 @@ async function buyNormalShopItem(userId, itemId) {
 
     const updatedState = await getOrCreatePlayerState(userId);
     return { ok: true, item, instance, state: updatedState };
+}
+
+/**
+ * Compra un ítem exclusivo con Cristales Kortex (💠) obtenidos en Misiones Semanales.
+ */
+async function buyCrystalShopItem(userId, itemId) {
+    const state = await getOrCreatePlayerState(userId);
+    const { profile, inventory, catalogMap } = state;
+    const item = catalogMap.get(String(itemId));
+
+    const isCrystal = item && (item.currency_type === 'CRYSTAL' || String(item.item_id).startsWith('crys_'));
+    if (!item || !isCrystal || Number(item.base_price) <= 0) {
+        return { ok: false, reason: 'invalid_item', state };
+    }
+
+    const alreadyOwned = inventory.some(i => String(i.item_id) === String(itemId));
+    if (alreadyOwned) {
+        return { ok: false, reason: 'already_owned', item, state };
+    }
+
+    const crystalBalance = Number(profile.crystal_balance || 0);
+    const cost = Number(item.base_price || 0);
+    if (crystalBalance < cost) {
+        return {
+            ok: false,
+            reason: 'insufficient_crystals',
+            item,
+            cost,
+            crystalBalance,
+            state
+        };
+    }
+
+    profile.crystal_balance = crystalBalance - cost;
+    profile.equipped_item_id = item.item_id;
+
+    const instance = {
+        instance_id: `inv_${userId}_${Date.now()}_crys_${Math.random().toString(36).slice(2, 6)}`,
+        user_id: String(userId),
+        item_id: item.item_id,
+        serial_number: null,
+        acquired_at: new Date().toISOString()
+    };
+
+    item.minted_count = Number(item.minted_count || 0) + 1;
+    item.sales_count = Number(item.sales_count || 0) + 1;
+
+    await Promise.all([
+        supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' }),
+        supabase.from('tycoon_user_inventory').insert(instance),
+        supabase.from('tycoon_items_catalog').upsert(item, { onConflict: 'item_id' })
+    ]);
+
+    const updatedState = await getOrCreatePlayerState(userId);
+    return { ok: true, item, cost, instance, state: updatedState };
+}
+
+/**
+ * Reclama todas las Misiones Semanales completadas (o una específica) y acredita Cristales Kortex (💠) + Tix.
+ */
+async function claimWeeklyQuestReward(userId, targetQuestId = null) {
+    const state = await getOrCreatePlayerState(userId);
+    const { profile } = state;
+    const nowMs = Date.now();
+    const { stateObj } = syncWeeklyQuestsState(profile, nowMs);
+
+    const claimedQuests = [];
+    let totalCrystalsEarned = 0;
+    let totalTixEarned = 0;
+
+    for (const q of WEEKLY_QUESTS_POOL) {
+        if (targetQuestId && targetQuestId !== 'all' && q.id !== targetQuestId) continue;
+        const current = Number(stateObj.progress[q.id] || 0);
+        const isCompleted = current >= q.target;
+        const isAlreadyClaimed = Boolean(stateObj.claimed[q.id]);
+
+        if (isCompleted && !isAlreadyClaimed) {
+            stateObj.claimed[q.id] = true;
+            totalCrystalsEarned += q.rewardCrystals;
+            totalTixEarned += q.rewardTix;
+            claimedQuests.push(q);
+        }
+    }
+
+    if (claimedQuests.length === 0) {
+        return {
+            ok: false,
+            reason: 'none_claimable',
+            state
+        };
+    }
+
+    // Verificar si ya reclamó las 4 misiones de la semana para otorgar el bono extra de +30 Cristales
+    const allFourClaimed = WEEKLY_QUESTS_POOL.every(q => Boolean(stateObj.claimed[q.id]));
+    let grantedAllBonus = false;
+    if (allFourClaimed && !stateObj.allBonusClaimed) {
+        stateObj.allBonusClaimed = true;
+        totalCrystalsEarned += WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS;
+        grantedAllBonus = true;
+    }
+
+    profile.crystal_balance = Number(profile.crystal_balance || 0) + totalCrystalsEarned;
+    profile.tix_balance = Number(profile.tix_balance || 0) + totalTixEarned;
+    profile.weekly_quests_state = stateObj;
+
+    await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
+    const updatedState = await getOrCreatePlayerState(userId);
+
+    return {
+        ok: true,
+        claimedQuests,
+        totalCrystalsEarned,
+        totalTixEarned,
+        grantedAllBonus,
+        bonusCrystals: grantedAllBonus ? WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS : 0,
+        state: updatedState
+    };
 }
 
 /**
@@ -902,6 +1215,7 @@ async function openAscensionChest(userId) {
     } else {
         profile.tix_balance = balance - chestCostTix;
     }
+    incrementQuestProgress(profile, 'q_use_potions', 1);
 
     let serialNumber = null;
     const newMintCount = Number(wonItem.minted_count || 0) + 1;
@@ -1273,6 +1587,7 @@ async function buyAndActivatePotion(userId, potionId = 'speed_potion') {
     profile.tix_balance = balance - potion.cost;
     profile.potion_type = potion.id;
     profile.potion_expires_at = newExpiresIso;
+    incrementQuestProgress(profile, 'q_use_potions', 1);
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
     const updatedState = await getOrCreatePlayerState(userId);
@@ -1370,10 +1685,140 @@ async function syncCommunityPerks(interaction) {
     };
 }
 
+/**
+ * Calcula el estado de la Racha Diaria (Daily Streak) de 1 a 7 días.
+ */
+function buildDailyStreakSummary(profile, nowMs = Date.now()) {
+    const streakDays = Math.max(0, Number(profile.daily_streak || 0));
+    const lastClaimIso = profile.last_daily_claim_at || null;
+    const lastClaimMs = lastClaimIso ? new Date(lastClaimIso).getTime() : 0;
+    const cooldownMs = 20 * 60 * 60 * 1000; // 20 horas para comodidad del jugador
+    const resetWindowMs = 48 * 60 * 60 * 1000; // 48 horas antes de perder racha
+
+    const elapsedMs = lastClaimMs > 0 ? nowMs - lastClaimMs : Infinity;
+    const canClaim = elapsedMs >= cooldownMs;
+    const nextStreakDay = (lastClaimMs > 0 && elapsedMs > resetWindowMs)
+        ? 1
+        : ((streakDays % 7) + 1);
+
+    const remainingMs = canClaim ? 0 : Math.max(0, cooldownMs - elapsedMs);
+    const hoursLeft = Math.floor(remainingMs / 3600000);
+    const minsLeft = Math.max(1, Math.ceil((remainingMs % 3600000) / 60000));
+
+    // Recompensas progresivas Día 1..7
+    const rewardTix = 200 + nextStreakDay * 150;
+    const rewardCrystals = nextStreakDay === 7 ? 25 : (nextStreakDay >= 4 ? 10 : 5);
+
+    return {
+        currentStreak: streakDays,
+        nextStreakDay,
+        canClaim,
+        hoursLeft,
+        minsLeft,
+        rewardTix,
+        rewardCrystals
+    };
+}
+
+/**
+ * Reclama la Racha Diaria (Daily Streak) otorgando Tix + Cristales Kortex (💠).
+ */
+async function claimDailyStreak(userId) {
+    const state = await getOrCreatePlayerState(userId);
+    const { profile } = state;
+    const nowMs = Date.now();
+    const summary = buildDailyStreakSummary(profile, nowMs);
+
+    if (!summary.canClaim) {
+        return {
+            ok: false,
+            reason: 'cooldown',
+            hoursLeft: summary.hoursLeft,
+            minsLeft: summary.minsLeft,
+            streak: summary.currentStreak,
+            state
+        };
+    }
+
+    profile.daily_streak = summary.nextStreakDay;
+    profile.last_daily_claim_at = new Date(nowMs).toISOString();
+    profile.tix_balance = Number(profile.tix_balance || 0) + summary.rewardTix;
+    profile.crystal_balance = Number(profile.crystal_balance || 0) + summary.rewardCrystals;
+
+    incrementQuestProgress(profile, 'q_rebirth_or_bot', 1, nowMs);
+
+    await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
+    const updatedState = await getOrCreatePlayerState(userId);
+
+    return {
+        ok: true,
+        streakDay: summary.nextStreakDay,
+        rewardTix: summary.rewardTix,
+        rewardCrystals: summary.rewardCrystals,
+        state: updatedState
+    };
+}
+
+/**
+ * Obtiene el Top Ranking de jugadores de /tycoon ordenado por Producción (Tix/min) y Rebirths.
+ */
+async function getTycoonLeaderboard(limit = 6) {
+    const [{ data: profiles }, { map: catalogMap }, { data: links }] = await Promise.all([
+        supabase.from('tycoon_profiles').select('*'),
+        getCatalogItems(),
+        supabase.from('user_links').select('*')
+    ]);
+
+    const linkMap = new Map();
+    if (Array.isArray(links)) {
+        for (const l of links) {
+            if (l.discord_id && l.roblox_username) {
+                linkMap.set(String(l.discord_id), l.roblox_username);
+            }
+        }
+    }
+
+    const nowMs = Date.now();
+    const rows = (Array.isArray(profiles) ? profiles : [])
+        .filter(p => p && p.user_id && !String(p.user_id).startsWith('test_'))
+        .map(p => {
+            const eq = p.equipped_item_id ? catalogMap.get(String(p.equipped_item_id)) || null : null;
+            const m = computeProductionMetrics(p, eq, nowMs);
+            const rbxName = linkMap.get(String(p.user_id));
+            return {
+                userId: String(p.user_id),
+                displayName: rbxName ? `@${rbxName}` : `Player #${String(p.user_id).slice(-4)}`,
+                tixPerMin: m.effectiveTixPerMin,
+                multiplier: m.multiplier,
+                rebirths: Number(p.rebirth_count || 0),
+                stage: Number(p.studio_stage || 1),
+                crystals: Number(p.crystal_balance ?? 15),
+                tixBalance: Number(p.tix_balance || 0)
+            };
+        });
+
+    rows.sort((a, b) => {
+        if (b.tixPerMin !== a.tixPerMin) return b.tixPerMin - a.tixPerMin;
+        if (b.rebirths !== a.rebirths) return b.rebirths - a.rebirths;
+        return b.tixBalance - a.tixBalance;
+    });
+
+    return rows.slice(0, limit);
+}
+
 module.exports = {
     STUDIO_PADS,
     POTIONS_CATALOG,
+    WEEKLY_QUESTS_POOL,
+    WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS,
     UGC_ALLOWED_EMOJIS,
+    getCurrentWeekKey,
+    syncWeeklyQuestsState,
+    incrementQuestProgress,
+    buildWeeklyQuestsSummary,
+    buildDailyStreakSummary,
+    claimDailyStreak,
+    getTycoonLeaderboard,
     getCatalogItems,
     getUserInventory,
     getOrCreatePlayerState,
@@ -1382,6 +1827,8 @@ module.exports = {
     buyNextStudioPad,
     performRebirth,
     buyNormalShopItem,
+    buyCrystalShopItem,
+    claimWeeklyQuestReward,
     equipUserItem,
     unlockUgcCreatorLicense,
     publishCustomUgcItem,

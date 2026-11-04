@@ -143,6 +143,7 @@ const DEFAULT_TYCOON_CATALOG = [
         name: 'Sombrero de Copa Neón Booster',
         name_en: 'Neon Booster Top Hat',
         category: 'NORMAL',
+        currency_type: 'TIX',
         creator_id: 'SYSTEM',
         creator_name: 'Kortex VIP',
         base_price: 0,
@@ -155,6 +156,67 @@ const DEFAULT_TYCOON_CATALOG = [
         color_hex: '#F472B6',
         description_es: 'Ítem cosmético exclusivo para Discord Server Boosters (+15% Tix/min al equipar).',
         description_en: 'Exclusive cosmetic item for Discord Server Boosters (+15% Tix/min when equipped).',
+        created_at: new Date().toISOString()
+    },
+    // TIENDA PREMIUM DE CRISTALES KORTEX (Se consiguen gratis completando Misiones Semanales)
+    {
+        item_id: 'crys_darkheart_katana',
+        name: 'Katana Darkheart de Cristal',
+        name_en: 'Crystal Darkheart Katana',
+        category: 'NORMAL',
+        currency_type: 'CRYSTAL',
+        creator_id: 'SYSTEM',
+        creator_name: 'Kortex Crystal Vault',
+        base_price: 35,
+        current_rap: 0,
+        boost_pct: 18,
+        max_supply: null,
+        minted_count: 0,
+        sales_count: 0,
+        icon_emoji: '🗡️',
+        color_hex: '#EC4899',
+        description_es: 'Reliquia forjada con Cristales Kortex de Misiones Semanales (+18% Tix/min).',
+        description_en: 'Relic forged with Kortex Crystals from Weekly Quests (+18% Tix/min).',
+        created_at: new Date().toISOString()
+    },
+    {
+        item_id: 'crys_quantum_wings',
+        name: 'Alas Cuánticas de Valquiria',
+        name_en: 'Quantum Valkyrie Wings',
+        category: 'NORMAL',
+        currency_type: 'CRYSTAL',
+        creator_id: 'SYSTEM',
+        creator_name: 'Kortex Crystal Vault',
+        base_price: 65,
+        current_rap: 0,
+        boost_pct: 25,
+        max_supply: null,
+        minted_count: 0,
+        sales_count: 0,
+        icon_emoji: '🪽',
+        color_hex: '#38BDF8',
+        description_es: 'Alas cibernéticas de energía pura comprables con Cristales Kortex (+25% Tix/min).',
+        description_en: 'Pure energy cybernetic wings purchasable with Kortex Crystals (+25% Tix/min).',
+        created_at: new Date().toISOString()
+    },
+    {
+        item_id: 'crys_celestial_halo',
+        name: 'Halo Celestial del Arquitecto',
+        name_en: 'Celestial Architect Halo',
+        category: 'NORMAL',
+        currency_type: 'CRYSTAL',
+        creator_id: 'SYSTEM',
+        creator_name: 'Kortex Crystal Vault',
+        base_price: 110,
+        current_rap: 0,
+        boost_pct: 34,
+        max_supply: null,
+        minted_count: 0,
+        sales_count: 0,
+        icon_emoji: '💫',
+        color_hex: '#A855F7',
+        description_es: 'Corona gravitatoria suprema de la Tienda de Cristales (+34% Tix/min).',
+        description_en: 'Supreme gravitational crown from the Crystal Shop (+34% Tix/min).',
         created_at: new Date().toISOString()
     },
     // BÓVEDA LIMITED (Cofres de Ascensión / Rebirth, Tradeables con RAP dinámico)
@@ -330,7 +392,12 @@ function cargarSnapshotDesdeDisco() {
     }
 }
 
-function guardarSnapshotEnDisco() {
+let snapshotDebounceTimer = null;
+let snapshotDirty = false;
+
+function flushSnapshotSync() {
+    if (!snapshotDirty) return;
+    snapshotDirty = false;
     try {
         if (!fs.existsSync(DATA_DIR)) {
             fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -359,6 +426,27 @@ function guardarSnapshotEnDisco() {
         console.warn('[DB] No se pudo guardar kortex_db_snapshot.json:', err.message);
     }
 }
+
+function guardarSnapshotEnDisco() {
+    snapshotDirty = true;
+    if (snapshotDebounceTimer) {
+        clearTimeout(snapshotDebounceTimer);
+    }
+    snapshotDebounceTimer = setTimeout(() => {
+        snapshotDebounceTimer = null;
+        flushSnapshotSync();
+    }, 350);
+    if (typeof snapshotDebounceTimer.unref === 'function') {
+        snapshotDebounceTimer.unref();
+    }
+}
+
+process.on('beforeExit', () => {
+    flushSnapshotSync();
+});
+process.on('exit', () => {
+    flushSnapshotSync();
+});
 
 cargarSnapshotDesdeDisco();
 

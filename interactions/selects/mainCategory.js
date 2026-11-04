@@ -7,6 +7,7 @@
 const { MessageFlags } = require('discord.js');
 const { construirMenuSniper } = require('../buttons/navigation');
 const { construirPanelCalculadoraLimpio, obtenerSeleccion } = require('../calcHelpers');
+const { obtenerIdiomaUsuario } = require('../../src/utils/i18n');
 
 module.exports = {
     customIdPrefix: 'select_main_category',
@@ -22,9 +23,10 @@ module.exports = {
         }
 
         const opcion = interaction.values[0];
+        const lang = obtenerIdiomaUsuario(interaction.user.id);
 
         if (opcion === 'cat_sniper') {
-            return await interaction.update(construirMenuSniper());
+            return await interaction.update(construirMenuSniper(lang));
         }
 
         if (opcion === 'cat_calculators') {

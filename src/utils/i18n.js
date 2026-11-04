@@ -19,18 +19,89 @@ const { COLORES, footer, separador } = require('../../utils/ui');
 const SUPPORTED_LANGUAGES = ['es', 'en'];
 const langContextStorage = new AsyncLocalStorage();
 
+const REGIONAL_TIERS_LIST = [
+    {
+        id: 'TIER_100',
+        value: 'TIER_100',
+        factor: 1.0,
+        discountPct: 0,
+        emoji: '🌐',
+        label_es: 'Tier 100% — EE.UU., España, Global',
+        desc_es: 'Pagás el 100% del precio base (0% de descuento regional)',
+        full_es: '🌐 Tier 100% — EE.UU., España, Global (0% desc. regional)',
+        label_en: 'Tier 100% — US, Spain, Global',
+        desc_en: 'Pay 100% of base price (0% regional discount)',
+        full_en: '🌐 Tier 100% — US, Spain, Global (0% regional discount)',
+        labelEs: 'Tier 100% — EE.UU., España, Global',
+        descEs: 'Pagás el 100% del precio base (0% de descuento regional)',
+        labelEn: 'Tier 100% — US, Spain, Global',
+        descEn: 'Pay 100% of base price (0% regional discount)'
+    },
+    {
+        id: 'TIER_80',
+        value: 'TIER_80',
+        factor: 0.8,
+        discountPct: 20,
+        emoji: '🇲🇽',
+        label_es: 'Tier 80% — México, Chile, Uruguay',
+        desc_es: 'Pagás el 80% del precio base (20% de descuento regional)',
+        full_es: '🇲🇽 Tier 80% — México, Chile, Uruguay (20% desc. regional)',
+        label_en: 'Tier 80% — Mexico, Chile, Uruguay',
+        desc_en: 'Pay 80% of base price (20% regional discount)',
+        full_en: '🇲🇽 Tier 80% — Mexico, Chile, Uruguay (20% regional discount)',
+        labelEs: 'Tier 80% — México, Chile, Uruguay',
+        descEs: 'Pagás el 80% del precio base (20% de descuento regional)',
+        labelEn: 'Tier 80% — Mexico, Chile, Uruguay',
+        descEn: 'Pay 80% of base price (20% regional discount)'
+    },
+    {
+        id: 'TIER_60',
+        value: 'TIER_60',
+        factor: 0.6,
+        discountPct: 40,
+        emoji: '🇦🇷',
+        label_es: 'Tier 60% — Argentina, Brasil, Colombia, Perú',
+        desc_es: 'Pagás el 60% del precio base (40% de descuento regional)',
+        full_es: '🇦🇷 Tier 60% — Argentina, Brasil, Colombia, Perú (40% desc. regional)',
+        label_en: 'Tier 60% — Argentina, Brazil, Colombia, Peru',
+        desc_en: 'Pay 60% of base price (40% regional discount)',
+        full_en: '🇦🇷 Tier 60% — Argentina, Brazil, Colombia, Peru (40% regional discount)',
+        labelEs: 'Tier 60% — Argentina, Brasil, Colombia, Perú',
+        descEs: 'Pagás el 60% del precio base (40% de descuento regional)',
+        labelEn: 'Tier 60% — Argentina, Brazil, Colombia, Peru',
+        descEn: 'Pay 60% of base price (40% regional discount)'
+    },
+    {
+        id: 'TIER_40',
+        value: 'TIER_40',
+        factor: 0.4,
+        discountPct: 60,
+        emoji: '🇻🇪',
+        label_es: 'Tier 40% — Venezuela, Bolivia, Paraguay',
+        desc_es: 'Pagás el 40% del precio base (60% de descuento regional)',
+        full_es: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay (60% desc. regional)',
+        label_en: 'Tier 40% — Venezuela, Bolivia, Paraguay',
+        desc_en: 'Pay 40% of base price (60% regional discount)',
+        full_en: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay (60% regional discount)',
+        labelEs: 'Tier 40% — Venezuela, Bolivia, Paraguay',
+        descEs: 'Pagás el 40% del precio base (60% de descuento regional)',
+        labelEn: 'Tier 40% — Venezuela, Bolivia, Paraguay',
+        descEn: 'Pay 40% of base price (60% regional discount)'
+    }
+];
+
 const TIER_LABELS = {
     es: {
-        TIER_100: '🌐 Tier 100% — EE.UU., España, Global (Sin descuento regional)',
-        TIER_80: '🇲🇽 Tier 80% — México, Chile, Uruguay (20% descuento regional)',
-        TIER_60: '🇦🇷 Tier 60% — Argentina, Brasil, Colombia, Perú (40% descuento regional)',
-        TIER_40: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay (60% descuento regional)'
+        TIER_100: REGIONAL_TIERS_LIST[0].full_es,
+        TIER_80: REGIONAL_TIERS_LIST[1].full_es,
+        TIER_60: REGIONAL_TIERS_LIST[2].full_es,
+        TIER_40: REGIONAL_TIERS_LIST[3].full_es
     },
     en: {
-        TIER_100: '🌐 Tier 100% — US, Spain, Global (Standard pricing)',
-        TIER_80: '🇲🇽 Tier 80% — Mexico, Chile, Uruguay (20% regional discount)',
-        TIER_60: '🇦🇷 Tier 60% — Argentina, Brazil, Colombia, Peru (40% regional discount)',
-        TIER_40: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay (60% regional discount)'
+        TIER_100: REGIONAL_TIERS_LIST[0].full_en,
+        TIER_80: REGIONAL_TIERS_LIST[1].full_en,
+        TIER_60: REGIONAL_TIERS_LIST[2].full_en,
+        TIER_40: REGIONAL_TIERS_LIST[3].full_en
     }
 };
 
@@ -39,7 +110,7 @@ function getFastLinkStore() {
 }
 
 /**
- * Obtiene las preferencias completas del usuario (idioma y región de precios predeterminada).
+ * Obtiene las preferencias completas del usuario (idioma, región de precios y ajustes de comodidad).
  */
 function obtenerPreferenciasUsuario(userId) {
     const key = String(userId || 'default_session').trim();
@@ -48,12 +119,24 @@ function obtenerPreferenciasUsuario(userId) {
     const lang = cfg.lang === 'en' ? 'en' : 'es';
     const validTiers = ['TIER_100', 'TIER_80', 'TIER_60', 'TIER_40'];
     const defaultTier = validTiers.includes(cfg.default_tier) ? cfg.default_tier : 'TIER_100';
+    const validCategories = ['cat_economy', 'cat_avatar', 'cat_games', 'cat_status'];
+    const defaultCategory = validCategories.includes(cfg.default_category) ? cfg.default_category : 'cat_economy';
+    const validRanges = ['24h', '7d', '30d', 'all'];
+    const defaultChartRange = validRanges.includes(cfg.default_chart_range) ? cfg.default_chart_range : '7d';
+    const validCameras = ['full', 'headshot'];
+    const defaultCameraMode = validCameras.includes(cfg.default_camera_mode) ? cfg.default_camera_mode : 'full';
 
     return {
         discord_id: key,
         lang,
         language_selected: Boolean(cfg.language_selected),
-        default_tier: defaultTier
+        default_tier: defaultTier,
+        default_category: defaultCategory,
+        default_chart_range: defaultChartRange,
+        default_camera_mode: defaultCameraMode,
+        auto_cashback_40: cfg.auto_cashback_40 !== false,
+        dm_alerts_enabled: cfg.dm_alerts_enabled !== false,
+        ephemeral_config: Boolean(cfg.ephemeral_config)
     };
 }
 
@@ -128,18 +211,61 @@ function guardarPreferenciasUsuario(userId, partial = {}) {
         ? partial.default_tier
         : current.default_tier;
 
+    const validCategories = ['cat_economy', 'cat_avatar', 'cat_games', 'cat_status'];
+    const nextCategory = partial.default_category && validCategories.includes(partial.default_category)
+        ? partial.default_category
+        : current.default_category;
+
+    const validRanges = ['24h', '7d', '30d', 'all'];
+    const nextRange = partial.default_chart_range && validRanges.includes(partial.default_chart_range)
+        ? partial.default_chart_range
+        : current.default_chart_range;
+
+    const validCameras = ['full', 'headshot'];
+    const nextCamera = partial.default_camera_mode && validCameras.includes(partial.default_camera_mode)
+        ? partial.default_camera_mode
+        : current.default_camera_mode;
+
+    const nextCashback = partial.auto_cashback_40 !== undefined
+        ? Boolean(partial.auto_cashback_40)
+        : current.auto_cashback_40;
+
+    const nextDmAlerts = partial.dm_alerts_enabled !== undefined
+        ? Boolean(partial.dm_alerts_enabled)
+        : current.dm_alerts_enabled;
+
+    const nextEphemeral = partial.ephemeral_config !== undefined
+        ? Boolean(partial.ephemeral_config)
+        : current.ephemeral_config;
+
     const updated = guardarConfigDiscord(key, {
         lang: nextLang,
         language_selected: partial.language_selected !== undefined ? Boolean(partial.language_selected) : true,
-        default_tier: nextTier
+        default_tier: nextTier,
+        default_category: nextCategory,
+        default_chart_range: nextRange,
+        default_camera_mode: nextCamera,
+        auto_cashback_40: nextCashback,
+        dm_alerts_enabled: nextDmAlerts,
+        ephemeral_config: nextEphemeral
     });
 
-    return {
-        discord_id: key,
-        lang: updated.lang || nextLang,
-        language_selected: Boolean(updated.language_selected),
-        default_tier: updated.default_tier || nextTier
-    };
+    return obtenerPreferenciasUsuario(key);
+}
+
+function restaurarPreferenciasUsuarioPorDefecto(userId) {
+    const current = obtenerPreferenciasUsuario(userId);
+    return guardarPreferenciasUsuario(userId, {
+        lang: current.lang,
+        language_selected: true,
+        default_tier: 'TIER_100',
+        default_category: 'cat_economy',
+        default_chart_range: '7d',
+        default_camera_mode: 'full',
+        auto_cashback_40: true,
+        dm_alerts_enabled: true,
+        ephemeral_config: false
+    });
 }
 
 /**
@@ -1632,7 +1758,24 @@ function envolverInteraccionConI18n(interaction) {
 
     if (typeof interaction.reply === 'function') {
         const origReply = interaction.reply.bind(interaction);
-        interaction.reply = (payload) => origReply(sanitizeInitialReplyPayload(traducirPayloadDiscord(payload, getLang())));
+        interaction.reply = (payload) => {
+            let finalPayload = sanitizeInitialReplyPayload(traducirPayloadDiscord(payload, getLang()));
+            if (
+                finalPayload &&
+                typeof finalPayload === 'object' &&
+                typeof interaction.isChatInputCommand === 'function' &&
+                interaction.isChatInputCommand()
+            ) {
+                const prefs = obtenerPreferenciasUsuario(userId);
+                if (prefs.ephemeral_config) {
+                    finalPayload = {
+                        ...finalPayload,
+                        flags: (Number(finalPayload.flags || 0)) | MessageFlags.Ephemeral
+                    };
+                }
+            }
+            return origReply(finalPayload);
+        };
     }
     if (typeof interaction.editReply === 'function') {
         const origEditReply = interaction.editReply.bind(interaction);
@@ -1656,6 +1799,7 @@ function envolverInteraccionConI18n(interaction) {
 
 module.exports = {
     SUPPORTED_LANGUAGES,
+    REGIONAL_TIERS_LIST,
     TIER_LABELS,
     obtenerPreferenciasUsuario,
     haSeleccionadoIdioma,
@@ -1664,6 +1808,7 @@ module.exports = {
     ejecutarConContextoIdioma,
     guardarIdiomaUsuario,
     guardarPreferenciasUsuario,
+    restaurarPreferenciasUsuarioPorDefecto,
     construirPanelSeleccionIdiomaInicial,
     traducirTexto,
     traducirPayloadDiscord,

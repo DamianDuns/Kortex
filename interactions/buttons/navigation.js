@@ -14,13 +14,14 @@ const {
     MessageFlags
 } = require('discord.js');
 const supabase = require('../../db');
+const PriceItem = require('../../models/PriceItem');
 const { obtenerMiniaturasBatch } = require('../../utils/roblox');
 const {
     COLORES, EMOJI_TIPO, NOMBRE_TIPO,
     footer, separador, boton, formatearPrecio, formatearPrecioTexto
 } = require('../../utils/ui');
-const { obtenerCuentaVinculada, obtenerCuentaVinculadaSync } = require('../../src/utils/fastLink');
-const { obtenerIdiomaUsuario, obtenerIdiomaActual } = require('../../src/utils/i18n');
+const { obtenerCuentaVinculada, obtenerCuentaVinculadaSync, MAX_WISHLIST_ITEMS } = require('../../src/utils/fastLink');
+const { obtenerPreferenciasUsuario, obtenerIdiomaUsuario, obtenerIdiomaActual } = require('../../src/utils/i18n');
 const { obtenerConfigPropietario } = require('../../src/utils/performanceManager');
 
 const ultimaCategoriaUsuario = new Map();
@@ -187,6 +188,60 @@ const DEFINICION_CATEGORIAS = {
                 style: ButtonStyle.Secondary
             }
         ]
+    },
+    cat_status: {
+        titulo: '📊 Categoría 4: Estadísticas y Análisis de Roblox',
+        titulo_en: '📊 Category 4: Roblox Analytics & Status',
+        color: 0x06B6D4,
+        descripcion: 'Estado de servidores en tiempo real, rendimiento por plataforma y red, inspector de perfiles, radar de Limiteds y comparador.',
+        descripcion_en: 'Real-time server status, global platform & network performance, user profile analytics, Limiteds radar, and comparator.',
+        herramientas: [
+            {
+                titulo: '### 📡 4.1 Estado de Servidores de Roblox en Tiempo Real',
+                titulo_en: '### 📡 4.1 Real-Time Roblox Server Status',
+                desc: 'Verificá cómo están prendidos los servidores de Roblox, su ping en vivo, diagnóstico de red y estado de cada subsistema.',
+                desc_en: 'Check live Roblox server status, real-time ping, network diagnostics, and the health of each subsystem.',
+                btnId: 'btn_status_roblox',
+                emoji: '📡',
+                style: ButtonStyle.Primary
+            },
+            {
+                titulo: '### 📈 4.2 Rendimiento por Plataforma y Red de Roblox',
+                titulo_en: '### 📈 4.2 Global Platform & Network Performance',
+                desc: 'Consultá la latencia, cuota de tráfico y estabilidad en Móvil, PC, Consola, CDN 3D, Voz/Chat y Roblox Cloud.',
+                desc_en: 'Inspect live ping, traffic load, and stability across Mobile, PC, Console, 3D CDN, Voice/Chat, and Roblox Cloud.',
+                btnId: 'btn_status_trending',
+                emoji: '📈',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 🕵️ 4.3 Inspector y Estadísticas de Perfil de Usuario',
+                titulo_en: '### 🕵️ 4.3 User Profile Inspector & Analytics',
+                desc: 'Analizá cualquier cuenta de Roblox: antigüedad, seguidores, amigos, grupos, insignias y tarjeta visual de perfil.',
+                desc_en: 'Inspect any Roblox account: account age, followers, friends, groups, badges, and visual profile card.',
+                btnId: 'btn_status_profile',
+                emoji: '🕵️',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### 💎 4.4 Radar de Limiteds y Oportunidades de Mercado',
+                titulo_en: '### 💎 4.4 Limiteds & Market Opportunity Radar',
+                desc: 'Consultá coleccionables Limited destacados, mejor precio actual vs. valor promedio y nivel de demanda.',
+                desc_en: 'Check featured Limited collectibles, best current price vs. average value, and market demand.',
+                btnId: 'btn_status_limiteds',
+                emoji: '💎',
+                style: ButtonStyle.Secondary
+            },
+            {
+                titulo: '### ⚔️ 4.5 Comparador de Experiencias (Juego vs. Juego)',
+                titulo_en: '### ⚔️ 4.5 Experience Comparator (Game vs. Game)',
+                desc: 'Compará dos juegos de Roblox cara a cara: jugadores activos, visitas, favoritos, aprobación y tamaño de servidor.',
+                desc_en: 'Compare two Roblox games head-to-head: active players, visits, favorites, approval rate, and server size.',
+                btnId: 'btn_status_compare',
+                emoji: '⚔️',
+                style: ButtonStyle.Secondary
+            }
+        ]
     }
 };
 
@@ -203,11 +258,15 @@ const NOMBRE_TIPO_EN = {
 // ==========================================
 function construirMenuPrincipal(userId, categoryKey = null, feedbackMsg = null) {
     const uid = String(userId || 'anon');
-    const lang = obtenerIdiomaUsuario(uid) || obtenerIdiomaActual();
+    const prefs = obtenerPreferenciasUsuario(uid);
+    const lang = prefs.lang || obtenerIdiomaActual();
     const isEn = lang === 'en';
-    const activeCatKey = (!categoryKey || categoryKey === 'main')
-        ? (ultimaCategoriaUsuario.get(uid) || 'cat_economy')
-        : categoryKey;
+    const prefDefaultCat = prefs.default_category || 'cat_economy';
+    const activeCatKey = !categoryKey
+        ? prefDefaultCat
+        : (categoryKey === 'main'
+            ? (ultimaCategoriaUsuario.get(uid) || prefDefaultCat)
+            : categoryKey);
     ultimaCategoriaUsuario.set(uid, activeCatKey);
 
     const cat = DEFINICION_CATEGORIAS[activeCatKey] || DEFINICION_CATEGORIAS.cat_economy;
@@ -281,7 +340,21 @@ function construirMenuPrincipal(userId, categoryKey = null, feedbackMsg = null) 
                 )
                 .setValue('cat_games')
                 .setEmoji('🎮')
-                .setDefault(activeCatKey === 'cat_games')
+                .setDefault(activeCatKey === 'cat_games'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel(
+                    isEn
+                        ? 'Category 4: Roblox Analytics & Status'
+                        : 'Categoría 4: Estadísticas y Análisis de Roblox'
+                )
+                .setDescription(
+                    isEn
+                        ? 'Server Status, Trending Games, Profile Inspector, Limiteds Radar & Comparator'
+                        : 'Estado de Servidores, Tendencias, Inspector de Perfil, Limiteds y Comparador'
+                )
+                .setValue('cat_status')
+                .setEmoji('📊')
+                .setDefault(activeCatKey === 'cat_status')
         ]);
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectCategoria));
@@ -385,14 +458,15 @@ function construirMenuSniper(lang = null) {
     container.addSeparatorComponents(separador(true));
 
     // Mi Lista integrada dentro de la categoría Seguimiento de Precios
+    const maxItems = Number(obtenerConfigPropietario().maxWishlistItems || MAX_WISHLIST_ITEMS);
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 isEn
                     ? '### 📋 My Watchlist\n' +
-                      `Review your tracked items (max ${MAX_WISHLIST_ITEMS}), check their **price charts**, or configure your alerts.`
+                      `Review your tracked items (max ${maxItems}), check their **price charts**, or configure your alerts.`
                     : '### 📋 Mi Lista de Monitoreo\n' +
-                      `Revisá tus objetos en seguimiento (máx. ${MAX_WISHLIST_ITEMS}), consultá sus **gráficas de precios** o configurá tus alertas.`
+                      `Revisá tus objetos en seguimiento (máx. ${maxItems}), consultá sus **gráficas de precios** o configurá tus alertas.`
             ))
             .setButtonAccessory(boton('btn_nav_wishlist', isEn ? 'View Watchlist' : 'Ver Mi Lista', '📋', ButtonStyle.Success))
     );
@@ -439,21 +513,40 @@ function construirListaVacia(lang = null) {
     return { components: [container], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
 }
 
-function construirLista(items, miniaturas, lang = null) {
+async function construirLista(items, miniaturas, lang = null) {
     const isEn = (lang || obtenerIdiomaActual()) === 'en';
     const maxItems = Number(obtenerConfigPropietario().maxWishlistItems || 5);
     const activos = items.filter(i => !i.is_paused).length;
     const pausados = items.length - activos;
 
-    const container = new ContainerBuilder().setAccentColor(COLORES.lista);
+    const summaries = items.map(item => PriceItem.getPriceCheckSummary(item));
+    const metasCompletadas = summaries.filter(s => s.isTargetMet).length;
+    const bajoOriginalCount = summaries.filter(s => s.isBelowOriginal).length;
+
+    const container = new ContainerBuilder().setAccentColor(
+        metasCompletadas > 0 ? COLORES.exito : COLORES.lista
+    );
+
+    let resumenSuperior = '';
+    if (metasCompletadas > 0) {
+        resumenSuperior = isEn
+            ? `\n> 🎯 **${metasCompletadas} item(s) reached your TARGET GOAL!** Select an item below to inspect its chart & savings.`
+            : `\n> 🎯 **¡Tenés ${metasCompletadas} objeto(s) con la META COMPLETADA!** Elegí un objeto abajo para ver su check-in y gráfica.`;
+    } else if (bajoOriginalCount > 0) {
+        resumenSuperior = isEn
+            ? `\n> 📉 **${bajoOriginalCount} item(s) are currently below their original price!**`
+            : `\n> 📉 **¡Tenés ${bajoOriginalCount} objeto(s) más bajos que su precio original!**`;
+    }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        isEn
+        (isEn
             ? `# 📋 Your Watchlist  \`${items.length}/${maxItems}\`\n` +
               `-# ⚡ **${activos}** active  •  ⏸️ **${pausados}** paused`
-            : `# 📋 Tu Lista de Monitoreo  \`${items.length}/${maxItems}\`\n` +
-              `-# ⚡ **${activos}** activo(s)  •  ⏸️ **${pausados}** en pausa`
+            : `# 📋 Tu Lista de Seguimiento  \`${items.length}/${maxItems}\`\n` +
+              `-# ⚡ **${activos}** activo(s)  •  ⏸️ **${pausados}** en pausa`) +
+        resumenSuperior
     ));
+
     container.addSeparatorComponents(separador(true));
 
     const selectOptions = [];
@@ -462,14 +555,15 @@ function construirLista(items, miniaturas, lang = null) {
         const type = (item.item_type || 'catalog').toLowerCase();
         const esUSD = type === 'plugin';
         const nombreObj = item.item_name || (isEn ? 'Unnamed item' : 'Objeto sin nombre');
-        const tieneMeta = item.target_price !== null && item.target_price !== undefined;
-        const metaAlcanzada = tieneMeta && Number(item.last_price) <= Number(item.target_price);
+        const summary = summaries[index];
+        const tieneMeta = summary.hasTarget;
+        const metaAlcanzada = summary.isTargetMet;
 
-        const fmtActual = formatearPrecio(item.last_price, esUSD);
-        const fmtActualPlano = formatearPrecioTexto(item.last_price, esUSD);
-        const fmtMeta = tieneMeta
-            ? `${formatearPrecio(item.target_price, esUSD)}${metaAlcanzada ? '  ✅' : ''}`
-            : (isEn ? '`No target`' : '`Sin meta`');
+        const fmtActual = formatearPrecio(summary.lastPrice, esUSD);
+        const fmtActualPlano = formatearPrecioTexto(summary.lastPrice, esUSD);
+        const fmtOriginal = formatearPrecio(summary.firstPrice, esUSD);
+        const fmtMetaValor = tieneMeta ? formatearPrecio(summary.targetPrice, esUSD) : null;
+
         const estado = item.is_paused
             ? (isEn ? '⏸️ Paused' : '⏸️ En pausa')
             : (isEn ? '🟢 Active' : '🟢 Activo');
@@ -477,9 +571,48 @@ function construirLista(items, miniaturas, lang = null) {
             ? (NOMBRE_TIPO_EN[type] || type)
             : (NOMBRE_TIPO[type] || type);
 
+        let encabezadoItem = `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__`;
+        let lineaPrecios = '';
+        let lineaExtraMeta = '';
+
+        if (metaAlcanzada) {
+            encabezadoItem = `## 🎯 __**${nombreObj}**__  •  \`${isEn ? '✅ GOAL MET!' : '✅ ¡META COMPLETADA!'}\``;
+            const extraBajoMeta = summary.belowTargetAmount > 0
+                ? (isEn
+                    ? ` *(-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)} below target)*`
+                    : ` *(-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)} bajo tu meta)*`)
+                : '';
+            const textoAhorroOriginal = summary.isBelowOriginal
+                ? (isEn
+                    ? `  •  📉 **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%)** vs. Original (${fmtOriginal})`
+                    : `  •  📉 **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo** que el original (${fmtOriginal})`)
+                : (isEn ? `  •  Original: ${fmtOriginal}` : `  •  Original: ${fmtOriginal}`);
+
+            lineaPrecios = `🏷️ **${isEn ? 'Current' : 'Precio actual'}:** **${fmtActual}**  •  🎯 **${isEn ? 'Target' : 'Meta'}:** ~~${fmtMetaValor}~~ **✅**${extraBajoMeta}`;
+            lineaExtraMeta = `\n> 🎉 **${isEn ? 'Target completed!' : '¡Meta alcanzada!'}**${textoAhorroOriginal}`;
+        } else if (summary.isBelowOriginal) {
+            const pctStr = summary.pctSavedVsOriginal.toFixed(1).replace('.0', '');
+            encabezadoItem = `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__  •  \`${isEn ? `📉 -${pctStr}% vs Original` : `📉 -${pctStr}% vs Original`}\``;
+            const fmtMeta = tieneMeta
+                ? `${fmtMetaValor} *(⏳ ${isEn ? `${formatearPrecioTexto(summary.remainingToTarget, esUSD)} left` : `faltan ${formatearPrecioTexto(summary.remainingToTarget, esUSD)}`})*`
+                : (isEn ? '`No target`' : '`Sin meta`');
+            lineaPrecios = `🏷️ **${isEn ? 'Current' : 'Precio actual'}:** **${fmtActual}** *(Original: ~~${fmtOriginal}~~)*  •  🎯 **${isEn ? 'Target' : 'Meta'}:** ${fmtMeta}`;
+            lineaExtraMeta = isEn
+                ? `\n> 📉 **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${pctStr}%) lower** than its original price.`
+                : `\n> 📉 **Está -${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${pctStr}%) más bajo** que su precio original.`;
+        } else {
+            const fmtMeta = tieneMeta
+                ? `${fmtMetaValor} *(⏳ ${isEn ? `${formatearPrecioTexto(summary.remainingToTarget, esUSD)} to go` : `faltan ${formatearPrecioTexto(summary.remainingToTarget, esUSD)}`})*`
+                : (isEn ? '`No target`' : '`Sin meta`');
+            const origTag = summary.firstPrice !== summary.lastPrice
+                ? ` *(Original: ${fmtOriginal})*`
+                : '';
+            lineaPrecios = `🏷️ **${isEn ? 'Price' : 'Precio'}:** ${fmtActual}${origTag}  •  🎯 **${isEn ? 'Target' : 'Meta'}:** ${fmtMeta}`;
+        }
+
         const detalle = new TextDisplayBuilder().setContent(
-            `## ${EMOJI_TIPO[type] || '📦'} __**${nombreObj}**__\n` +
-            `🏷️ **${isEn ? 'Price' : 'Precio'}:** ${fmtActual}  •  🎯 **${isEn ? 'Target' : 'Meta'}:** ${fmtMeta}\n` +
+            `${encabezadoItem}\n` +
+            `${lineaPrecios}${lineaExtraMeta}\n` +
             `-# ${estado}  •  ${tipoLabel}  •  ID ${item.id_objet}`
         );
 
@@ -500,12 +633,20 @@ function construirLista(items, miniaturas, lang = null) {
         }
 
         const safeOptionVal = String(item.id ?? `${item.id_objet || 'item'}_${index}`);
+        const statusDesc = metaAlcanzada
+            ? (isEn ? '✅ GOAL MET!' : '✅ ¡META COMPLETADA!')
+            : (summary.isBelowOriginal
+                ? (isEn
+                    ? `📉 -${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} vs Orig.`
+                    : `📉 -${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} vs Orig.`)
+                : (item.is_paused ? (isEn ? 'Paused' : 'En pausa') : (isEn ? 'Active' : 'Activo')));
+
         selectOptions.push(
             new StringSelectMenuOptionBuilder()
                 .setLabel(`${index + 1}. ${nombreObj}`.substring(0, 100))
-                .setDescription(`${fmtActualPlano}  •  ${item.is_paused ? (isEn ? 'Paused' : 'En pausa') : (isEn ? 'Active' : 'Activo')}`.substring(0, 100))
+                .setDescription(`${fmtActualPlano}  •  ${statusDesc}`.substring(0, 100))
                 .setValue(safeOptionVal)
-                .setEmoji(item.is_paused ? '⏸️' : (EMOJI_TIPO[type] || '⚡'))
+                .setEmoji(metaAlcanzada ? '🎯' : (item.is_paused ? '⏸️' : (EMOJI_TIPO[type] || '⚡')))
         );
     });
 
@@ -517,8 +658,8 @@ function construirLista(items, miniaturas, lang = null) {
                 .setCustomId('select_manage_item')
                 .setPlaceholder(
                     isEn
-                        ? '📈 Select an item to view its price chart or configure alerts...'
-                        : '📈 Elegí un objeto para ver su gráfica o configurar alertas...'
+                        ? '⚙️ Select an item to view its chart, check-in, or configure alerts...'
+                        : '⚙️ Elegí un objeto para ver su gráfica, check-in o configurar alertas...'
                 )
                 .addOptions(selectOptions)
         )
@@ -529,7 +670,7 @@ function construirLista(items, miniaturas, lang = null) {
         botonesNav.push(boton('btn_quick_sniper', isEn ? 'Add Item' : 'Añadir Objeto', '➕', ButtonStyle.Primary));
     }
     botonesNav.push(
-        boton('btn_nav_wishlist', isEn ? 'Refresh' : 'Actualizar', '🔄'),
+        boton('btn_nav_wishlist', isEn ? 'Check-in / Refresh' : 'Check-in / Actualizar', '🔄', ButtonStyle.Success),
         boton('btn_nav_sniper', isEn ? 'Go Back' : 'Volver Atrás', '⬅️')
     );
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesNav));
@@ -610,7 +751,7 @@ module.exports = {
                     console.error('[WISHLIST THUMBNAIL ERROR]:', thumbErr.message);
                 }
 
-                return await interaction.editReply(construirLista(items, miniaturas, lang));
+                return await interaction.editReply(await construirLista(items, miniaturas, lang));
             }
         } catch (error) {
             console.error('[ERROR EN NAVEGACIÓN]:', error);

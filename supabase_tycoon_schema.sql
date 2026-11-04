@@ -7,6 +7,7 @@
 CREATE TABLE IF NOT EXISTS tycoon_profiles (
     user_id TEXT PRIMARY KEY,
     tix_balance BIGINT DEFAULT 100,
+    crystal_balance BIGINT DEFAULT 0,
     collector_tix BIGINT DEFAULT 0,
     collector_cap BIGINT DEFAULT 500,
     studio_stage INT DEFAULT 1,
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS tycoon_profiles (
     last_collected_at TIMESTAMPTZ DEFAULT NOW(),
     last_silent_reward_at TIMESTAMPTZ DEFAULT NULL,
     unlocked_pads JSONB DEFAULT '["pad_dropper1"]'::jsonb,
+    weekly_quests_state JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -31,6 +33,7 @@ CREATE TABLE IF NOT EXISTS tycoon_items_catalog (
     name TEXT NOT NULL,
     name_en TEXT DEFAULT NULL,
     category TEXT NOT NULL CHECK (category IN ('NORMAL', 'UGC', 'LIMITED', 'LIMITED_U')),
+    currency_type TEXT DEFAULT 'TIX',
     creator_id TEXT DEFAULT 'SYSTEM',
     creator_name TEXT DEFAULT 'Kortex System',
     base_price BIGINT NOT NULL,

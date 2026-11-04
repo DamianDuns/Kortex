@@ -3,15 +3,20 @@
 // Renderizador local en RAM de gráficas financieras y tarjetas de estudio 3D/2D (#2b2d31)
 // ==========================================
 
+const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
 const Chart = require('chart.js/auto');
+const echarts = require('echarts');
+const { Resvg } = require('@resvg/resvg-js');
 const axios = require('axios');
 
 // Registrar fuentes TTF locales incluidas en el repositorio
 const FONT_REGULAR_PATH = path.join(__dirname, '../../assets/fonts/LiberationSans-Regular.ttf');
 const FONT_BOLD_PATH = path.join(__dirname, '../../assets/fonts/LiberationSans-Bold.ttf');
 const FONT_FAMILY = 'KortexSans';
+const FONT_REGULAR_BUFFER = fs.existsSync(FONT_REGULAR_PATH) ? fs.readFileSync(FONT_REGULAR_PATH) : null;
+const FONT_BOLD_BUFFER = fs.existsSync(FONT_BOLD_PATH) ? fs.readFileSync(FONT_BOLD_PATH) : null;
 
 try {
     GlobalFonts.registerFromPath(FONT_REGULAR_PATH, FONT_FAMILY);
@@ -99,6 +104,73 @@ function fmtMoneda(val, esUSD = false) {
     return `${Math.round(n).toLocaleString('es-AR')} R$`;
 }
 
+function fmtMonedaCompacta(val, esUSD = false) {
+    const n = Number(val || 0);
+    if (esUSD) return `$${n.toFixed(2)}`;
+    if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(1).replace('.0', '')}M R$`;
+    if (Math.abs(n) >= 10000) return `${(n / 1000).toFixed(0)}k R$`;
+    return `${Math.round(n).toLocaleString('es-AR')} R$`;
+}
+
+function fitText(ctx, text, maxWidth) {
+    const raw = String(text ?? '');
+    if (!maxWidth || maxWidth <= 0) return raw;
+    if (ctx.measureText(raw).width <= maxWidth) return raw;
+    let clipped = raw;
+    while (clipped.length > 1 && ctx.measureText(`${clipped}…`).width > maxWidth) {
+        clipped = clipped.slice(0, -1);
+    }
+    return `${clipped}…`;
+}
+
+function computeNiceYAxis(minVal, maxVal, esUSD = false) {
+    let lo = Number.isFinite(minVal) ? minVal : 0;
+    let hi = Number.isFinite(maxVal) ? maxVal : 10;
+    if (lo > hi) {
+        const tmp = lo;
+        lo = hi;
+        hi = tmp;
+    }
+
+    if (esUSD) {
+        const span = Math.max(1, hi - lo);
+        const pad = span * 0.2;
+        const yMin = Math.max(0, Number((lo - pad).toFixed(2)));
+        const yMax = Number((hi + pad).toFixed(2));
+        const interval = Number(((yMax - yMin) / 4).toFixed(2)) || 0.5;
+        return { yMin, yMax, interval };
+    }
+
+    const rawSpan = hi - lo;
+    const pad = rawSpan === 0
+        ? Math.max(4, Math.ceil((lo || 10) * 0.2))
+        : Math.max(2, Math.ceil(rawSpan * 0.18));
+
+    const targetMin = Math.max(0, lo - pad);
+    const targetMax = Math.max(targetMin + 4, hi + pad);
+    const neededRange = Math.max(4, targetMax - targetMin);
+
+    const niceSteps = [
+        1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500,
+        1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000,
+        100000, 250000, 500000, 1000000, 2500000, 5000000
+    ];
+    const roughStep = neededRange / 4.5;
+    let step = niceSteps.find(s => s >= roughStep) || Math.ceil(roughStep / 1000) * 1000;
+
+    let yMin = Math.max(0, Math.floor(targetMin / step) * step);
+    let yMax = Math.ceil(targetMax / step) * step;
+    if (yMax <= hi) yMax += step;
+    if (yMin > 0 && lo - yMin < step * 0.25) {
+        yMin = Math.max(0, yMin - step);
+    }
+    if (yMax === yMin) {
+        yMax = yMin + step * 4;
+    }
+
+    return { yMin, yMax, interval: step };
+}
+
 function formatearEtiquetaFecha(fecha, spanMs) {
     const d = fecha instanceof Date ? fecha : new Date(fecha);
     const pad = n => String(n).padStart(2, '0');
@@ -169,7 +241,42 @@ async function fetchImageSafe(urlOrBuffer) {
 }
 
 /**
- * 1. Gráfica Histórica de Precios (Price Sniper)
+ * Helper reutilizable para renderizar cualquier gráfico de Apache ECharts en el servidor (SSR SVG -> PNG vía @resvg/resvg-js)
+ * sin abrir navegador y liberando la instancia de memoria inmediatamente.
+ */
+async function renderEChartsToImage(option, width = 700, height = 300) {
+    const ssrChart = echarts.init(null, null, {
+        renderer: 'svg',
+        ssr: true,
+        width,
+        height
+    });
+    let svgStr = '';
+    try {
+        ssrChart.setOption({
+            animation: false,
+            ...option
+        });
+        svgStr = ssrChart.renderToSVGString();
+    } finally {
+        ssrChart.dispose();
+    }
+
+    const resvg = new Resvg(svgStr, {
+        background: 'rgba(0, 0, 0, 0)',
+        font: {
+            fontFiles: [FONT_REGULAR_PATH, FONT_BOLD_PATH],
+            loadSystemFonts: false,
+            defaultFontFamily: 'Liberation Sans'
+        }
+    });
+    const pngBuffer = resvg.render().asPng();
+    const image = await loadImage(pngBuffer);
+    return { pngBuffer, image };
+}
+
+/**
+ * 1. Gráfica Histórica de Precios (Price Sniper v2.0) con Apache ECharts SSR + Satori/Resvg + Skia Canvas (@napi-rs/canvas)
  */
 async function generatePriceChart(historyData, itemName, options = {}) {
     const {
@@ -177,6 +284,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         daysRange = '7d',
         esUSD = false,
         targetPrice = null,
+        imageUrl = null,
         lang: explicitLang = null
     } = options;
     const lang = getCurrentLang(explicitLang);
@@ -206,8 +314,13 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const firstPrice = Number(puntos[0].price || 0);
     const lastPrice = Number(puntos[historyLength - 1].price || 0);
 
+    const metaCumplida = tieneMeta && lastPrice <= metaNum;
+    const bajoDelOriginal = firstPrice > 0 && lastPrice < firstPrice;
+    const ahorroOriginal = bajoDelOriginal ? (firstPrice - lastPrice) : 0;
+    const ahorroBajoMeta = metaCumplida ? Math.max(0, metaNum - lastPrice) : 0;
+
     const cacheKey = `${itemId}_${daysRange}_${historyLength}_${lang}`;
-    const signature = `v4_${lang}_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
+    const signature = `v8_meta_checkin_echarts_${lang}_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
     const cachedEntry = chartCache.get(cacheKey);
     if (cachedEntry && cachedEntry.signature === signature) {
         return cachedEntry.buffer;
@@ -216,13 +329,22 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const values = puntos.map(p => Number(p.price));
     const minPrice = Math.min(...values);
     const maxPrice = Math.max(...values);
+    const avgPrice = values.reduce((a, b) => a + b, 0) / Math.max(1, values.length);
     const diff = lastPrice - firstPrice;
     const pctChange = firstPrice > 0 ? ((diff / firstPrice) * 100) : 0;
 
     const subioOMantuvo = lastPrice >= firstPrice;
-    const lineColor = subioOMantuvo ? '#23a55a' : '#f23f43';
-    const gradientTop = subioOMantuvo ? 'rgba(35, 165, 90, 0.30)' : 'rgba(242, 63, 67, 0.30)';
-    const gradientBottom = subioOMantuvo ? 'rgba(35, 165, 90, 0.02)' : 'rgba(242, 63, 67, 0.02)';
+    // Si la meta fue alcanzada o el precio bajó del original, usar verde esmeralda brillante para destacar el ahorro/logro
+    const esPositivoComprador = metaCumplida || bajoDelOriginal;
+    const lineColor = metaCumplida
+        ? '#10B981'
+        : (bajoDelOriginal ? '#22C55E' : (subioOMantuvo ? '#38BDF8' : '#F43F5E'));
+    const areaTopColor = metaCumplida
+        ? 'rgba(16, 185, 129, 0.38)'
+        : (bajoDelOriginal ? 'rgba(34, 197, 94, 0.34)' : 'rgba(56, 189, 248, 0.28)');
+    const areaBottomColor = metaCumplida
+        ? 'rgba(16, 185, 129, 0.02)'
+        : (bajoDelOriginal ? 'rgba(34, 197, 94, 0.01)' : 'rgba(56, 189, 248, 0.01)');
 
     const firstTime = new Date(puntos[0].timestamp).getTime();
     const lastTime = new Date(puntos[historyLength - 1].timestamp).getTime();
@@ -233,289 +355,370 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const todosLosValores = tieneMeta ? [...values, metaNum] : values;
     const minEscala = Math.min(...todosLosValores);
     const maxEscala = Math.max(...todosLosValores);
-    const amplitud = maxEscala - minEscala;
-    const margen = amplitud === 0
-        ? (minEscala === 0 ? 10 : Math.max(2, Number((minEscala * 0.15).toFixed(2))))
-        : Number((amplitud * 0.22).toFixed(2));
+    const { yMin, yMax, interval: yInterval } = computeNiceYAxis(minEscala, maxEscala, esUSD);
 
-    const canvas = createCanvas(CHART_WIDTH, CHART_HEIGHT);
+    const width = 820;
+    const height = 430;
+    const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    const gradient = ctx.createLinearGradient(0, 95, 0, CHART_HEIGHT - 45);
-    gradient.addColorStop(0, gradientTop);
-    gradient.addColorStop(1, gradientBottom);
+    // 1. Fondo financiero oscuro continuo sin costuras ni recortes
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#0E121B');
+    bgGrad.addColorStop(0.5, metaCumplida ? '#0F221D' : '#151B28');
+    bgGrad.addColorStop(1, '#0F131D');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
 
-    const hudAndBackgroundPlugin = {
-        id: 'hudAndBackgroundPlugin',
-        beforeDraw: (chart) => {
-            const { ctx: c, width, height } = chart;
-            c.save();
-            c.globalCompositeOperation = 'destination-over';
-            c.fillStyle = DISCORD_DARK_BG;
-            c.fillRect(0, 0, width, height);
-            c.restore();
+    const glowGrad = ctx.createRadialGradient(160, 42, 12, 160, 42, 340);
+    glowGrad.addColorStop(0, esPositivoComprador ? 'rgba(16, 185, 129, 0.18)' : 'rgba(56, 189, 248, 0.13)');
+    glowGrad.addColorStop(1, 'rgba(15, 19, 29, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.fillRect(0, 0, width, height);
 
-            c.save();
-            const rangoLabel = isEn
-                ? (RANGO_TEXTO_EN[daysRange] || String(daysRange).toUpperCase())
-                : (RANGO_TEXTO[daysRange] || String(daysRange).toUpperCase());
-            c.fillStyle = '#949ba4';
-            c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            c.fillText(
-                isEn
-                    ? `PRICE HISTORY  •  ${rangoLabel}  (${historyLength} PTS)`
-                    : `EVOLUCIÓN DE PRECIO  •  ${rangoLabel}  (${historyLength} PTS)`,
-                20,
-                24
-            );
+    const rangoLabel = isEn
+        ? (RANGO_TEXTO_EN[daysRange] || String(daysRange).toUpperCase())
+        : (RANGO_TEXTO[daysRange] || String(daysRange).toUpperCase());
 
-            const textoActual = fmtMoneda(lastPrice, esUSD);
-            c.fillStyle = '#ffffff';
-            c.font = `bold 23px "${FONT_FAMILY}", sans-serif`;
-            c.fillText(textoActual, 20, 54);
-            const anchoPrecio = c.measureText(textoActual).width;
-
-            const signo = diff > 0 ? '+' : '';
-            const pctStr = `${signo}${pctChange.toFixed(1).replace('.0', '')}%`;
-            const varTexto = diff === 0
-                ? (isEn ? '0% (Stable)' : '0% (Estable)')
-                : `${signo}${fmtMoneda(diff, esUSD)} (${pctStr})`;
-
-            c.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
-            const textVarW = c.measureText(varTexto).width;
-            const varWidth = textVarW + 20;
-            const varX = 20 + anchoPrecio + 12;
-            const varY = 34;
-            const varH = 24;
-
-            const badgeBg = diff === 0
-                ? 'rgba(148, 155, 164, 0.16)'
-                : (subioOMantuvo ? 'rgba(35, 165, 90, 0.20)' : 'rgba(242, 63, 67, 0.22)');
-            const badgeColor = diff === 0 ? '#dbdee1' : lineColor;
-
-            c.fillStyle = badgeBg;
-            c.strokeStyle = badgeColor;
-            c.lineWidth = 1.2;
-            drawRoundedRect(c, varX, varY, varWidth, varH, 6);
-            c.fill();
-            c.stroke();
-
-            c.fillStyle = badgeColor;
-            c.textBaseline = 'middle';
-            c.fillText(varTexto, varX + 10, varY + varH / 2);
-            c.textBaseline = 'alphabetic';
-
-            const cards = [
-                { label: isEn ? 'INITIAL' : 'INICIAL', value: fmtMoneda(firstPrice, esUSD), color: '#b5bac1' },
-                { label: isEn ? 'LOWEST' : 'MÍNIMO', value: fmtMoneda(minPrice, esUSD), color: '#23a55a' },
-                { label: isEn ? 'HIGHEST' : 'MÁXIMO', value: fmtMoneda(maxPrice, esUSD), color: '#f23f43' }
-            ];
-
-            const cardW = 112;
-            const cardH = 50;
-            const gap = 8;
-            const startX = width - 20 - (cards.length * cardW + (cards.length - 1) * gap);
-            const cardY = 14;
-
-            cards.forEach((card, idx) => {
-                const cx = startX + idx * (cardW + gap);
-                c.fillStyle = HUD_CARD_BG;
-                c.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-                c.lineWidth = 1;
-                drawRoundedRect(c, cx, cardY, cardW, cardH, 7);
-                c.fill();
-                c.stroke();
-
-                c.fillStyle = '#949ba4';
-                c.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-                c.fillText(card.label, cx + 10, cardY + 18);
-
-                c.fillStyle = card.color;
-                c.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-                c.fillText(card.value, cx + 10, cardY + 39);
-            });
-
-            c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            c.lineWidth = 1;
-            c.beginPath();
-            c.moveTo(20, 76);
-            c.lineTo(width - 20, 76);
-            c.stroke();
-
-            c.restore();
-        }
-    };
-
-    const annotationsPlugin = {
-        id: 'annotationsPlugin',
-        afterDatasetsDraw: (chart) => {
-            const yScale = chart.scales.y;
-            const chartArea = chart.chartArea;
-            if (!yScale || !chartArea) return;
-
-            const c = chart.ctx;
-            const metaDatasetMeta = chart.getDatasetMeta(0);
-
-            if (metaDatasetMeta && Array.isArray(metaDatasetMeta.data) && metaDatasetMeta.data.length > 0) {
-                const elems = metaDatasetMeta.data;
-                const indicesClave = new Set([0, elems.length - 1]);
-
-                let idxMin = 0;
-                let idxMax = 0;
-                values.forEach((v, i) => {
-                    if (v < values[idxMin]) idxMin = i;
-                    if (v > values[idxMax]) idxMax = i;
-                });
-                indicesClave.add(idxMin);
-                indicesClave.add(idxMax);
-
-                if (elems.length <= 8) {
-                    for (let i = 0; i < elems.length; i++) indicesClave.add(i);
-                }
-
-                c.save();
-                c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-                c.textBaseline = 'middle';
-
-                for (const idx of indicesClave) {
-                    const pt = elems[idx];
-                    if (!pt) continue;
-
-                    const val = values[idx];
-                    const esUltimo = idx === elems.length - 1;
-                    const txt = fmtMoneda(val, esUSD);
-                    const tw = c.measureText(txt).width;
-                    const pw = tw + 12;
-                    const ph = 18;
-
-                    let px = pt.x - pw / 2;
-                    px = Math.max(chartArea.left + 4, Math.min(chartArea.right - pw - 4, px));
-                    let py = pt.y - ph - 8;
-                    if (py < chartArea.top + 4) {
-                        py = pt.y + 8;
-                    }
-
-                    if (esUltimo) {
-                        c.beginPath();
-                        c.arc(pt.x, pt.y, 6.5, 0, Math.PI * 2);
-                        c.fillStyle = lineColor;
-                        c.fill();
-                        c.lineWidth = 2;
-                        c.strokeStyle = '#ffffff';
-                        c.stroke();
-                    }
-
-                    c.fillStyle = esUltimo ? lineColor : 'rgba(35, 36, 40, 0.90)';
-                    c.strokeStyle = lineColor;
-                    c.lineWidth = 1.2;
-                    drawRoundedRect(c, px, py, pw, ph, 4);
-                    c.fill();
-                    c.stroke();
-
-                    c.fillStyle = '#ffffff';
-                    c.fillText(txt, px + 6, py + ph / 2);
-                }
-                c.restore();
-            }
-
-            if (tieneMeta) {
-                const yPos = yScale.getPixelForValue(metaNum);
-                if (yPos >= chartArea.top - 6 && yPos <= chartArea.bottom + 6) {
-                    const textoMeta = `${isEn ? 'Target' : 'Meta'}: ${fmtMoneda(metaNum, esUSD)}`;
-
-                    c.save();
-                    c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-                    const textWidth = c.measureText(textoMeta).width;
-                    const padX = 9;
-                    const boxW = textWidth + padX * 2;
-                    const boxH = 20;
-                    const boxX = chartArea.left + 10;
-                    const boxY = Math.max(chartArea.top + 2, Math.min(chartArea.bottom - boxH - 2, yPos - boxH / 2));
-
-                    c.fillStyle = 'rgba(30, 31, 34, 0.94)';
-                    c.strokeStyle = TARGET_COLOR;
-                    c.lineWidth = 1.5;
-                    drawRoundedRect(c, boxX, boxY, boxW, boxH, 5);
-                    c.fill();
-                    c.stroke();
-
-                    c.fillStyle = TARGET_COLOR;
-                    c.textBaseline = 'middle';
-                    c.fillText(textoMeta, boxX + padX, boxY + boxH / 2);
-                    c.restore();
-                }
-            }
-        }
-    };
-
-    const pointRadius = historyLength > 25 ? 0 : 4;
-
-    const datasets = [
+    // Tarjetas KPI superiores a la derecha (dimensionadas para dejar amplio margen a la izquierda)
+    const cards = [
         {
-            label: itemName || 'Precio',
-            data: values,
-            borderColor: lineColor,
-            backgroundColor: gradient,
-            borderWidth: 3,
-            tension: 0.25,
-            fill: true,
-            pointRadius,
-            pointBackgroundColor: lineColor,
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 1.5,
-            order: 1
+            label: isEn ? 'ORIGINAL' : 'ORIGINAL',
+            value: fmtMonedaCompacta(firstPrice, esUSD),
+            color: bajoDelOriginal ? '#94A3B8' : '#CBD5E1'
+        },
+        { label: isEn ? 'LOWEST' : 'MÍNIMO', value: fmtMonedaCompacta(minPrice, esUSD), color: '#4ADE80' },
+        { label: isEn ? 'HIGHEST' : 'MÁXIMO', value: fmtMonedaCompacta(maxPrice, esUSD), color: '#FB7185' },
+        tieneMeta
+            ? {
+                label: metaCumplida
+                    ? (isEn ? '✅ GOAL MET!' : '✅ ¡META LOGRADA!')
+                    : (isEn ? 'TARGET META' : 'META SNIPER'),
+                value: metaCumplida
+                    ? `${fmtMonedaCompacta(metaNum, esUSD)} ✓`
+                    : fmtMonedaCompacta(metaNum, esUSD),
+                color: metaCumplida ? '#4ADE80' : '#FBBF24',
+                highlightSuccess: metaCumplida
+            }
+            : { label: isEn ? 'AVERAGE' : 'PROMEDIO', value: fmtMonedaCompacta(avgPrice, esUSD), color: '#38BDF8' }
+    ];
+
+    const cardW = 96;
+    const cardH = 54;
+    const gap = 7;
+    const startX = width - 18 - (cards.length * cardW + (cards.length - 1) * gap); // x = 397
+    const cardY = 16;
+
+    const thumbImg = imageUrl ? await fetchImageSafe(imageUrl) : null;
+    const leftOffset = thumbImg ? 78 : 22;
+    const maxLeftHeaderWidth = startX - leftOffset - 14;
+
+    if (thumbImg) {
+        ctx.save();
+        ctx.fillStyle = '#1B2130';
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 1.5;
+        drawRoundedRect(ctx, 18, 16, 50, 50, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.drawImage(thumbImg, 21, 19, 44, 44);
+        ctx.restore();
+    }
+
+    ctx.fillStyle = metaCumplida ? '#4ADE80' : (bajoDelOriginal ? '#34D399' : '#38BDF8');
+    ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
+    const kickerRaw = metaCumplida
+        ? (isEn
+            ? `🎯 GOAL COMPLETED! • ${rangoLabel} (${historyLength} SAMPLES)`
+            : `🎯 ¡META COMPLETADA! • ${rangoLabel} (${historyLength} MUESTRAS)`)
+        : (bajoDelOriginal
+            ? (isEn
+                ? `📉 BELOW ORIGINAL PRICE • ${rangoLabel}`
+                : `📉 MÁS BAJO QUE EL ORIGINAL • ${rangoLabel}`)
+            : (isEn
+                ? `PRICE HISTORY • ${rangoLabel} (${historyLength} SAMPLES)`
+                : `HISTORIAL DE PRECIOS • ${rangoLabel} (${historyLength} MUESTRAS)`));
+    ctx.fillText(fitText(ctx, kickerRaw, maxLeftHeaderWidth), leftOffset, 24);
+
+    const textoActual = fmtMoneda(lastPrice, esUSD);
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = `bold 21px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(textoActual, leftOffset, 52);
+    const anchoPrecio = ctx.measureText(textoActual).width;
+
+    const signo = diff > 0 ? '+' : '';
+    const pctStr = `${signo}${pctChange.toFixed(1).replace('.0', '')}%`;
+    const varTextoRaw = diff === 0
+        ? (metaCumplida
+            ? (isEn ? '✓ Target Reached' : '✓ Meta Cumplida')
+            : (isEn ? '0% vs Original' : '0% vs Original'))
+        : (bajoDelOriginal
+            ? `${signo}${fmtMonedaCompacta(diff, esUSD)} (${pctStr} ${isEn ? 'vs Orig.' : 'vs Orig.'})`
+            : `${signo}${fmtMonedaCompacta(diff, esUSD)} (${pctStr})`);
+
+    ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+    const varX = leftOffset + anchoPrecio + 10;
+    const availableVarW = Math.max(64, startX - 14 - varX);
+    const varTexto = fitText(ctx, varTextoRaw, availableVarW - 16);
+    const textVarW = ctx.measureText(varTexto).width;
+    const varWidth = textVarW + 16;
+    const varY = 33;
+    const varH = 23;
+
+    const badgeBg = (metaCumplida || bajoDelOriginal)
+        ? 'rgba(16, 185, 129, 0.24)'
+        : (diff === 0 ? 'rgba(148, 163, 184, 0.16)' : 'rgba(244, 63, 94, 0.22)');
+    const badgeColor = (metaCumplida || bajoDelOriginal)
+        ? '#4ADE80'
+        : (diff === 0 ? '#E2E8F0' : '#FB7185');
+
+    if (varX + varWidth <= startX - 6) {
+        ctx.fillStyle = badgeBg;
+        ctx.strokeStyle = badgeColor;
+        ctx.lineWidth = 1.3;
+        drawRoundedRect(ctx, varX, varY, varWidth, varH, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = badgeColor;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(varTexto, varX + 8, varY + varH / 2);
+        ctx.textBaseline = 'alphabetic';
+    }
+
+    ctx.fillStyle = metaCumplida ? '#A7F3D0' : '#94A3B8';
+    ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+    let subTitleLine = `${String(itemName || 'Objeto')} • ID ${itemId}`;
+    if (metaCumplida && bajoDelOriginal) {
+        subTitleLine = isEn
+            ? `✓ Saved ${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
+            : `✓ Ahorro: -${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
+    } else if (metaCumplida) {
+        subTitleLine = isEn
+            ? `✓ Target ${fmtMonedaCompacta(metaNum, esUSD)} reached! • ${String(itemName || 'Item')}`
+            : `✓ ¡Meta de ${fmtMonedaCompacta(metaNum, esUSD)} alcanzada! • ${String(itemName || 'Objeto')}`;
+    } else if (bajoDelOriginal) {
+        subTitleLine = isEn
+            ? `📉 -${fmtMonedaCompacta(ahorroOriginal, esUSD)} below Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
+            : `📉 -${fmtMonedaCompacta(ahorroOriginal, esUSD)} más bajo que el Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
+    }
+    ctx.fillText(fitText(ctx, subTitleLine, maxLeftHeaderWidth), leftOffset, 70);
+
+    cards.forEach((card, idx) => {
+        const cx = startX + idx * (cardW + gap);
+        ctx.save();
+        ctx.shadowColor = card.highlightSuccess ? 'rgba(16, 185, 129, 0.35)' : 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = card.highlightSuccess ? 12 : 8;
+        ctx.shadowOffsetY = 2;
+        ctx.fillStyle = card.highlightSuccess ? 'rgba(6, 78, 59, 0.85)' : '#1B2030';
+        drawRoundedRect(ctx, cx, cardY, cardW, cardH, 8);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = card.highlightSuccess ? '#10B981' : 'rgba(255, 255, 255, 0.10)';
+        ctx.lineWidth = card.highlightSuccess ? 1.8 : 1;
+        drawRoundedRect(ctx, cx, cardY, cardW, cardH, 8);
+        ctx.stroke();
+
+        ctx.fillStyle = card.highlightSuccess ? '#A7F3D0' : '#94A3B8';
+        ctx.font = `bold 9px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(fitText(ctx, card.label, cardW - 14), cx + 8, cardY + 19);
+
+        ctx.fillStyle = card.color;
+        ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(fitText(ctx, card.value, cardW - 16), cx + 8, cardY + 41);
+    });
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(18, 82);
+    ctx.lineTo(width - 18, 82);
+    ctx.stroke();
+
+    // 2. Serie financiera con Apache ECharts SSR ocupando el 100% del ancho útil del recuadro
+    let idxMin = 0;
+    let idxMax = 0;
+    values.forEach((v, i) => {
+        if (v < values[idxMin]) idxMin = i;
+        if (v > values[idxMax]) idxMax = i;
+    });
+    const highlightIndices = new Set([0, values.length - 1, idxMin, idxMax]);
+
+    const seriesData = values.map((val, idx) => {
+        const isFirst = idx === 0;
+        const isLast = idx === values.length - 1;
+        const isHighlighted = highlightIndices.has(idx) || values.length <= 6;
+        // Evitar que la etiqueta del primer o último punto se salga de los bordes laterales
+        const labelOffset = isFirst ? [18, 0] : (isLast ? [-18, 0] : [0, 0]);
+        return {
+            value: val,
+            symbolSize: isLast ? 11 : (isHighlighted ? 7 : 4),
+            itemStyle: {
+                color: isLast ? '#FFFFFF' : lineColor,
+                borderColor: lineColor,
+                borderWidth: isLast ? 3 : 1.5
+            },
+            label: isHighlighted
+                ? {
+                    show: true,
+                    position: 'top',
+                    distance: 7,
+                    offset: labelOffset,
+                    color: '#F8FAFC',
+                    backgroundColor: isLast ? lineColor : 'rgba(15, 23, 42, 0.92)',
+                    borderColor: lineColor,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    padding: [3, 6],
+                    fontFamily: 'Liberation Sans',
+                    fontWeight: 'bold',
+                    fontSize: 9.5,
+                    formatter: () => fmtMoneda(val, esUSD)
+                }
+                : { show: false }
+        };
+    });
+
+    const echartsSeries = [
+        {
+            name: itemName || 'Price',
+            type: 'line',
+            smooth: 0.3,
+            data: seriesData,
+            symbol: 'circle',
+            z: 3,
+            lineStyle: {
+                width: 3.2,
+                color: lineColor
+            },
+            areaStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: areaTopColor },
+                    { offset: 1, color: areaBottomColor }
+                ])
+            }
         }
     ];
 
+    const targetLineColor = metaCumplida ? '#10B981' : TARGET_COLOR;
     if (tieneMeta) {
-        datasets.push({
-            label: 'Meta',
+        // Línea horizontal punteada de punta a punta sin puntos sueltos que descoloquen la gráfica
+        echartsSeries.push({
+            name: isEn ? 'Target' : 'Meta',
+            type: 'line',
             data: labels.map(() => metaNum),
-            borderColor: TARGET_COLOR,
-            borderWidth: 2.2,
-            borderDash: [7, 5],
-            pointRadius: 0,
-            fill: false,
-            tension: 0,
-            order: 0
+            symbol: 'none',
+            z: 2,
+            lineStyle: {
+                width: metaCumplida ? 2.6 : 2.2,
+                type: 'dashed',
+                color: targetLineColor
+            }
         });
     }
 
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
-        options: {
-            responsive: false,
-            maintainAspectRatio: false,
-            animation: false,
-            layout: { padding: { top: 94, right: 24, bottom: 14, left: 16 } },
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-                x: {
-                    grid: { display: true, color: 'rgba(255, 255, 255, 0.035)' },
-                    border: { color: 'rgba(255, 255, 255, 0.10)' },
-                    ticks: { color: '#949ba4', maxTicksLimit: 7, maxRotation: 0, font: { size: 11, family: FONT_FAMILY } }
+    const echartsW = width - 16;
+    const echartsH = height - 88;
+    const labelStep = Math.max(1, Math.ceil(labels.length / 6));
+
+    const { image: echartsImg } = await renderEChartsToImage(
+        {
+            grid: {
+                left: 78,
+                right: 36,
+                top: 30,
+                bottom: 34
+            },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.28)' } },
+                axisTick: { show: true, lineStyle: { color: 'rgba(148, 163, 184, 0.25)' } },
+                splitLine: {
+                    show: true,
+                    lineStyle: { color: 'rgba(255, 255, 255, 0.04)' }
                 },
-                y: {
-                    suggestedMin: esUSD ? Math.max(0, minEscala - margen) : Math.max(0, Math.floor(minEscala - Math.max(1, margen))),
-                    suggestedMax: esUSD ? (maxEscala + margen) : Math.ceil(maxEscala + Math.max(1, margen)),
-                    grid: { color: 'rgba(255, 255, 255, 0.06)' },
-                    border: { display: false },
-                    ticks: {
-                        color: '#dbdee1',
-                        maxTicksLimit: 6,
-                        precision: esUSD ? 2 : 0,
-                        font: { size: 11, family: FONT_FAMILY },
-                        callback: (value) => fmtMoneda(value, esUSD)
-                    }
+                axisLabel: {
+                    interval: (index) => index === 0 || index === labels.length - 1 || index % labelStep === 0,
+                    color: '#94A3B8',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 10,
+                    alignMinLabel: 'left',
+                    alignMaxLabel: 'right'
                 }
-            }
+            },
+            yAxis: {
+                type: 'value',
+                min: yMin,
+                max: yMax,
+                interval: yInterval,
+                splitLine: {
+                    lineStyle: { color: 'rgba(148, 163, 184, 0.11)', type: 'dashed' }
+                },
+                axisLabel: {
+                    color: '#E2E8F0',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 10,
+                    formatter: (val) => fmtMoneda(val, esUSD)
+                }
+            },
+            series: echartsSeries
         },
-        plugins: [hudAndBackgroundPlugin, annotationsPlugin]
-    });
+        echartsW,
+        echartsH
+    );
+
+    ctx.drawImage(echartsImg, 8, 84, echartsW, echartsH);
+
+    // Etiqueta de Meta dibujada en posición inteligente sobre la línea punteada (en el centro horizontal para no chocar con el punto inicial ni el final)
+    if (tieneMeta && yMax > yMin) {
+        const plotTopY = 84 + 30;
+        const plotBottomY = 84 + echartsH - 34;
+        const plotH = plotBottomY - plotTopY;
+        const ratio = Math.max(0, Math.min(1, (yMax - metaNum) / (yMax - yMin)));
+        const metaY = plotTopY + ratio * plotH;
+
+        let metaText = `${isEn ? 'Target' : 'Meta'}: ${fmtMoneda(metaNum, esUSD)}`;
+        if (metaCumplida) {
+            metaText = ahorroBajoMeta > 0
+                ? (isEn
+                    ? `✓ GOAL MET: ${fmtMoneda(metaNum, esUSD)} (-${fmtMonedaCompacta(ahorroBajoMeta, esUSD)} below target)`
+                    : `✓ ¡META LOGRADA!: ${fmtMoneda(metaNum, esUSD)} (-${fmtMonedaCompacta(ahorroBajoMeta, esUSD)} bajo meta)`)
+                : (isEn
+                    ? `✓ GOAL MET: ${fmtMoneda(metaNum, esUSD)} (Reached!)`
+                    : `✓ ¡META LOGRADA!: ${fmtMoneda(metaNum, esUSD)} (¡Alcanzada!)`);
+        } else if (lastPrice > metaNum) {
+            const falta = lastPrice - metaNum;
+            metaText = isEn
+                ? `Target: ${fmtMoneda(metaNum, esUSD)} (${fmtMonedaCompacta(falta, esUSD)} to go)`
+                : `Meta: ${fmtMoneda(metaNum, esUSD)} (Faltan ${fmtMonedaCompacta(falta, esUSD)})`;
+        }
+
+        ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
+        const metaTextW = ctx.measureText(metaText).width;
+        const pillW = metaTextW + 18;
+        const pillH = 21;
+        // Ubicar la píldora en el tercio central-izquierdo (x ≈ 190) lejos del borde izquierdo (x=86) y del borde derecho (x=776)
+        const pillX = 190;
+        // Si la meta está en el borde superior del gráfico, colocar la píldora justo debajo de la línea; si no, justo encima
+        const pillY = metaY < plotTopY + 26 ? metaY + 5 : metaY - pillH - 4;
+
+        ctx.fillStyle = metaCumplida ? 'rgba(6, 78, 59, 0.96)' : 'rgba(20, 24, 36, 0.95)';
+        ctx.strokeStyle = targetLineColor;
+        ctx.lineWidth = metaCumplida ? 1.6 : 1.3;
+        drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = metaCumplida ? '#4ADE80' : '#FBBF24';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(metaText, pillX + 9, pillY + pillH / 2);
+        ctx.textBaseline = 'alphabetic';
+    }
 
     const buffer = canvas.toBuffer('image/png');
-    chart.destroy();
 
     if (chartCache.size >= MAX_CACHE_ENTRIES) {
         const oldestKey = chartCache.keys().next().value;
@@ -526,13 +729,395 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     return buffer;
 }
 
+
 /**
- * 2. Herramienta 1.1: Gráfica Comparativa de Pisos de Precios Dinámicos UGC (#2b2d31)
+ * 1C. Tarjeta Visual ECharts + Skia para 1.2 Calculadora de Economía
+ */
+async function generateCalculatorBreakdownCard(calcInfo, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
+    const info = calcInfo || {};
+    const basePrice = Number(info.basePrice ?? 1000);
+    const precioAjustadoRobux = Number(info.regionalPrice ?? info.precioAjustadoRobux ?? basePrice);
+    const cashbackGrupoMonto = Number(info.cashback ?? info.cashbackGrupoMonto ?? 0);
+    const descPlus = Number(info.plusDiscount ?? info.descPlus ?? 0);
+    const precioFinalEfectivo = Number(info.finalPrice ?? info.precioFinalEfectivo ?? 600);
+    const ahorroTotalVsBase = Number(info.totalSaved ?? info.ahorroTotalVsBase ?? (basePrice - precioFinalEfectivo));
+    const porcentaje = Number(info.pctSaved ?? info.porcentaje ?? (basePrice > 0 ? Math.round((ahorroTotalVsBase / basePrice) * 100) : 0));
+
+    const width = 760;
+    const height = 340;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#0F131D');
+    bgGrad.addColorStop(0.55, '#191F2E');
+    bgGrad.addColorStop(1, '#111520');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = '#38BDF8';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        isEn
+            ? 'ROBLOX ECONOMY & CASHBACK CALCULATOR (1.2)'
+            : 'CALCULADORA DE ECONOMÍA Y AHORRO ROBLOX (1.2)',
+        22,
+        24
+    );
+
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        fitText(
+            ctx,
+            isEn
+                ? `Effective Cost: ${fmtMoneda(precioFinalEfectivo)}  •  Saved: ${fmtMoneda(ahorroTotalVsBase)} (${porcentaje}%)`
+                : `Costo Final Efectivo: ${fmtMoneda(precioFinalEfectivo)}  •  Ahorro: ${fmtMoneda(ahorroTotalVsBase)} (${porcentaje}%)`,
+            width - 44
+        ),
+        22,
+        50
+    );
+
+    const kpiRows = [
+        { label: isEn ? 'Base Catalog Price' : 'Precio Base de Lista', val: fmtMoneda(basePrice), col: '#CBD5E1' },
+        { label: isEn ? 'Regional Adjusted' : 'Precio Regional Ajustado', val: fmtMoneda(precioAjustadoRobux), col: '#38BDF8' },
+        { label: isEn ? 'Group Cashback (40%)' : 'Cashback de Grupo (40%)', val: `+${fmtMoneda(cashbackGrupoMonto)}`, col: '#4ADE80' },
+        { label: isEn ? 'Final Effective Cost' : 'Precio Final Efectivo', val: fmtMoneda(precioFinalEfectivo), col: '#22C55E' }
+    ];
+
+    kpiRows.forEach((r, idx) => {
+        const y = 72 + idx * 62;
+        ctx.fillStyle = '#1B202E';
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        drawRoundedRect(ctx, 22, y, 320, 52, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(r.label, 36, y + 20);
+
+        ctx.fillStyle = r.col;
+        ctx.font = `bold 15px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(fitText(ctx, r.val, 290), 36, y + 41);
+    });
+
+    const maxBarVal = Math.max(10, basePrice, precioAjustadoRobux, ahorroTotalVsBase + descPlus, precioFinalEfectivo);
+
+    const { image: echartsCalcImg } = await renderEChartsToImage(
+        {
+            grid: { left: 56, right: 18, top: 30, bottom: 32 },
+            xAxis: {
+                type: 'category',
+                data: isEn
+                    ? ['Base Price', 'Regional', 'Total Saved', 'Final Cost']
+                    : ['Precio Base', 'Regional', 'Ahorro Total', 'Costo Final'],
+                axisLine: { lineStyle: { color: 'rgba(148,163,184,0.3)' } },
+                axisTick: { show: false },
+                axisLabel: { interval: 0, color: '#CBD5E1', fontFamily: 'Liberation Sans', fontSize: 9.5, fontWeight: 'bold' }
+            },
+            yAxis: {
+                type: 'value',
+                max: Math.ceil(maxBarVal * 1.2),
+                splitNumber: 4,
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.1)', type: 'dashed' } },
+                axisLabel: {
+                    color: '#94A3B8',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 9.5,
+                    formatter: (v) => fmtMonedaCompacta(v, false).replace(' R$', '')
+                }
+            },
+            series: [
+                {
+                    type: 'bar',
+                    barMaxWidth: 36,
+                    data: [
+                        { value: basePrice, itemStyle: { color: '#64748B', borderRadius: [6, 6, 0, 0] } },
+                        { value: precioAjustadoRobux, itemStyle: { color: '#38BDF8', borderRadius: [6, 6, 0, 0] } },
+                        { value: ahorroTotalVsBase + descPlus, itemStyle: { color: '#F59E0B', borderRadius: [6, 6, 0, 0] } },
+                        { value: precioFinalEfectivo, itemStyle: { color: '#22C55E', borderRadius: [6, 6, 0, 0] } }
+                    ],
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#F8FAFC',
+                        fontFamily: 'Liberation Sans',
+                        fontWeight: 'bold',
+                        fontSize: 9.5,
+                        formatter: (p) => fmtMonedaCompacta(p.value, false)
+                    }
+                }
+            ]
+        },
+        370,
+        240
+    );
+
+    ctx.fillStyle = '#181C29';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    drawRoundedRect(ctx, 360, 72, 378, 246, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.drawImage(echartsCalcImg, 364, 75);
+
+    return canvas.toBuffer('image/png');
+}
+
+/**
+ * 1D. Tarjeta Visual ECharts + Skia para 1.4 Agenda de Robux Pendientes
+ */
+async function generatePendingRobuxCard(registros, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
+    const list = Array.isArray(registros) ? registros.slice(0, 6) : [];
+    const total = list.reduce((a, r) => a + Number(r.amount_robux || 0), 0);
+
+    const width = 760;
+    const height = 340;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#0F131D');
+    bgGrad.addColorStop(0.55, '#191E2D');
+    bgGrad.addColorStop(1, '#111520');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = '#FBBF24';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        isEn
+            ? 'PENDING ROBUX ESCROW TRACKER (1.4)'
+            : 'MONITOR DE ROBUX PENDIENTES EN RETENCIÓN (1.4)',
+        22,
+        24
+    );
+
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        fitText(
+            ctx,
+            isEn
+                ? `Total Escrow Balance: ${fmtMoneda(total)} (${list.length} Batches)`
+                : `Saldo Total en Retención: ${fmtMoneda(total)} (${list.length} Lotes)`,
+            width - 44
+        ),
+        22,
+        50
+    );
+
+    const labels = list.map((_r, i) => `#${i + 1}`);
+    const amounts = list.map(r => Number(r.amount_robux || 0));
+    const maxBatch = Math.max(10, ...amounts);
+
+    const { image: echartsPendImg } = await renderEChartsToImage(
+        {
+            grid: { left: 60, right: 20, top: 32, bottom: 30 },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                axisLine: { lineStyle: { color: 'rgba(148,163,184,0.3)' } },
+                axisTick: { show: false },
+                axisLabel: { color: '#CBD5E1', fontFamily: 'Liberation Sans', fontSize: 10, fontWeight: 'bold' }
+            },
+            yAxis: {
+                type: 'value',
+                max: Math.ceil(maxBatch * 1.22),
+                splitNumber: 4,
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.1)', type: 'dashed' } },
+                axisLabel: {
+                    color: '#94A3B8',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 10,
+                    formatter: (v) => fmtMonedaCompacta(v, false).replace(' R$', '')
+                }
+            },
+            series: [
+                {
+                    type: 'bar',
+                    barMaxWidth: 36,
+                    data: amounts,
+                    itemStyle: {
+                        borderRadius: [6, 6, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#FBBF24' },
+                            { offset: 1, color: '#D97706' }
+                        ])
+                    },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#F8FAFC',
+                        fontFamily: 'Liberation Sans',
+                        fontWeight: 'bold',
+                        fontSize: 10,
+                        formatter: (p) => fmtMonedaCompacta(p.value, false)
+                    }
+                }
+            ]
+        },
+        716,
+        245
+    );
+
+    ctx.fillStyle = '#181C29';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    drawRoundedRect(ctx, 22, 70, 716, 250, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.drawImage(echartsPendImg, 22, 72);
+
+    return canvas.toBuffer('image/png');
+}
+
+/**
+ * 1E. Tarjeta Visual ECharts + Skia para 3.1 Buscador de Servidores Vacíos (Latencia Ping / FPS / Ocupación)
+ */
+async function generateEmptyServersRadarCard(game, servers, explicitLang = null) {
+    const isEn = getCurrentLang(explicitLang) === 'en';
+    const safeServers = Array.isArray(servers) ? servers.slice(0, 4) : [];
+    const width = 760;
+    const height = 340;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#0E1716');
+    bgGrad.addColorStop(0.55, '#132220');
+    bgGrad.addColorStop(1, '#0D1514');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = '#10B981';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        isEn
+            ? 'LOW-POPULATION SERVER TELEMETRY (3.1)'
+            : 'TELEMETRÍA DE SERVIDORES VACÍOS EN TIEMPO REAL (3.1)',
+        22,
+        24
+    );
+
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        fitText(
+            ctx,
+            `${String(game?.name || 'Roblox Experience')}  •  ${Number(game?.playing || 0).toLocaleString('es-AR')} Online`,
+            width - 44
+        ),
+        22,
+        50
+    );
+
+    const srvLabels = safeServers.length > 0
+        ? safeServers.map((_s, i) => `Srv #${i + 1}`)
+        : ['Srv #1', 'Srv #2'];
+    const srvPlayers = safeServers.length > 0
+        ? safeServers.map(s => Number(s.playing || 1))
+        : [1, 2];
+    const srvPing = safeServers.length > 0
+        ? safeServers.map(s => Math.round(Number(s.ping || 65)))
+        : [55, 70];
+
+    const { image: echartsSrvImg } = await renderEChartsToImage(
+        {
+            grid: { left: 56, right: 56, top: 36, bottom: 30 },
+            legend: {
+                top: 2,
+                right: 12,
+                textStyle: { color: '#CBD5E1', fontFamily: 'Liberation Sans', fontSize: 10 }
+            },
+            xAxis: {
+                type: 'category',
+                data: srvLabels,
+                axisLine: { lineStyle: { color: 'rgba(148,163,184,0.3)' } },
+                axisTick: { show: false },
+                axisLabel: { color: '#CBD5E1', fontFamily: 'Liberation Sans', fontSize: 10.5, fontWeight: 'bold' }
+            },
+            yAxis: [
+                {
+                    type: 'value',
+                    name: isEn ? 'Players' : 'Jugadores',
+                    minInterval: 1,
+                    nameTextStyle: { color: '#10B981', fontSize: 10 },
+                    splitLine: { lineStyle: { color: 'rgba(148,163,184,0.1)', type: 'dashed' } },
+                    axisLabel: { color: '#10B981', fontFamily: 'Liberation Sans', fontSize: 10 }
+                },
+                {
+                    type: 'value',
+                    name: 'Ping (ms)',
+                    nameTextStyle: { color: '#38BDF8', fontSize: 10 },
+                    splitLine: { show: false },
+                    axisLabel: { color: '#38BDF8', fontFamily: 'Liberation Sans', fontSize: 10 }
+                }
+            ],
+            series: [
+                {
+                    name: isEn ? 'Players' : 'Jugadores',
+                    type: 'bar',
+                    barMaxWidth: 34,
+                    data: srvPlayers,
+                    itemStyle: {
+                        borderRadius: [6, 6, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#34D399' },
+                            { offset: 1, color: '#059669' }
+                        ])
+                    }
+                },
+                {
+                    name: 'Ping (ms)',
+                    type: 'line',
+                    yAxisIndex: 1,
+                    smooth: 0.3,
+                    data: srvPing,
+                    lineStyle: { width: 3, color: '#38BDF8' },
+                    itemStyle: { color: '#38BDF8' }
+                }
+            ]
+        },
+        716,
+        245
+    );
+
+    ctx.fillStyle = '#14201E';
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+    drawRoundedRect(ctx, 22, 70, 716, 250, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.drawImage(echartsSrvImg, 22, 72);
+
+    return canvas.toBuffer('image/png');
+}
+
+/**
+ * 2. Herramienta 1.3: Monitor de Pisos de Precios Dinámicos UGC con Apache ECharts SSR + @resvg/resvg-js + Skia Canvas
+ * Reemplaza las barras planas por gráficos financieros modernos (barras con degradado, curva suave de área y medidor circular).
  */
 async function generatePriceFloorsChart(floorsList, explicitLang = null) {
     const isEn = getCurrentLang(explicitLang) === 'en';
-    const canvas = createCanvas(CHART_WIDTH, 390);
+    const width = CHART_WIDTH;
+    const height = 400;
+    const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
+
+    const safeFloors = Array.isArray(floorsList) && floorsList.length > 0
+        ? floorsList
+        : [
+            { subcategory_name: 'Sombreros', floor_price: 95, previous_floor_price: 105 },
+            { subcategory_name: 'Cabello', floor_price: 95, previous_floor_price: 95 },
+            { subcategory_name: 'Rostro', floor_price: 55, previous_floor_price: 65 },
+            { subcategory_name: 'Cuello', floor_price: 55, previous_floor_price: 60 },
+            { subcategory_name: 'Hombros', floor_price: 55, previous_floor_price: 55 },
+            { subcategory_name: 'Frente', floor_price: 55, previous_floor_price: 55 },
+            { subcategory_name: 'Espalda', floor_price: 140, previous_floor_price: 160 },
+            { subcategory_name: 'Cintura', floor_price: 95, previous_floor_price: 95 }
+        ];
 
     const EN_SHORT_FLOOR_NAMES = {
         'Sombreros': 'Hats',
@@ -547,117 +1132,291 @@ async function generatePriceFloorsChart(floorsList, explicitLang = null) {
         'Pantalones': 'Pants'
     };
 
-    const labels = floorsList.map(f => {
-        const rawLabel = f.shortName || f.subcategory_name.split(' ')[0];
+    const labels = safeFloors.map(f => {
+        const rawLabel = f.shortName || String(f.subcategory_name || 'Item').split(' ')[0];
         return isEn ? (EN_SHORT_FLOOR_NAMES[rawLabel] || rawLabel) : rawLabel;
     });
-    const currentPrices = floorsList.map(f => Number(f.floor_price || 0));
-    const prevPrices = floorsList.map(f => Number(f.previous_floor_price || 0));
+    const currentPrices = safeFloors.map(f => Number(f.floor_price || 0));
+    const prevPrices = safeFloors.map(f => Number(f.previous_floor_price || 0));
+    const avgFloor = Math.round(
+        currentPrices.reduce((acc, v) => acc + v, 0) / Math.max(1, currentPrices.length)
+    );
 
-    const bgPlugin = {
-        id: 'floorsBgPlugin',
-        beforeDraw: (chart) => {
-            const { ctx: c, width, height } = chart;
-            c.save();
-            c.globalCompositeOperation = 'destination-over';
-            c.fillStyle = DISCORD_DARK_BG;
-            c.fillRect(0, 0, width, height);
-            c.restore();
+    // 1. Fondo financiero oscuro con acabado Skia y encabezado HUD
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#181A20');
+    bgGrad.addColorStop(0.55, '#232631');
+    bgGrad.addColorStop(1, '#16181F');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
 
-            c.save();
-            c.fillStyle = '#949ba4';
-            c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            c.fillText(
-                isEn
-                    ? 'UGC DYNAMIC PRICE FLOORS MONITOR  •  CURRENT VS LAST WEEK'
-                    : 'MONITOR DE PISOS DE PRECIOS UGC  •  ACTUAL VS SEMANA ANTERIOR',
-                20,
-                24
-            );
+    ctx.fillStyle = '#38BDF8';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        isEn
+            ? 'UGC PRICE FLOORS MONITOR (1.3)'
+            : 'MONITOR DE PISOS DINÁMICOS UGC (1.3)',
+        22,
+        24
+    );
 
-            c.fillStyle = '#ffffff';
-            c.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
-            c.fillText(
-                isEn
-                    ? 'Official Roblox Price Floors Evolution (R$)'
-                    : 'Evolución de Pisos Oficiales de Roblox (R$)',
-                20,
-                52
-            );
+    ctx.fillStyle = '#F8FAFC';
+    ctx.font = `bold 18.5px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        fitText(
+            ctx,
+            isEn
+                ? 'Official Roblox UGC Price Floors & Trend Curve (R$)'
+                : 'Evolución de Pisos Oficiales UGC y Curva de Tendencia (R$)',
+            width - 44
+        ),
+        22,
+        50
+    );
 
-            c.fillStyle = '#23a55a';
-            drawRoundedRect(c, width - 250, 22, 12, 12, 3);
-            c.fill();
-            c.fillStyle = '#dbdee1';
-            c.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            c.fillText(isEn ? 'Current Floor (R$)' : 'Piso Actual (R$)', width - 232, 32);
+    // Leyenda superior con degradados perfectamente alineada a la derecha
+    const legendItems = [
+        { col: '#22C55E', text: isEn ? 'Current Floor (R$)' : 'Piso Actual (R$)', x: width - 332 },
+        { col: '#6366F1', text: isEn ? 'Last Week' : 'Semana Ant.', x: width - 202 },
+        { col: '#38BDF8', text: isEn ? 'Smooth Trend' : 'Curva Suave', x: width - 104 }
+    ];
+    for (const lg of legendItems) {
+        ctx.fillStyle = lg.col;
+        drawRoundedRect(ctx, lg.x, 14, 11, 11, 3);
+        ctx.fill();
+        ctx.fillStyle = '#E2E8F0';
+        ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(lg.text, lg.x + 15, 23);
+    }
 
-            c.fillStyle = '#5865F2';
-            drawRoundedRect(c, width - 120, 22, 12, 12, 3);
-            c.fill();
-            c.fillStyle = '#949ba4';
-            c.fillText(isEn ? 'Last Week' : 'Semana Ant.', width - 102, 32);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(20, 66);
+    ctx.lineTo(width - 20, 66);
+    ctx.stroke();
 
-            c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            c.beginPath();
-            c.moveTo(20, 68);
-            c.lineTo(width - 20, 68);
-            c.stroke();
-            c.restore();
-        }
-    };
+    // Contenedor visual dedicado para el velocímetro de promedio a la derecha
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, width - 196, 78, 176, 304, 12);
+    ctx.fill();
+    ctx.stroke();
 
-    const chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
+    // 2. Renderizar gráfico combinado en el servidor con Apache ECharts SSR
+    const echartsW = width - 20;
+    const echartsH = height - 74;
+    const maxFloorVal = Math.max(160, ...currentPrices, ...prevPrices);
+
+    const { image: echartsImg } = await renderEChartsToImage(
+        {
+            grid: {
+                left: 56,
+                right: 204,
+                top: 28,
+                bottom: 36
+            },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                axisLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.25)' } },
+                axisTick: { show: false },
+                axisLabel: {
+                    interval: 0,
+                    color: '#E2E8F0',
+                    fontFamily: 'Liberation Sans',
+                    fontWeight: 'bold',
+                    fontSize: 9.5
+                }
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: Math.ceil((maxFloorVal * 1.18) / 20) * 20,
+                splitNumber: 4,
+                splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.10)', type: 'dashed' } },
+                axisLabel: {
+                    color: '#94A3B8',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 10,
+                    formatter: '{value} R$'
+                }
+            },
+            series: [
                 {
-                    label: isEn ? 'Current Floor' : 'Piso Actual',
-                    data: currentPrices,
-                    backgroundColor: floorsList.map(f => f.floor_price <= f.previous_floor_price ? 'rgba(35, 165, 90, 0.85)' : 'rgba(242, 63, 67, 0.85)'),
-                    borderColor: floorsList.map(f => f.floor_price <= f.previous_floor_price ? '#23a55a' : '#f23f43'),
-                    borderWidth: 1.5,
-                    borderRadius: 6
+                    name: isEn ? 'Current Floor' : 'Piso Actual',
+                    type: 'bar',
+                    barWidth: '28%',
+                    data: currentPrices.map((val, i) => ({
+                        value: val,
+                        itemStyle: {
+                            borderRadius: [5, 5, 0, 0],
+                            color: val <= prevPrices[i]
+                                ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#4ADE80' },
+                                    { offset: 1, color: '#15803D' }
+                                ])
+                                : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#FB7185' },
+                                    { offset: 1, color: '#BE123C' }
+                                ])
+                        }
+                    })),
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#F8FAFC',
+                        fontFamily: 'Liberation Sans',
+                        fontWeight: 'bold',
+                        fontSize: 9.5,
+                        formatter: '{c}'
+                    }
                 },
                 {
-                    label: isEn ? 'Last Week' : 'Semana Anterior',
+                    name: isEn ? 'Last Week' : 'Semana Anterior',
+                    type: 'bar',
+                    barWidth: '24%',
                     data: prevPrices,
-                    backgroundColor: 'rgba(88, 101, 242, 0.35)',
-                    borderColor: '#5865F2',
-                    borderWidth: 1.5,
-                    borderRadius: 6
+                    itemStyle: {
+                        borderRadius: [5, 5, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(129, 140, 248, 0.85)' },
+                            { offset: 1, color: 'rgba(67, 56, 202, 0.35)' }
+                        ])
+                    }
+                },
+                {
+                    name: isEn ? 'Trend Curve' : 'Curva Suave',
+                    type: 'line',
+                    smooth: 0.42,
+                    data: currentPrices,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    lineStyle: {
+                        width: 2.5,
+                        color: '#38BDF8'
+                    },
+                    itemStyle: {
+                        color: '#38BDF8',
+                        borderColor: '#FFFFFF',
+                        borderWidth: 1.5
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(56, 189, 248, 0.24)' },
+                            { offset: 1, color: 'rgba(56, 189, 248, 0.01)' }
+                        ])
+                    }
+                },
+                {
+                    name: isEn ? 'Avg Floor Gauge' : 'Medidor Piso Promedio',
+                    type: 'gauge',
+                    center: ['88%', '52%'],
+                    radius: '48%',
+                    min: 0,
+                    max: 200,
+                    startAngle: 215,
+                    endAngle: -35,
+                    splitNumber: 4,
+                    progress: {
+                        show: true,
+                        width: 10,
+                        roundCap: true,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                { offset: 0, color: '#38BDF8' },
+                                { offset: 1, color: '#22C55E' }
+                            ])
+                        }
+                    },
+                    axisLine: {
+                        roundCap: true,
+                        lineStyle: {
+                            width: 10,
+                            color: [[1, 'rgba(148, 163, 184, 0.18)']]
+                        }
+                    },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: { show: false },
+                    pointer: {
+                        show: true,
+                        length: '50%',
+                        width: 3,
+                        itemStyle: { color: '#FACC15' }
+                    },
+                    anchor: {
+                        show: true,
+                        size: 7,
+                        itemStyle: { color: '#FACC15', borderColor: '#0F172A', borderWidth: 2 }
+                    },
+                    title: {
+                        show: true,
+                        offsetCenter: [0, '74%'],
+                        color: '#94A3B8',
+                        fontFamily: 'Liberation Sans',
+                        fontWeight: 'bold',
+                        fontSize: 9.5
+                    },
+                    detail: {
+                        valueAnimation: false,
+                        offsetCenter: [0, '38%'],
+                        color: '#4ADE80',
+                        fontFamily: 'Liberation Sans',
+                        fontWeight: 'bold',
+                        fontSize: 13.5,
+                        formatter: '{value} R$'
+                    },
+                    data: [
+                        {
+                            value: avgFloor,
+                            name: isEn ? 'AVG FLOOR' : 'PROMEDIO UGC'
+                        }
+                    ]
                 }
             ]
         },
-        options: {
-            responsive: false,
-            maintainAspectRatio: false,
-            animation: false,
-            layout: { padding: { top: 84, right: 20, bottom: 14, left: 16 } },
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#dbdee1', font: { size: 11, family: FONT_FAMILY } }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(255, 255, 255, 0.06)' },
-                    ticks: {
-                        color: '#949ba4',
-                        font: { size: 11, family: FONT_FAMILY },
-                        callback: v => `${v} R$`
-                    }
-                }
-            }
-        },
-        plugins: [bgPlugin]
-    });
+        echartsW,
+        echartsH
+    );
 
-    const buffer = canvas.toBuffer('image/png');
-    chart.destroy();
-    return buffer;
+    ctx.drawImage(echartsImg, 10, 72, echartsW, echartsH);
+
+    return canvas.toBuffer('image/png');
+}
+
+/**
+ * Renderiza plantillas HTML/CSS (Flexbox, bordes redondeados, degradados y sombras) en un Buffer PNG
+ * ultrarrápido (~20–45ms) usando Vercel Satori + @resvg/resvg-js sin abrir ningún navegador.
+ */
+async function renderHtmlCardWithSatori(htmlTemplate, widthOrOpts = 760, maybeHeight = 380) {
+    const width = typeof widthOrOpts === 'object' && widthOrOpts !== null ? (widthOrOpts.width || 760) : (Number(widthOrOpts) || 760);
+    const height = typeof widthOrOpts === 'object' && widthOrOpts !== null ? (widthOrOpts.height || 380) : (Number(maybeHeight) || 380);
+    const satoriMod = await import('satori');
+    const satoriHtmlMod = await import('satori-html');
+    const satoriFn = satoriMod.default || satoriMod;
+    const htmlFn = satoriHtmlMod.html || satoriHtmlMod.default?.html;
+
+    const vnode = htmlFn(htmlTemplate);
+    const fonts = [];
+    if (FONT_REGULAR_BUFFER) {
+        fonts.push({ name: 'KortexSans', data: FONT_REGULAR_BUFFER, weight: 400, style: 'normal' });
+    }
+    if (FONT_BOLD_BUFFER) {
+        fonts.push({ name: 'KortexSans', data: FONT_BOLD_BUFFER, weight: 700, style: 'normal' });
+    }
+
+    const svg = await satoriFn(vnode, { width, height, fonts });
+    const resvg = new Resvg(svg, {
+        fitTo: { mode: 'width', value: width },
+        font: {
+            fontFiles: [FONT_REGULAR_PATH, FONT_BOLD_PATH],
+            loadSystemFonts: false,
+            defaultFontFamily: 'KortexSans'
+        }
+    });
+    return resvg.render().asPng();
 }
 
 /**
@@ -910,76 +1669,127 @@ function drawEquippedItemOnAvatar(ctx, itemImg, slotObj, charBox, isZoomed = fal
 
 /**
  * 3. Herramienta 2.1: Tarjeta Visual del Probador de Combinaciones en Vivo (Outfit Sandbox)
- * Equipa visualmente las piezas agregadas sobre el avatar del usuario en su región anatómica real.
+ * Muestra el visor 3D del avatar con conectores anatómicos HUD limpios (sin deformar el personaje) + desglose ECharts.
  */
 async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, totalCashback, explicitLang = null) {
     const isEn = getCurrentLang(explicitLang) === 'en';
-    const width = 760;
-    const height = 435;
+    const width = 820;
+    const height = 450;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = DISCORD_DARK_BG;
+    ctx.fillStyle = '#0f131f';
     ctx.fillRect(0, 0, width, height);
 
     const isZoomed = Boolean(avatarInfo.zoomHead);
 
+    // Resplandor radial Skia de estudio en todo el lienzo
+    const bgGlow = ctx.createRadialGradient(width * 0.25, height * 0.45, 20, width * 0.35, height * 0.5, width * 0.65);
+    bgGlow.addColorStop(0, addedItems.length > 0 ? 'rgba(35, 165, 90, 0.14)' : 'rgba(139, 92, 246, 0.14)');
+    bgGlow.addColorStop(1, 'rgba(15, 19, 31, 0)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, width, height);
+
+    const maxHeaderW = width - 285;
+
     // Header
-    ctx.fillStyle = '#949ba4';
-    ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillStyle = '#a78bfa';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        isEn
-            ? `KORTEX OUTFIT SANDBOX  •  LIVE EQUIPPED PREVIEW (${isZoomed ? 'HEAD & NECK ZOOM' : 'FULL BODY'})`
-            : `PROBADOR DE ROPA KORTEX  •  VISTA PREVIA CON OBJETOS EQUIPADOS (${isZoomed ? 'ZOOM CABEZA Y CUELLO' : 'CUERPO COMPLETO'})`,
+        fitText(
+            ctx,
+            isEn
+                ? `OUTFIT SANDBOX (2.1)  •  LIVE TRY-ON (${isZoomed ? 'HEAD & NECK ZOOM' : 'FULL BODY'})`
+                : `PROBADOR DE ROPA EN VIVO (2.1)  •  VISTA (${isZoomed ? 'ZOOM CABEZA Y CUELLO' : 'CUERPO COMPLETO'})`,
+            maxHeaderW
+        ),
         22,
-        26
+        24
     );
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
+    ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        isEn
-            ? `Character: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`
-            : `Personaje: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`,
+        fitText(
+            ctx,
+            isEn
+                ? `Character: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`
+                : `Personaje: @${avatarInfo.username || 'Builderman'} (ID ${avatarInfo.userId || 156})`,
+            maxHeaderW
+        ),
         22,
-        52
+        48
     );
 
-    // Panel Izquierdo: Visor en Vivo del Avatar con los ítems equipados encima
-    const vpX = 22;
-    const vpY = 68;
-    const vpW = 258;
-    const vpH = 348;
+    // Badge de Costo Total arriba a la derecha
+    ctx.fillStyle = 'rgba(35, 165, 90, 0.18)';
+    ctx.strokeStyle = 'rgba(35, 165, 90, 0.60)';
+    ctx.lineWidth = 1.4;
+    drawRoundedRect(ctx, width - 252, 14, 230, 38, 9);
+    ctx.fill();
+    ctx.stroke();
 
-    ctx.fillStyle = '#1e1f22';
-    ctx.strokeStyle = addedItems.length > 0 ? '#23a55a' : 'rgba(139, 92, 246, 0.55)';
+    ctx.fillStyle = '#4ade80';
+    ctx.font = `bold 12.5px "${FONT_FAMILY}", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(
+        fitText(ctx, `${isEn ? 'OUTFIT VALUE' : 'VALOR CONJUNTO'}: ${fmtMoneda(totalNormal)}`, 212),
+        width - 252 + 115,
+        38
+    );
+    ctx.textAlign = 'left';
+
+    // Panel Izquierdo: Visor en Vivo del Avatar con Pedestal 3D y Conectores Anatómicos HUD
+    const vpX = 22;
+    const vpY = 62;
+    const vpW = 266;
+    const vpH = 368;
+
+    ctx.fillStyle = 'rgba(24, 30, 46, 0.94)';
+    ctx.strokeStyle = addedItems.length > 0 ? '#23a55a' : 'rgba(139, 92, 246, 0.60)';
     ctx.lineWidth = 1.8;
     drawRoundedRect(ctx, vpX, vpY, vpW, vpH, 12);
     ctx.fill();
     ctx.stroke();
 
-    // Sutil grilla de probador 3D en el fondo del visor
+    // Grilla de estudio 3D
     ctx.strokeStyle = 'rgba(139, 92, 246, 0.11)';
     ctx.lineWidth = 1;
     for (let gx = vpX + 20; gx < vpX + vpW - 10; gx += 26) {
         ctx.beginPath();
         ctx.moveTo(gx, vpY + 34);
-        ctx.lineTo(gx, vpY + vpH - 54);
+        ctx.lineTo(gx, vpY + vpH - 68);
         ctx.stroke();
     }
-    for (let gy = vpY + 46; gy < vpY + vpH - 54; gy += 26) {
+    for (let gy = vpY + 46; gy < vpY + vpH - 68; gy += 26) {
         ctx.beginPath();
         ctx.moveTo(vpX + 10, gy);
         ctx.lineTo(vpX + vpW - 10, gy);
         ctx.stroke();
     }
 
-    ctx.fillStyle = '#8B5CF6';
+    // Pedestal circular luminoso debajo del avatar
+    ctx.save();
+    const pedGrad = ctx.createRadialGradient(vpX + vpW / 2, vpY + 254, 6, vpX + vpW / 2, vpY + 254, 86);
+    pedGrad.addColorStop(0, addedItems.length > 0 ? 'rgba(35, 165, 90, 0.42)' : 'rgba(139, 92, 246, 0.38)');
+    pedGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    ctx.fillStyle = pedGrad;
+    ctx.beginPath();
+    ctx.ellipse(vpX + vpW / 2, vpY + 254, 84, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = addedItems.length > 0 ? 'rgba(74, 222, 128, 0.55)' : 'rgba(167, 139, 250, 0.50)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(vpX + vpW / 2, vpY + 254, 68, 13, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = '#c4b5fd';
     ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
         isZoomed
-            ? (isEn ? '🔍 CAMERA: FACE / NECK / HEAD' : '🔍 CÁMARA: ROSTRO / CUELLO / CABEZA')
-            : (isEn ? '🧍 CAMERA: FULL BODY' : '🧍 CÁMARA: CUERPO COMPLETO'),
+            ? (isEn ? 'CAMERA: HEAD / FACE / NECK' : 'CÁMARA: CABEZA / CARA / CUELLO')
+            : (isEn ? 'CAMERA: FULL BODY 3D' : 'CÁMARA: CUERPO COMPLETO 3D'),
         vpX + 14,
         vpY + 22
     );
@@ -1000,41 +1810,14 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         isCustomTryOn: !it.isWorn
     }));
 
-    const drawAvX = vpX + 14;
-    const drawAvY = vpY + 30;
-    const drawAvSize = 230;
-
-    let charBox = {
-        cx: drawAvX + drawAvSize / 2,
-        topY: drawAvY + 24,
-        charW: drawAvSize * 0.52,
-        charH: drawAvSize * 0.78
-    };
-
-    if (avatarImg) {
-        const ab = getOpaqueBounds(avatarImg);
-        const scaleX = drawAvSize / (avatarImg.width || 420);
-        const scaleY = drawAvSize / (avatarImg.height || 420);
-        charBox = {
-            cx: drawAvX + ((ab.minX + ab.maxX) / 2) * scaleX,
-            topY: drawAvY + ab.minY * scaleY,
-            charW: ab.bw * scaleX,
-            charH: ab.bh * scaleY
-        };
-    }
+    const drawAvSize = 216;
+    const drawAvX = vpX + Math.round((vpW - drawAvSize) / 2);
+    const drawAvY = vpY + 34;
 
     ctx.save();
-    drawRoundedRect(ctx, vpX + 4, vpY + 28, vpW - 8, vpH - 82, 8);
+    drawRoundedRect(ctx, vpX + 4, vpY + 28, vpW - 8, vpH - 92, 8);
     ctx.clip();
 
-    // 1. Capa Trasera: Accesorios de Espalda en prueba
-    for (const eq of equippedList) {
-        if (eq.isCustomTryOn && eq.slot.layer === 'back' && eq.img) {
-            drawEquippedItemOnAvatar(ctx, eq.img, eq.slot, charBox, isZoomed);
-        }
-    }
-
-    // 2. Capa Central: Personaje del usuario
     if (avatarImg) {
         ctx.drawImage(avatarImg, drawAvX, drawAvY, drawAvSize, drawAvSize);
     } else {
@@ -1043,22 +1826,80 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         ctx.fillText(isEn ? 'Loading Avatar...' : 'Cargando Avatar...', vpX + 68, vpY + 150);
     }
 
-    // 3. Capa Frontal: Accesorios equipados en prueba
-    for (const eq of equippedList) {
-        if (eq.isCustomTryOn && eq.slot.layer !== 'back' && eq.img) {
-            drawEquippedItemOnAvatar(ctx, eq.img, eq.slot, charBox, isZoomed);
-        }
-    }
+    // Conectores Anatómicos HUD en las 4 esquinas del visor para mostrar las piezas en prueba sin tapar ni deformar el avatar 3D
+    const hudNodes = [
+        { boxX: vpX + 10, boxY: vpY + 36, anchorX: vpX + vpW / 2 - 8, anchorY: vpY + 86 },
+        { boxX: vpX + vpW - 56, boxY: vpY + 36, anchorX: vpX + vpW / 2 + 8, anchorY: vpY + 104 },
+        { boxX: vpX + 10, boxY: vpY + 194, anchorX: vpX + vpW / 2 - 12, anchorY: vpY + 152 },
+        { boxX: vpX + vpW - 56, boxY: vpY + 194, anchorX: vpX + vpW / 2 + 12, anchorY: vpY + 152 }
+    ];
+
+    const anchorBySlotKey = {
+        hat: { x: vpX + vpW / 2, y: isZoomed ? vpY + 95 : vpY + 76 },
+        hair: { x: vpX + vpW / 2, y: isZoomed ? vpY + 108 : vpY + 84 },
+        face: { x: vpX + vpW / 2, y: isZoomed ? vpY + 126 : vpY + 94 },
+        neck: { x: vpX + vpW / 2, y: isZoomed ? vpY + 168 : vpY + 114 },
+        shoulder: { x: vpX + vpW / 2 - 22, y: vpY + 122 },
+        front: { x: vpX + vpW / 2, y: vpY + 148 },
+        back: { x: vpX + vpW / 2 + 18, y: vpY + 136 },
+        waist: { x: vpX + vpW / 2, y: vpY + 186 },
+        gear: { x: vpX + vpW / 2 - 34, y: vpY + 156 }
+    };
+
+    equippedList.slice(0, 4).forEach((eq, idx) => {
+        if (!eq.img) return;
+        const node = hudNodes[idx];
+        const targetPt = anchorBySlotKey[eq.slot.key] || { x: node.anchorX, y: node.anchorY };
+        const boxCenterX = node.boxX + 23;
+        const boxCenterY = node.boxY + 23;
+        const strokeCol = eq.isCustomTryOn ? '#4ADE80' : '#818CF8';
+
+        // Línea conectora hacia el punto anatómico del avatar
+        ctx.save();
+        ctx.strokeStyle = eq.isCustomTryOn ? 'rgba(74, 222, 128, 0.55)' : 'rgba(129, 140, 248, 0.50)';
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(boxCenterX, boxCenterY);
+        ctx.lineTo(targetPt.x, targetPt.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Punto luminoso sobre la articulación/zona anatómica
+        ctx.beginPath();
+        ctx.arc(targetPt.x, targetPt.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = strokeCol;
+        ctx.fill();
+
+        // Mini-tarjeta HUD de 46x46 px en la esquina
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 1.5;
+        drawRoundedRect(ctx, node.boxX, node.boxY, 46, 46, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.drawImage(eq.img, node.boxX + 4, node.boxY + 4, 38, 38);
+
+        // Etiqueta de número (#1..#4)
+        ctx.fillStyle = strokeCol;
+        drawRoundedRect(ctx, node.boxX, node.boxY, 16, 13, 4);
+        ctx.fill();
+        ctx.fillStyle = '#090D16';
+        ctx.font = `bold 8.5px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(`#${idx + 1}`, node.boxX + 3, node.boxY + 10);
+    });
+
     ctx.restore();
 
     const customTryOnCount = equippedList.filter(e => e.isCustomTryOn).length;
     const wornCount = equippedList.filter(e => !e.isCustomTryOn).length;
-    ctx.fillStyle = equippedList.length > 0 ? 'rgba(35, 165, 90, 0.20)' : 'rgba(139, 92, 246, 0.16)';
-    drawRoundedRect(ctx, vpX + 12, vpY + vpH - 76, vpW - 24, 24, 6);
+    ctx.fillStyle = equippedList.length > 0 ? 'rgba(35, 165, 90, 0.22)' : 'rgba(139, 92, 246, 0.18)';
+    drawRoundedRect(ctx, vpX + 12, vpY + vpH - 80, vpW - 24, 24, 6);
     ctx.fill();
 
-    ctx.fillStyle = equippedList.length > 0 ? '#23a55a' : '#dbdee1';
-    ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillStyle = equippedList.length > 0 ? '#4ade80' : '#dbdee1';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
     const statusText = isEn
         ? (customTryOnCount > 0
             ? `[OK] ${customTryOnCount} trying on${wornCount > 0 ? ` + ${wornCount} worn` : ''}`
@@ -1066,255 +1907,498 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         : (customTryOnCount > 0
             ? `[OK] ${customTryOnCount} en prueba${wornCount > 0 ? ` + ${wornCount} puesto(s)` : ''}`
             : (wornCount > 0 ? `[OK] ${wornCount} prenda(s) equipada(s)` : 'Probá un conjunto o accesorio abajo'));
-    ctx.fillText(statusText, vpX + 18, vpY + vpH - 60);
+    ctx.fillText(fitText(ctx, statusText, vpW - 36), vpX + 18, vpY + vpH - 64);
 
-    ctx.fillStyle = '#23a55a';
+    ctx.fillStyle = '#4ade80';
     ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        `${isEn ? 'Total Outfit' : 'Total Conjunto'}: ${fmtMoneda(totalNormal)}`,
+        fitText(ctx, `${isEn ? 'Total Outfit' : 'Total Conjunto'}: ${fmtMoneda(totalNormal)}`, vpW - 28),
         vpX + 14,
-        vpY + vpH - 28
+        vpY + vpH - 32
     );
 
     ctx.fillStyle = '#949ba4';
     ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        isEn ? `${addedItems.length} of 5 active slots` : `${addedItems.length} de 5 espacios activos`,
+        fitText(
+            ctx,
+            isEn
+                ? `${addedItems.length}/5 slots  •  40% Method: ${fmtMoneda(totalCashback)}`
+                : `${addedItems.length}/5 espacios  •  Con Método 40%: ${fmtMoneda(totalCashback)}`,
+            vpW - 28
+        ),
         vpX + 14,
-        vpY + vpH - 11
+        vpY + vpH - 13
     );
 
+    // Panel Derecho: Lista de Ítems Equipados + Gráfica Apache ECharts de Costo por Prenda
+    const rightX = 304;
     ctx.fillStyle = '#dbdee1';
-    ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
+    ctx.font = `bold 11.5px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        isEn ? `ITEMS IN SANDBOX (${addedItems.length}/5)` : `OBJETOS EN EL PROBADOR (${addedItems.length}/5)`,
-        296,
-        84
+        isEn ? `EQUIPPED SLOTS (${addedItems.length}/5) & COST BREAKDOWN` : `RANURAS EQUIPADAS (${addedItems.length}/5) Y DESGLOSE DE COSTO`,
+        rightX,
+        76
     );
 
     if (addedItems.length === 0) {
-        ctx.fillStyle = HUD_CARD_BG;
-        drawRoundedRect(ctx, 296, 96, 442, 320, 10);
+        ctx.fillStyle = 'rgba(30, 35, 52, 0.90)';
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.35)';
+        ctx.lineWidth = 1.4;
+        drawRoundedRect(ctx, rightX, 86, 494, 344, 12);
         ctx.fill();
+        ctx.stroke();
+
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold 15px "${FONT_FAMILY}", sans-serif`;
         ctx.fillText(
             isEn ? 'Try on any accessory or clothing on the avatar' : 'Probate cualquier accesorio o ropa sobre el avatar',
-            332,
-            190
+            rightX + 28,
+            165
         );
         ctx.fillStyle = '#949ba4';
         ctx.font = `12px "${FONT_FAMILY}", sans-serif`;
         if (isEn) {
-            ctx.fillText('1. Click "+ Try Accessory" or "⚡ Demo Outfit" below.', 332, 222);
-            ctx.fillText('2. You can also enter @username to switch characters.', 332, 246);
-            ctx.fillText('3. Kortex detects the anatomical slot (Head, Hair, Face, Neck,', 332, 270);
-            ctx.fillText('   Back, Torso) and quotes the real price of each item.', 332, 292);
+            ctx.fillText('1. Click "+ Try Accessory / Clothing" or "⚡ Demo Outfit" below.', rightX + 28, 198);
+            ctx.fillText('2. Click "👕 Worn Clothing" to inspect and quote what this avatar wears.', rightX + 28, 224);
+            ctx.fillText('3. Click "🧑 Change Avatar" to test outfits on any Roblox @username.', rightX + 28, 250);
+            ctx.fillText('4. Kortex maps each anatomical slot and charts the cost breakdown.', rightX + 28, 276);
         } else {
-            ctx.fillText('1. Tocá "+ Probar Accesorio" o "⚡ Conjunto Demo" abajo.', 332, 222);
-            ctx.fillText('2. También podés escribir @usuario para cambiar de personaje.', 332, 246);
-            ctx.fillText('3. Kortex detecta la zona anatómica (Cabeza, Pelo, Cara, Cuello,', 332, 270);
-            ctx.fillText('   Espalda, Torso) y cotiza el valor real de cada pieza.', 332, 292);
+            ctx.fillText('1. Tocá "+ Probar Accesorio / Ropa" o "⚡ Conjunto Demo" abajo.', rightX + 28, 198);
+            ctx.fillText('2. Tocá "👕 Ropa Puesta" para cargar y cotizar lo que viste este avatar.', rightX + 28, 224);
+            ctx.fillText('3. Tocá "🧑 Cambiar Avatar" para probar ropa sobre cualquier @usuario.', rightX + 28, 250);
+            ctx.fillText('4. Kortex detecta la zona anatómica y grafica el costo del conjunto.', rightX + 28, 276);
         }
     } else {
         equippedList.forEach((eq, idx) => {
             const it = eq.item;
-            const rowY = 96 + idx * 64;
-            ctx.fillStyle = HUD_CARD_BG;
-            ctx.strokeStyle = eq.isCustomTryOn ? 'rgba(35, 165, 90, 0.55)' : 'rgba(88, 101, 242, 0.45)';
+            const rowY = 86 + idx * 45;
+            ctx.fillStyle = 'rgba(30, 35, 52, 0.92)';
+            ctx.strokeStyle = eq.isCustomTryOn ? 'rgba(35, 165, 90, 0.60)' : 'rgba(88, 101, 242, 0.50)';
             ctx.lineWidth = 1.2;
-            drawRoundedRect(ctx, 296, rowY, 442, 56, 8);
+            drawRoundedRect(ctx, rightX, rowY, 494, 40, 8);
             ctx.fill();
             ctx.stroke();
 
             if (eq.img) {
-                ctx.drawImage(eq.img, 304, rowY + 6, 44, 44);
+                ctx.drawImage(eq.img, rightX + 6, rowY + 3, 34, 34);
             }
 
             const tagStr = eq.isCustomTryOn
                 ? (isEn ? '[TRY-ON]' : '[PRUEBA]')
                 : (isEn ? '[WORN]' : '[PUESTO]');
-            ctx.fillStyle = eq.isCustomTryOn ? '#23a55a' : '#5865F2';
-            ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(tagStr, 356, rowY + 18);
+            ctx.fillStyle = eq.isCustomTryOn ? '#4ade80' : '#818cf8';
+            ctx.font = `bold 9.5px "${FONT_FAMILY}", sans-serif`;
+            ctx.fillText(tagStr, rightX + 48, rowY + 16);
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
-            const cleanName = String(it.name || `ID ${it.id}`).substring(0, 24);
-            ctx.fillText(`${cleanName}`, 416, rowY + 18);
+            ctx.font = `bold 11.5px "${FONT_FAMILY}", sans-serif`;
+            const cleanName = `#${idx + 1} ${String(it.name || `ID ${it.id}`)}`;
+            ctx.fillText(fitText(ctx, cleanName, 248), rightX + 104, rowY + 16);
 
             ctx.fillStyle = '#a78bfa';
-            ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+            ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
             ctx.fillText(
-                `${isEn ? 'Slot' : 'Zona'}: ${eq.slot.label}  •  ID ${it.id}`,
-                356,
-                rowY + 41
+                fitText(ctx, `${isEn ? 'Slot' : 'Zona'}: ${eq.slot.label}  •  ID ${it.id}`, 300),
+                rightX + 48,
+                rowY + 33
             );
 
             const itemPrice = Number(it.price || 0);
-            ctx.fillStyle = '#23a55a';
-            ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
+            ctx.fillStyle = itemPrice > 0 ? '#4ade80' : '#949ba4';
+            ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
+            ctx.textAlign = 'right';
             ctx.fillText(
                 itemPrice > 0
-                    ? `${fmtMoneda(itemPrice)}`
-                    : (isEn ? 'Free / Off-sale' : 'Gratis / Fuera de venta'),
-                588,
-                rowY + 24
+                    ? fmtMoneda(itemPrice)
+                    : (isEn ? 'Free / Off-sale' : 'Gratis / No en venta'),
+                rightX + 480,
+                rowY + 25
             );
-
-            ctx.fillStyle = '#949ba4';
-            ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(
-                itemPrice > 0
-                    ? (isEn ? 'Catalog Price' : 'Precio Catálogo')
-                    : (isEn ? 'No cost' : 'Sin costo'),
-                588,
-                rowY + 42
-            );
+            ctx.textAlign = 'left';
         });
+
+        // Sub-panel inferior derecho: Apache ECharts Cost Breakdown entre Normal vs Método 40%
+        const chartBoxY = 316;
+        const chartBoxH = 114;
+        ctx.fillStyle = 'rgba(22, 27, 42, 0.95)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, rightX, chartBoxY, 494, chartBoxH, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        const rawPrices = equippedList.map(e => Math.max(0, Number(e.item.price || 0)));
+        const posPrices = rawPrices.filter(v => v > 0);
+        const maxP = posPrices.length ? Math.max(...posPrices) : 100;
+        const minP = posPrices.length ? Math.min(...posPrices) : 1;
+        const usePower = maxP / Math.max(1, minP) > 10;
+        const scaleVal = (v) => (usePower ? Math.round(Math.pow(Math.max(1, v), 0.35) * 10) : v);
+
+        const catData = rawPrices.map(v => ({ value: scaleVal(v), rawVal: v }));
+        const methodData = rawPrices.map(v => {
+            const m = Math.round(v * 0.6);
+            return { value: scaleVal(m), rawVal: m };
+        });
+        const maxVisBar = Math.max(10, ...catData.map(d => d.value));
+
+        const chartOption = {
+            animation: false,
+            backgroundColor: 'transparent',
+            grid: { left: usePower ? 18 : 50, right: 18, top: 28, bottom: 22 },
+            legend: {
+                top: 2,
+                right: 12,
+                textStyle: { color: '#dbdee1', fontFamily: 'Liberation Sans', fontSize: 9.5, fontWeight: 'bold' },
+                itemWidth: 10,
+                itemHeight: 7
+            },
+            xAxis: {
+                type: 'category',
+                data: equippedList.map((e, i) => `#${i + 1} ${String(e.item.name || '').substring(0, 10)}`),
+                axisLine: { lineStyle: { color: '#334155' } },
+                axisTick: { show: false },
+                axisLabel: { interval: 0, color: '#cbd5e1', fontFamily: 'Liberation Sans', fontSize: 9, fontWeight: 'bold' }
+            },
+            yAxis: {
+                type: 'value',
+                show: !usePower,
+                max: Math.ceil(maxVisBar * 1.28),
+                splitNumber: 2,
+                splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.12)', type: 'dashed' } },
+                axisLabel: {
+                    color: '#94a3b8',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 8.5,
+                    formatter: (v) => fmtMonedaCompacta(v, false).replace(' R$', '')
+                }
+            },
+            series: [
+                {
+                    name: isEn ? 'Catalog R$' : 'Catálogo R$',
+                    type: 'bar',
+                    barMaxWidth: 20,
+                    data: catData,
+                    itemStyle: {
+                        borderRadius: [4, 4, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#a78bfa' },
+                            { offset: 1, color: '#6366f1' }
+                        ])
+                    },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#E2E8F0',
+                        fontFamily: 'Liberation Sans',
+                        fontSize: 8.5,
+                        fontWeight: 'bold',
+                        formatter: (p) => fmtMonedaCompacta(p.data?.rawVal ?? p.value, false).replace(' R$', '')
+                    }
+                },
+                {
+                    name: isEn ? '40% Method' : 'Método 40%',
+                    type: 'bar',
+                    barMaxWidth: 20,
+                    data: methodData,
+                    itemStyle: {
+                        borderRadius: [4, 4, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#4ade80' },
+                            { offset: 1, color: '#16a34a' }
+                        ])
+                    }
+                }
+            ]
+        };
+
+        const { image: chartImg } = await renderEChartsToImage(chartOption, 486, 108);
+        if (chartImg) {
+            ctx.drawImage(chartImg, rightX + 4, chartBoxY + 3, 486, 108);
+        }
     }
 
     return canvas.toBuffer('image/png');
 }
 
 /**
- * 4. Herramienta 2.2: Lienzo Comparativo de Clones UGC e Ítems Oficiales de Roblox Similares
+ * 4. Herramienta 2.2: Lienzo Comparativo de Clones UGC e Ítems Oficiales de Roblox Similares (Apache ECharts + Skia v2.0)
  */
 async function generateClonesComparisonCanvas(originalItem, alternatives, explicitLang = null) {
     const isEn = getCurrentLang(explicitLang) === 'en';
-    const width = 760;
-    const height = 420;
+    const width = 820;
+    const height = 450;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = DISCORD_DARK_BG;
+    ctx.fillStyle = '#0f131f';
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = '#949ba4';
-    ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+    // Resplandor radial Skia
+    const glow = ctx.createRadialGradient(width * 0.72, height * 0.35, 20, width * 0.6, height * 0.5, width * 0.65);
+    glow.addColorStop(0, 'rgba(35, 165, 90, 0.15)');
+    glow.addColorStop(1, 'rgba(15, 19, 31, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
         isEn
-            ? 'SIMILAR ITEMS FINDER (OFFICIAL ROBLOX + CHEAP UGC CLONES)'
-            : 'BUSCADOR DE SIMILARES (ROBLOX OFICIAL + CLONES UGC BARATOS)',
+            ? 'SIMILAR ITEMS & UGC CLONES FINDER (2.2)  •  SAVINGS COMPARISON'
+            : 'BUSCADOR DE CLONES Y SIMILARES (2.2)  •  COMPARATIVA DE AHORRO',
         22,
-        26
+        24
     );
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 19px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        `${isEn ? 'Reference' : 'Referencia'}: ${String(originalItem.name || (isEn ? 'Accessory' : 'Accesorio')).substring(0, 42)}`,
+        fitText(
+            ctx,
+            `${isEn ? 'Reference' : 'Referencia'}: ${String(originalItem.name || (isEn ? 'Accessory' : 'Accesorio'))}`,
+            width - 44
+        ),
         22,
-        52
+        48
     );
 
-    // Izquierda: Ítem Original
-    ctx.fillStyle = HUD_CARD_BG;
+    // Izquierda: Tarjeta del Ítem de Referencia
+    const leftX = 22;
+    const leftY = 62;
+    const leftW = 228;
+    const leftH = 368;
+
+    ctx.fillStyle = 'rgba(24, 30, 46, 0.95)';
     ctx.strokeStyle = '#5865F2';
-    ctx.lineWidth = 1.5;
-    drawRoundedRect(ctx, 22, 68, 225, 330, 10);
+    ctx.lineWidth = 1.8;
+    drawRoundedRect(ctx, leftX, leftY, leftW, leftH, 12);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#5865F2';
+    ctx.fillStyle = '#818cf8';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(isEn ? 'REFERENCE ITEM' : 'ÍTEM DE REFERENCIA', 36, 90);
+    ctx.fillText(isEn ? 'REFERENCE ITEM' : 'ÍTEM DE REFERENCIA', leftX + 14, leftY + 22);
 
-    const origImg = await fetchImageSafe(originalItem.imageUrl);
+    const itemsToShow = alternatives.slice(0, 4);
+    const [origImg, ...altThumbs] = await Promise.all([
+        fetchImageSafe(originalItem.imageUrl),
+        ...itemsToShow.map(a => fetchImageSafe(a.imageUrl))
+    ]);
+
+    // Marco para la miniatura original
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    drawRoundedRect(ctx, leftX + 22, leftY + 34, 184, 184, 10);
+    ctx.fill();
+
     if (origImg) {
-        ctx.drawImage(origImg, 47, 102, 175, 175);
+        ctx.drawImage(origImg, leftX + 27, leftY + 39, 174, 174);
     }
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(String(originalItem.name || 'Original').substring(0, 22), 34, 300);
+    ctx.fillText(fitText(ctx, String(originalItem.name || 'Original'), leftW - 28), leftX + 14, leftY + 242);
 
-    ctx.fillStyle = '#f59e0b';
-    ctx.font = `bold 17px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = `bold 16px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        originalItem.price > 0
-            ? fmtMoneda(originalItem.price)
-            : (isEn ? 'Off-sale / N/A' : 'Fuera de venta'),
-        34,
-        328
+        fitText(
+            ctx,
+            originalItem.price > 0
+                ? fmtMoneda(originalItem.price)
+                : (isEn ? 'Off-sale / Limited' : 'Fuera de venta / Lim.'),
+            leftW - 28
+        ),
+        leftX + 14,
+        leftY + 268
     );
 
     ctx.fillStyle = '#949ba4';
     ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-    ctx.fillText(`ID: ${originalItem.id}`, 34, 350);
+    ctx.fillText(`ID: ${originalItem.id}`, leftX + 14, leftY + 292);
     ctx.fillText(
-        `${isEn ? 'By' : 'Por'}: ${String(originalItem.creatorName || 'Roblox').substring(0, 20)}`,
-        34,
-        370
+        fitText(ctx, `${isEn ? 'By' : 'Por'}: ${String(originalItem.creatorName || 'Roblox')}`, leftW - 28),
+        leftX + 14,
+        leftY + 310
     );
 
-    // Derecha: Hasta 4 Alternativas (Roblox Oficial + Clones UGC)
-    const itemsToShow = alternatives.slice(0, 4);
-    const altThumbs = await Promise.all(itemsToShow.map(a => fetchImageSafe(a.imageUrl)));
-
-    itemsToShow.forEach((alt, idx) => {
-        const y = 68 + idx * 84;
-        const isOfficial = Boolean(alt.isOfficialRoblox);
-        ctx.fillStyle = HUD_CARD_BG;
-        ctx.strokeStyle = isOfficial ? '#00B8D9' : '#23a55a';
+    // Calcular ahorro máximo para destacarlo en la tarjeta izquierda
+    const bestAlt = itemsToShow[0];
+    if (bestAlt && originalItem.price > 0 && bestAlt.price > 0 && bestAlt.price < originalItem.price) {
+        const bestSavePct = Math.min(99, Math.max(1, Math.round(((originalItem.price - bestAlt.price) / originalItem.price) * 100)));
+        ctx.fillStyle = 'rgba(35, 165, 90, 0.20)';
+        ctx.strokeStyle = 'rgba(35, 165, 90, 0.55)';
         ctx.lineWidth = 1.2;
-        drawRoundedRect(ctx, 264, y, 474, 76, 9);
+        drawRoundedRect(ctx, leftX + 14, leftY + 324, leftW - 28, 32, 7);
         ctx.fill();
         ctx.stroke();
 
+        ctx.fillStyle = '#4ade80';
+        ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(
+            isEn ? `MAX SAVINGS: -${bestSavePct}%` : `AHORRO MÁXIMO: -${bestSavePct}%`,
+            leftX + leftW / 2,
+            leftY + 344
+        );
+        ctx.textAlign = 'left';
+    }
+
+    // Derecha Arriba: Tarjetas de las 4 Alternativas (en grilla 2x2 compacta y simétrica)
+    const rightX = 266;
+    const cardW = 260;
+    const cardH = 104;
+
+    itemsToShow.forEach((alt, idx) => {
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const cx = rightX + col * (cardW + 12);
+        const cy = 62 + row * (cardH + 10);
+        const isOfficial = Boolean(alt.isOfficialRoblox);
+
+        ctx.fillStyle = 'rgba(28, 33, 48, 0.94)';
+        ctx.strokeStyle = isOfficial ? '#00B8D9' : '#23a55a';
+        ctx.lineWidth = idx === 0 ? 1.8 : 1.2;
+        drawRoundedRect(ctx, cx, cy, cardW, cardH, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        drawRoundedRect(ctx, cx + 8, cy + 10, 68, 68, 8);
+        ctx.fill();
         if (altThumbs[idx]) {
-            ctx.drawImage(altThumbs[idx], 274, y + 8, 60, 60);
+            ctx.drawImage(altThumbs[idx], cx + 10, cy + 12, 64, 64);
         }
 
         const tagText = isOfficial
             ? (isEn ? '[OFFICIAL ROBLOX]' : '[ROBLOX OFICIAL]')
             : (isEn ? '[UGC CLONE]' : '[CLON UGC]');
-        ctx.fillStyle = isOfficial ? '#00B8D9' : '#23a55a';
-        ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(tagText, 346, y + 20);
+        ctx.fillStyle = isOfficial ? '#38bdf8' : '#4ade80';
+        ctx.font = `bold 9.5px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(tagText, cx + 84, cy + 22);
 
         ctx.fillStyle = '#ffffff';
+        ctx.font = `bold 11.5px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(fitText(ctx, `#${idx + 1} ${String(alt.name)}`, cardW - 92), cx + 84, cy + 40);
+
+        ctx.fillStyle = '#fbbf24';
         ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(`#${idx + 1} ${String(alt.name).substring(0, 28)}`, 346, y + 38);
-
-        ctx.fillStyle = '#949ba4';
-        ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
         ctx.fillText(
-            `ID: ${alt.id} • ${isEn ? 'By' : 'Por'} ${String(alt.creatorName || 'UGC').substring(0, 18)}`,
-            346,
-            y + 58
-        );
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold 14px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(
-            alt.price > 0
-                ? fmtMoneda(alt.price)
-                : (isEn ? 'Off-sale' : 'Fuera de venta'),
-            600,
-            y + 32
+            fitText(ctx, alt.price > 0 ? fmtMoneda(alt.price) : (isEn ? 'Off-sale' : 'Fuera de venta'), cardW - 92),
+            cx + 84,
+            cy + 60
         );
 
         if (originalItem.price > 0 && alt.price > 0 && alt.price < originalItem.price) {
-            const ahorroPct = Math.max(1, Math.round(((originalItem.price - alt.price) / originalItem.price) * 100));
-            ctx.fillStyle = 'rgba(35, 165, 90, 0.22)';
-            drawRoundedRect(ctx, 600, y + 40, 122, 24, 5);
+            const ahorroPct = Math.min(99, Math.max(1, Math.round(((originalItem.price - alt.price) / originalItem.price) * 100)));
+            ctx.fillStyle = 'rgba(35, 165, 90, 0.24)';
+            drawRoundedRect(ctx, cx + 84, cy + 68, 114, 20, 5);
             ctx.fill();
-            ctx.fillStyle = '#23a55a';
-            ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(isEn ? `-${ahorroPct}% Saved` : `-${ahorroPct}% Ahorro`, 612, y + 56);
+            ctx.fillStyle = '#4ade80';
+            ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
+            ctx.fillText(isEn ? `-${ahorroPct}% SAVED` : `-${ahorroPct}% AHORRO`, cx + 92, cy + 82);
         } else {
             ctx.fillStyle = '#949ba4';
-            ctx.font = `11px "${FONT_FAMILY}", sans-serif`;
-            ctx.fillText(
-                alt.price > 0
-                    ? (isEn ? 'List Price' : 'Precio Lista')
-                    : (isEn ? 'Off-sale' : 'Fuera de venta'),
-                600,
-                y + 56
-            );
+            ctx.font = `10px "${FONT_FAMILY}", sans-serif`;
+            ctx.fillText(`ID: ${alt.id}`, cx + 84, cy + 82);
         }
+
+        ctx.fillStyle = '#949ba4';
+        ctx.font = `9px "${FONT_FAMILY}", sans-serif`;
+        ctx.fillText(fitText(ctx, `ID ${alt.id}`, 70), cx + 10, cy + 94);
     });
+
+    // Derecha Abajo: Gráfica Comparativa Apache ECharts de Precios (con escala amortiguada cuando hay Limiteds caros)
+    const chartY = 292;
+    const chartW = 532;
+    const chartH = 138;
+
+    ctx.fillStyle = 'rgba(22, 27, 42, 0.95)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1.2;
+    drawRoundedRect(ctx, rightX, chartY, chartW, chartH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#949ba4';
+    ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
+    ctx.fillText(
+        isEn
+            ? 'ALTERNATIVE PRICE COMPARISON (R$)'
+            : 'COMPARATIVA DE PRECIOS ENTRE ALTERNATIVAS (R$)',
+        rightX + 14,
+        chartY + 18
+    );
+
+    const altPrices = itemsToShow.map(a => Math.max(0, Number(a.price || 0)));
+    const posAlt = altPrices.filter(v => v > 0);
+    const maxAlt = posAlt.length ? Math.max(...posAlt) : 100;
+    const minAlt = posAlt.length ? Math.min(...posAlt) : 1;
+    const useDampedScale = maxAlt / Math.max(1, minAlt) > 8;
+
+    const toBarVal = (v) => (useDampedScale ? Math.round(Math.pow(Math.max(1, v), 0.34) * 10) : v);
+    const barSeriesData = itemsToShow.map((a) => {
+        const rawP = Math.max(0, Number(a.price || 0));
+        return {
+            value: toBarVal(rawP),
+            rawVal: rawP,
+            itemStyle: {
+                borderRadius: [5, 5, 0, 0],
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, a.isOfficialRoblox
+                    ? [{ offset: 0, color: '#38bdf8' }, { offset: 1, color: '#0284c7' }]
+                    : [{ offset: 0, color: '#4ade80' }, { offset: 1, color: '#16a34a' }]
+                )
+            }
+        };
+    });
+    const maxBarVis = Math.max(10, ...barSeriesData.map(d => d.value));
+
+    const chartOption = {
+        animation: false,
+        backgroundColor: 'transparent',
+        grid: { left: useDampedScale ? 24 : 56, right: 24, top: 28, bottom: 24 },
+        xAxis: {
+            type: 'category',
+            data: itemsToShow.map((a, i) => `#${i + 1} ${String(a.name).substring(0, 12)}`),
+            axisLine: { lineStyle: { color: '#334155' } },
+            axisTick: { show: false },
+            axisLabel: { interval: 0, color: '#e2e8f0', fontFamily: 'Liberation Sans', fontSize: 9.5, fontWeight: 'bold' }
+        },
+        yAxis: {
+            type: 'value',
+            show: !useDampedScale,
+            max: Math.ceil(maxBarVis * 1.32),
+            splitNumber: 3,
+            splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.12)', type: 'dashed' } },
+            axisLabel: {
+                color: '#94a3b8',
+                fontFamily: 'Liberation Sans',
+                fontSize: 9,
+                formatter: (v) => fmtMonedaCompacta(v, false).replace(' R$', '')
+            }
+        },
+        series: [
+            {
+                type: 'bar',
+                barMaxWidth: 36,
+                data: barSeriesData,
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#f8fafc',
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 9.5,
+                    fontWeight: 'bold',
+                    formatter: (p) => fmtMonedaCompacta(p.data?.rawVal ?? p.value, false)
+                }
+            }
+        ]
+    };
+
+    const { image: chartImg } = await renderEChartsToImage(chartOption, chartW - 12, chartH - 22);
+    if (chartImg) {
+        ctx.drawImage(chartImg, rightX + 6, chartY + 18, chartW - 12, chartH - 22);
+    }
 
     return canvas.toBuffer('image/png');
 }
@@ -2219,6 +3303,13 @@ async function generateColorMatchCanvas(palette, matchedItems, baseTitle = 'Pren
 module.exports = {
     generatePriceChart,
     generatePriceFloorsChart,
+    generateCalculatorBreakdownCard,
+    generatePendingRobuxCard,
+    generateEmptyServersRadarCard,
+    renderEChartsToImage,
+    renderHtmlCardWithSatori,
+    fetchImageSafe,
+    echarts,
     generateOutfitSandboxCard,
     resolveAnatomicalSlot,
     generateClonesComparisonCanvas,

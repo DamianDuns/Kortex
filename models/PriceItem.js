@@ -292,6 +292,94 @@ class PriceItem {
             isUpOrFlat: lastPrice >= firstPrice
         };
     }
+
+    /**
+     * Calcula el resumen de check-in de un objeto:
+     * - Precio original/inicial vs. Precio actual (cuánto bajó en monto y porcentaje)
+     * - Estado de la Meta establecida (si ya se completó, cuánto más bajo está respecto a la meta o cuánto falta)
+     */
+    static getPriceCheckSummary(wishlistItem, historyArray = null) {
+        const item = wishlistItem || {};
+        const idStr = String(item.id_objet || '');
+        const memRecord = idStr ? memoryStore.get(idStr) : null;
+
+        let rawHistory = [];
+        if (Array.isArray(historyArray) && historyArray.length > 0) {
+            rawHistory = historyArray;
+        } else if (Array.isArray(item.price_history) && item.price_history.length > 0) {
+            rawHistory = item.price_history;
+        } else if (memRecord && Array.isArray(memRecord.history) && memRecord.history.length > 0) {
+            rawHistory = memRecord.history;
+        }
+
+        const preciosHist = rawHistory
+            .map(h => Number(h?.price))
+            .filter(p => !isNaN(p) && p >= 0);
+
+        const lastPrice = !isNaN(Number(item.last_price)) && Number(item.last_price) >= 0
+            ? Number(item.last_price)
+            : (preciosHist.length > 0 ? preciosHist[preciosHist.length - 1] : 0);
+
+        const explicitInitial = item.initial_price !== null && item.initial_price !== undefined && !isNaN(Number(item.initial_price)) && Number(item.initial_price) > 0
+            ? Number(item.initial_price)
+            : null;
+
+        const firstFromHist = preciosHist.length > 0 ? preciosHist[0] : null;
+        const firstPrice = explicitInitial !== null
+            ? explicitInitial
+            : (firstFromHist !== null ? firstFromHist : lastPrice);
+
+        const allPrices = [firstPrice, lastPrice, ...preciosHist].filter(p => !isNaN(p) && p >= 0);
+        const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : lastPrice;
+        const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : lastPrice;
+
+        const diffFromOriginal = lastPrice - firstPrice;
+        const savedVsOriginal = Math.max(0, firstPrice - lastPrice);
+        const pctFromOriginal = firstPrice > 0 ? ((diffFromOriginal / firstPrice) * 100) : 0;
+        const pctSavedVsOriginal = firstPrice > 0 ? ((savedVsOriginal / firstPrice) * 100) : 0;
+        const isBelowOriginal = firstPrice > 0 && lastPrice < firstPrice;
+
+        const hasTarget = item.target_price !== null &&
+            item.target_price !== undefined &&
+            !isNaN(Number(item.target_price)) &&
+            Number(item.target_price) > 0;
+        const targetPrice = hasTarget ? Number(item.target_price) : null;
+        const isTargetMet = hasTarget && lastPrice <= targetPrice;
+        const belowTargetAmount = isTargetMet ? Math.max(0, targetPrice - lastPrice) : 0;
+        const pctBelowTarget = (isTargetMet && targetPrice > 0) ? ((belowTargetAmount / targetPrice) * 100) : 0;
+        const remainingToTarget = (hasTarget && !isTargetMet) ? Math.max(0, lastPrice - targetPrice) : 0;
+
+        let progressToTargetPct = null;
+        if (hasTarget) {
+            if (isTargetMet) {
+                progressToTargetPct = 100;
+            } else if (firstPrice > targetPrice) {
+                progressToTargetPct = Math.max(0, Math.min(99, Math.round(((firstPrice - lastPrice) / (firstPrice - targetPrice)) * 100)));
+            } else {
+                progressToTargetPct = Math.max(0, Math.min(99, Math.round((targetPrice / Math.max(1, lastPrice)) * 100)));
+            }
+        }
+
+        return {
+            firstPrice,
+            lastPrice,
+            minPrice,
+            maxPrice,
+            diffFromOriginal,
+            savedVsOriginal,
+            pctFromOriginal,
+            pctSavedVsOriginal,
+            isBelowOriginal,
+            hasTarget,
+            targetPrice,
+            isTargetMet,
+            belowTargetAmount,
+            pctBelowTarget,
+            remainingToTarget,
+            progressToTargetPct
+        };
+    }
 }
 
 module.exports = PriceItem;
+

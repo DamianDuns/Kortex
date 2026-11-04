@@ -11,7 +11,7 @@ const routerInteracciones = require('../interactions');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('roblox')
-        .setDescription('Hub multicategoría de 15 herramientas de economía, avatares 3D/2D y servidores de Roblox'),
+        .setDescription('Hub simétrico de 20 herramientas en 4 categorías: economía, avatares 3D/2D, juegos y estadísticas'),
 
     // Vista 1 — Comando Slash (/roblox)
     async execute(interaction) {
