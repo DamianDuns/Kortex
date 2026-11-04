@@ -3237,7 +3237,7 @@
                 box.innerHTML = `
                     <div>
                         <div class="v2-title">⚙️ Configuración de Usuario — Kortex</div>
-                        <div class="v2-subtitle">Cuentas y Datos Guardados: Conectate con el código alojado en /config o con Autenticador OAuth 2.0.</div>
+                        <div class="v2-subtitle">Cuentas y Datos Guardados: Tu código KTX-XXXXXX se aloja aquí sin enviar spam por MD.</div>
                     </div>
                     <div class="v2-select-wrap">
                         <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
@@ -3251,7 +3251,7 @@
                         <div class="v2-section-row">
                             <div class="v2-section-text">
                                 <strong>💬 1. Cuenta de Discord (Código Web Alojado en /config)</strong>
-                                <span>🔑 Tu código de verificación para conectar tu ID en la Web: <code>KTX-482910</code> *(sin spam por MD)* · Permisos en <strong>Configuración → Permisos de la aplicación</strong>.</span>
+                                <span>🔑 Tu código de verificación para conectar tu ID en la Web: <code>KTX-482910</code> — También podés usar el Autenticador OAuth 2.0.</span>
                             </div>
                         </div>
                         <div class="v2-section-row">
@@ -3657,7 +3657,7 @@
             } else {
                 currentDiscordName = null;
                 if (dTitle) dTitle.textContent = 'Cuenta de Discord';
-                if (dSub) dSub.textContent = 'Verificación con comando /config o Autenticador OAuth 2.0';
+                if (dSub) dSub.textContent = 'Código alojado en el comando /config (Cero spam por MD)';
                 if (btnLogin) btnLogin.textContent = '🔑 Conectar con Código de /config';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'D';
@@ -4072,7 +4072,7 @@
                 }
                 if (dFeedback) {
                     dFeedback.style.color = '#38BDF8';
-                    dFeedback.innerHTML = '🔑 <strong>Recomendado (Sin Spam por MD):</strong> Escribí el comando <code>/config</code> en el bot de Discord, abrí <strong>Cuentas y Datos Guardados</strong>, copiá tu código <code>KTX-XXXXXX</code> alojado ahí y pegalo acá junto con tu Discord ID.';
+                    dFeedback.innerHTML = '💡 <strong>Recomendado:</strong> Usá el <strong>Autenticador OAuth 2.0</strong> o escribí <code>/config</code> en el bot de Discord y copié tu código <code>KTX-XXXXXX</code>.';
                 }
                 return;
             }
