@@ -376,7 +376,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const ahorroBajoMeta = metaCumplida ? Math.max(0, metaNum - lastPrice) : 0;
 
     const cacheKey = `${itemId}_${daysRange}_${historyLength}_${lang}`;
-    const signature = `v8_meta_checkin_echarts_${lang}_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
+    const signature = `v9_subtle_checkin_echarts_${lang}_${firstPrice}_${lastPrice}_${metaNum ?? 'none'}`;
     const cachedEntry = chartCache.get(cacheKey);
     if (cachedEntry && cachedEntry.signature === signature) {
         return cachedEntry.buffer;
@@ -390,16 +390,16 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const pctChange = firstPrice > 0 ? ((diff / firstPrice) * 100) : 0;
 
     const subioOMantuvo = lastPrice >= firstPrice;
-    // Si la meta fue alcanzada o el precio bajó del original, usar verde esmeralda brillante para destacar el ahorro/logro
+    // Tono esmeralda suave y equilibrado sin saturar el fondo
     const esPositivoComprador = metaCumplida || bajoDelOriginal;
     const lineColor = metaCumplida
         ? '#10B981'
         : (bajoDelOriginal ? '#22C55E' : (subioOMantuvo ? '#38BDF8' : '#F43F5E'));
     const areaTopColor = metaCumplida
-        ? 'rgba(16, 185, 129, 0.38)'
-        : (bajoDelOriginal ? 'rgba(34, 197, 94, 0.34)' : 'rgba(56, 189, 248, 0.28)');
+        ? 'rgba(16, 185, 129, 0.18)'
+        : (bajoDelOriginal ? 'rgba(34, 197, 94, 0.18)' : 'rgba(56, 189, 248, 0.20)');
     const areaBottomColor = metaCumplida
-        ? 'rgba(16, 185, 129, 0.02)'
+        ? 'rgba(16, 185, 129, 0.01)'
         : (bajoDelOriginal ? 'rgba(34, 197, 94, 0.01)' : 'rgba(56, 189, 248, 0.01)');
 
     const firstTime = new Date(puntos[0].timestamp).getTime();
@@ -418,16 +418,16 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    // 1. Fondo financiero oscuro continuo sin costuras ni recortes
+    // 1. Fondo financiero oscuro continuo y sobrio (sin resplandor verde excesivo)
     const bgGrad = ctx.createLinearGradient(0, 0, width, height);
     bgGrad.addColorStop(0, '#0E121B');
-    bgGrad.addColorStop(0.5, metaCumplida ? '#0F221D' : '#151B28');
+    bgGrad.addColorStop(0.5, '#141A26');
     bgGrad.addColorStop(1, '#0F131D');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
-    const glowGrad = ctx.createRadialGradient(160, 42, 12, 160, 42, 340);
-    glowGrad.addColorStop(0, esPositivoComprador ? 'rgba(16, 185, 129, 0.18)' : 'rgba(56, 189, 248, 0.13)');
+    const glowGrad = ctx.createRadialGradient(160, 42, 12, 160, 42, 320);
+    glowGrad.addColorStop(0, esPositivoComprador ? 'rgba(16, 185, 129, 0.06)' : 'rgba(56, 189, 248, 0.08)');
     glowGrad.addColorStop(1, 'rgba(15, 19, 29, 0)');
     ctx.fillStyle = glowGrad;
     ctx.fillRect(0, 0, width, height);
@@ -436,7 +436,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ? (RANGO_TEXTO_EN[daysRange] || String(daysRange).toUpperCase())
         : (RANGO_TEXTO[daysRange] || String(daysRange).toUpperCase());
 
-    // Tarjetas KPI superiores a la derecha (dimensionadas para dejar amplio margen a la izquierda)
+    // Tarjetas KPI superiores a la derecha (sobrias y con check-in limpio junto al valor confirmado)
     const cards = [
         {
             label: isEn ? 'ORIGINAL' : 'ORIGINAL',
@@ -448,10 +448,10 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         tieneMeta
             ? {
                 label: metaCumplida
-                    ? (isEn ? 'GOAL MET!' : '¡META LOGRADA!')
+                    ? (isEn ? 'GOAL MET' : 'META LOGRADA')
                     : (isEn ? 'TARGET META' : 'META SNIPER'),
                 value: fmtMonedaCompacta(metaNum, esUSD),
-                color: metaCumplida ? '#4ADE80' : '#FBBF24',
+                color: metaCumplida ? '#34D399' : '#FBBF24',
                 highlightSuccess: metaCumplida
             }
             : { label: isEn ? 'AVERAGE' : 'PROMEDIO', value: fmtMonedaCompacta(avgPrice, esUSD), color: '#38BDF8' }
@@ -470,8 +470,8 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     if (thumbImg) {
         ctx.save();
         ctx.fillStyle = '#1B2130';
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+        ctx.lineWidth = 1.2;
         drawRoundedRect(ctx, 18, 16, 50, 50, 10);
         ctx.fill();
         ctx.stroke();
@@ -479,35 +479,23 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ctx.restore();
     }
 
-    const kickerColor = metaCumplida ? '#4ADE80' : (bajoDelOriginal ? '#34D399' : '#38BDF8');
+    const kickerColor = metaCumplida ? '#34D399' : (bajoDelOriginal ? '#34D399' : '#38BDF8');
     ctx.fillStyle = kickerColor;
     ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
 
-    let kickerTextX = leftOffset;
-    let kickerRaw = '';
-
-    if (metaCumplida) {
-        // Insignia vectorial sniper target estilo Discord (Opción B)
-        drawVectorTarget(ctx, leftOffset + 5, 21, 5, '#4ADE80', 1.4);
-        kickerTextX = leftOffset + 15;
-        kickerRaw = isEn
+    const kickerRaw = metaCumplida
+        ? (isEn
             ? `GOAL COMPLETED • ${rangoLabel} (${historyLength} SAMPLES)`
-            : `¡META COMPLETADA! • ${rangoLabel} (${historyLength} MUESTRAS)`;
-    } else if (bajoDelOriginal) {
-        // Insignia vectorial de tendencia a la baja estilo Discord (Opción B)
-        drawVectorTrend(ctx, leftOffset + 5, 21, 7, true, '#34D399');
-        kickerTextX = leftOffset + 14;
-        kickerRaw = isEn
-            ? `BELOW ORIGINAL PRICE • ${rangoLabel}`
-            : `MÁS BAJO QUE EL ORIGINAL • ${rangoLabel}`;
-    } else {
-        kickerRaw = isEn
-            ? `PRICE HISTORY • ${rangoLabel} (${historyLength} SAMPLES)`
-            : `HISTORIAL DE PRECIOS • ${rangoLabel} (${historyLength} MUESTRAS)`;
-    }
+            : `META COMPLETADA • ${rangoLabel} (${historyLength} MUESTRAS)`)
+        : (bajoDelOriginal
+            ? (isEn
+                ? `BELOW ORIGINAL PRICE • ${rangoLabel}`
+                : `MÁS BAJO QUE EL ORIGINAL • ${rangoLabel}`)
+            : (isEn
+                ? `PRICE HISTORY • ${rangoLabel} (${historyLength} SAMPLES)`
+                : `HISTORIAL DE PRECIOS • ${rangoLabel} (${historyLength} MUESTRAS)`));
 
-    const availableKickerW = Math.max(50, startX - kickerTextX - 14);
-    ctx.fillText(fitText(ctx, kickerRaw, availableKickerW), kickerTextX, 24);
+    ctx.fillText(fitText(ctx, kickerRaw, maxLeftHeaderWidth), leftOffset, 24);
 
     const textoActual = fmtMoneda(lastPrice, esUSD);
     ctx.fillStyle = '#F8FAFC';
@@ -517,6 +505,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
 
     const signo = diff > 0 ? '+' : '';
     const pctStr = `${signo}${pctChange.toFixed(1).replace('.0', '')}%`;
+    const showPillCheck = diff === 0 && metaCumplida;
     const varTextoRaw = diff === 0
         ? (metaCumplida
             ? (isEn ? 'Target Reached' : 'Meta Cumplida')
@@ -528,35 +517,34 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
     const varX = leftOffset + anchoPrecio + 10;
     const availableVarW = Math.max(64, startX - 14 - varX);
-    const hasPillIcon = metaCumplida || (bajoDelOriginal && diff !== 0);
-    const iconW = hasPillIcon ? 14 : 0;
+    const iconW = showPillCheck ? 13 : 0;
     const varTexto = fitText(ctx, varTextoRaw, availableVarW - 16 - iconW);
     const textVarW = ctx.measureText(varTexto).width;
     const varWidth = textVarW + 16 + iconW;
     const varY = 33;
     const varH = 23;
 
-    const badgeBg = (metaCumplida || bajoDelOriginal)
-        ? 'rgba(16, 185, 129, 0.24)'
-        : (diff === 0 ? 'rgba(148, 163, 184, 0.16)' : 'rgba(244, 63, 94, 0.22)');
-    const badgeColor = (metaCumplida || bajoDelOriginal)
-        ? '#4ADE80'
-        : (diff === 0 ? '#E2E8F0' : '#FB7185');
+    const badgeBg = (bajoDelOriginal || showPillCheck)
+        ? 'rgba(16, 185, 129, 0.15)'
+        : (diff === 0 || metaCumplida ? 'rgba(148, 163, 184, 0.14)' : 'rgba(244, 63, 94, 0.16)');
+    const badgeBorder = (bajoDelOriginal || showPillCheck)
+        ? 'rgba(52, 211, 153, 0.45)'
+        : (diff === 0 || metaCumplida ? 'rgba(148, 163, 184, 0.30)' : 'rgba(251, 113, 133, 0.45)');
+    const badgeColor = (bajoDelOriginal || showPillCheck)
+        ? '#34D399'
+        : (diff === 0 || metaCumplida ? '#CBD5E1' : '#FB7185');
 
     if (varX + varWidth <= startX - 6) {
         ctx.fillStyle = badgeBg;
-        ctx.strokeStyle = badgeColor;
-        ctx.lineWidth = 1.3;
+        ctx.strokeStyle = badgeBorder;
+        ctx.lineWidth = 1.1;
         drawRoundedRect(ctx, varX, varY, varWidth, varH, 6);
         ctx.fill();
         ctx.stroke();
 
         let textDrawX = varX + 8;
-        if (metaCumplida) {
-            drawVectorCheckmark(ctx, varX + 10, varY + varH / 2, 8, badgeColor, 1.6);
-            textDrawX = varX + 20;
-        } else if (bajoDelOriginal && diff !== 0) {
-            drawVectorTrend(ctx, varX + 10, varY + varH / 2, 6, true, badgeColor);
+        if (showPillCheck) {
+            drawVectorCheckmark(ctx, varX + 10, varY + varH / 2, 7.5, badgeColor, 1.5);
             textDrawX = varX + 19;
         }
 
@@ -566,26 +554,24 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ctx.textBaseline = 'alphabetic';
     }
 
-    ctx.fillStyle = metaCumplida ? '#A7F3D0' : '#94A3B8';
+    ctx.fillStyle = metaCumplida ? '#CBD5E1' : '#94A3B8';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
     let subTitleLine = `${String(itemName || 'Objeto')} • ID ${itemId}`;
     let subTextX = leftOffset;
 
     if (metaCumplida && bajoDelOriginal) {
-        drawVectorCheckmark(ctx, leftOffset + 5, 66, 8, '#34D399', 1.5);
-        subTextX = leftOffset + 14;
+        drawVectorCheckmark(ctx, leftOffset + 4, 66, 7.5, '#34D399', 1.5);
+        subTextX = leftOffset + 13;
         subTitleLine = isEn
             ? `Saved ${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
             : `Ahorro: -${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
     } else if (metaCumplida) {
-        drawVectorCheckmark(ctx, leftOffset + 5, 66, 8, '#34D399', 1.5);
-        subTextX = leftOffset + 14;
+        drawVectorCheckmark(ctx, leftOffset + 4, 66, 7.5, '#34D399', 1.5);
+        subTextX = leftOffset + 13;
         subTitleLine = isEn
-            ? `Target ${fmtMonedaCompacta(metaNum, esUSD)} reached! • ${String(itemName || 'Item')}`
-            : `¡Meta de ${fmtMonedaCompacta(metaNum, esUSD)} alcanzada! • ${String(itemName || 'Objeto')}`;
+            ? `Target ${fmtMonedaCompacta(metaNum, esUSD)} reached • ${String(itemName || 'Item')}`
+            : `Meta de ${fmtMonedaCompacta(metaNum, esUSD)} alcanzada • ${String(itemName || 'Objeto')}`;
     } else if (bajoDelOriginal) {
-        drawVectorTrend(ctx, leftOffset + 5, 66, 6, true, '#34D399');
-        subTextX = leftOffset + 14;
         subTitleLine = isEn
             ? `-${fmtMonedaCompacta(ahorroOriginal, esUSD)} below Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
             : `-${fmtMonedaCompacta(ahorroOriginal, esUSD)} más bajo que el Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
@@ -597,37 +583,34 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     cards.forEach((card, idx) => {
         const cx = startX + idx * (cardW + gap);
         ctx.save();
-        ctx.shadowColor = card.highlightSuccess ? 'rgba(16, 185, 129, 0.35)' : 'rgba(0, 0, 0, 0.35)';
-        ctx.shadowBlur = card.highlightSuccess ? 12 : 8;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = 8;
         ctx.shadowOffsetY = 2;
-        ctx.fillStyle = card.highlightSuccess ? 'rgba(6, 78, 59, 0.85)' : '#1B2030';
+        ctx.fillStyle = '#1B2030';
         drawRoundedRect(ctx, cx, cardY, cardW, cardH, 8);
         ctx.fill();
         ctx.restore();
 
-        ctx.strokeStyle = card.highlightSuccess ? '#10B981' : 'rgba(255, 255, 255, 0.10)';
-        ctx.lineWidth = card.highlightSuccess ? 1.8 : 1;
+        ctx.strokeStyle = card.highlightSuccess ? 'rgba(52, 211, 153, 0.42)' : 'rgba(255, 255, 255, 0.10)';
+        ctx.lineWidth = card.highlightSuccess ? 1.2 : 1;
         drawRoundedRect(ctx, cx, cardY, cardW, cardH, 8);
         ctx.stroke();
 
-        if (card.highlightSuccess) {
-            // Insignia circular vector estilo Discord con tilde en la esquina superior derecha de la tarjeta (Opción B)
-            const badgeX = cx + cardW - 14;
-            const badgeY = cardY + 14;
-            ctx.fillStyle = '#10B981';
-            ctx.beginPath();
-            ctx.arc(badgeX, badgeY, 6.5, 0, Math.PI * 2);
-            ctx.fill();
-            drawVectorCheckmark(ctx, badgeX, badgeY, 7, '#FFFFFF', 1.6);
-        }
-
-        ctx.fillStyle = card.highlightSuccess ? '#A7F3D0' : '#94A3B8';
+        ctx.fillStyle = '#94A3B8';
         ctx.font = `bold 9px "${FONT_FAMILY}", sans-serif`;
         ctx.fillText(fitText(ctx, card.label, cardW - 14), cx + 8, cardY + 19);
 
         ctx.fillStyle = card.color;
         ctx.font = `bold 12px "${FONT_FAMILY}", sans-serif`;
-        ctx.fillText(fitText(ctx, card.value, cardW - 16), cx + 8, cardY + 41);
+        const maxValW = card.highlightSuccess ? cardW - 30 : cardW - 16;
+        const fittedVal = fitText(ctx, card.value, maxValW);
+        ctx.fillText(fittedVal, cx + 8, cardY + 41);
+
+        if (card.highlightSuccess) {
+            // Check-in sutil y limpio justo al lado del valor confirmado sin solapar el título
+            const valW = ctx.measureText(fittedVal).width;
+            drawVectorCheckmark(ctx, cx + 8 + valW + 8, cardY + 36.5, 7.5, '#34D399', 1.6);
+        }
     });
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
@@ -702,7 +685,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         }
     ];
 
-    const targetLineColor = metaCumplida ? '#10B981' : TARGET_COLOR;
+    const targetLineColor = metaCumplida ? 'rgba(52, 211, 153, 0.72)' : TARGET_COLOR;
     if (tieneMeta) {
         // Línea horizontal punteada de punta a punta sin puntos sueltos que descoloquen la gráfica
         echartsSeries.push({
@@ -712,7 +695,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
             symbol: 'none',
             z: 2,
             lineStyle: {
-                width: metaCumplida ? 2.6 : 2.2,
+                width: 1.8,
                 type: 'dashed',
                 color: targetLineColor
             }
@@ -807,19 +790,19 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         // Si la meta está en el borde superior del gráfico, colocar la píldora justo debajo de la línea; si no, justo encima
         const pillY = metaY < plotTopY + 26 ? metaY + 5 : metaY - pillH - 4;
 
-        ctx.fillStyle = metaCumplida ? 'rgba(6, 78, 59, 0.96)' : 'rgba(20, 24, 36, 0.95)';
-        ctx.strokeStyle = targetLineColor;
-        ctx.lineWidth = metaCumplida ? 1.6 : 1.3;
+        ctx.fillStyle = 'rgba(18, 24, 36, 0.94)';
+        ctx.strokeStyle = metaCumplida ? 'rgba(52, 211, 153, 0.50)' : targetLineColor;
+        ctx.lineWidth = 1.2;
         drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 5);
         ctx.fill();
         ctx.stroke();
 
         if (metaCumplida) {
-            // Insignia vectorial tilde en verde esmeralda (Opción B)
-            drawVectorCheckmark(ctx, pillX + 10, pillY + pillH / 2, 8, '#4ADE80', 1.6);
+            // Check-in vectorial sutil para confirmar meta
+            drawVectorCheckmark(ctx, pillX + 10, pillY + pillH / 2, 7.5, '#34D399', 1.5);
         }
 
-        ctx.fillStyle = metaCumplida ? '#4ADE80' : '#FBBF24';
+        ctx.fillStyle = metaCumplida ? '#34D399' : '#FBBF24';
         ctx.textBaseline = 'middle';
         ctx.fillText(metaText, pillX + 9 + iconOffset, pillY + pillH / 2);
         ctx.textBaseline = 'alphabetic';
