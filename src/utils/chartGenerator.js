@@ -74,7 +74,7 @@ try {
             return count;
         },
         {
-            label: '🖼️ Buffers Gráficos PNG y Lienzos Canvas',
+            label: '[Canvas] Buffers Gráficos PNG y Lienzos Canvas',
             whatItCleans: 'Gráficas PNG renderizadas y miniaturas descargadas en memoria nativa',
             inspectFn: () => {
                 let bytes = 0;
@@ -190,6 +190,62 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
     } else {
         ctx.rect(x, y, w, h);
     }
+}
+
+/**
+ * Insignias vectoriales nítidas estilo Discord (Opción B)
+ * Se renderizan directamente con primitivas Skia/Canvas sin depender de fuentes de emojis externas ni Cairo.
+ */
+function drawVectorCheckmark(ctx, cx, cy, size = 10, color = '#FFFFFF', strokeWidth = 2) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - size * 0.42, cy - size * 0.02);
+    ctx.lineTo(cx - size * 0.1, cy + size * 0.32);
+    ctx.lineTo(cx + size * 0.44, cy - size * 0.34);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawVectorTarget(ctx, cx, cy, radius = 6, color = '#4ADE80', strokeWidth = 1.4) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = strokeWidth;
+    // Anillo exterior
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    // Anillo interior
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(1, radius * 0.52), 0, Math.PI * 2);
+    ctx.stroke();
+    // Punto central
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(1, radius * 0.22), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawVectorTrend(ctx, cx, cy, size = 8, isDown = true, color = '#34D399') {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (isDown) {
+        ctx.moveTo(cx - size * 0.48, cy - size * 0.28);
+        ctx.lineTo(cx + size * 0.48, cy - size * 0.28);
+        ctx.lineTo(cx, cy + size * 0.42);
+    } else {
+        ctx.moveTo(cx - size * 0.48, cy + size * 0.28);
+        ctx.lineTo(cx + size * 0.48, cy + size * 0.28);
+        ctx.lineTo(cx, cy - size * 0.42);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 }
 
 async function fetchImageSafe(urlOrBuffer) {
@@ -392,11 +448,9 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         tieneMeta
             ? {
                 label: metaCumplida
-                    ? (isEn ? '✅ GOAL MET!' : '✅ ¡META LOGRADA!')
+                    ? (isEn ? 'GOAL MET!' : '¡META LOGRADA!')
                     : (isEn ? 'TARGET META' : 'META SNIPER'),
-                value: metaCumplida
-                    ? `${fmtMonedaCompacta(metaNum, esUSD)} ✓`
-                    : fmtMonedaCompacta(metaNum, esUSD),
+                value: fmtMonedaCompacta(metaNum, esUSD),
                 color: metaCumplida ? '#4ADE80' : '#FBBF24',
                 highlightSuccess: metaCumplida
             }
@@ -425,20 +479,35 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ctx.restore();
     }
 
-    ctx.fillStyle = metaCumplida ? '#4ADE80' : (bajoDelOriginal ? '#34D399' : '#38BDF8');
+    const kickerColor = metaCumplida ? '#4ADE80' : (bajoDelOriginal ? '#34D399' : '#38BDF8');
+    ctx.fillStyle = kickerColor;
     ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
-    const kickerRaw = metaCumplida
-        ? (isEn
-            ? `🎯 GOAL COMPLETED! • ${rangoLabel} (${historyLength} SAMPLES)`
-            : `🎯 ¡META COMPLETADA! • ${rangoLabel} (${historyLength} MUESTRAS)`)
-        : (bajoDelOriginal
-            ? (isEn
-                ? `📉 BELOW ORIGINAL PRICE • ${rangoLabel}`
-                : `📉 MÁS BAJO QUE EL ORIGINAL • ${rangoLabel}`)
-            : (isEn
-                ? `PRICE HISTORY • ${rangoLabel} (${historyLength} SAMPLES)`
-                : `HISTORIAL DE PRECIOS • ${rangoLabel} (${historyLength} MUESTRAS)`));
-    ctx.fillText(fitText(ctx, kickerRaw, maxLeftHeaderWidth), leftOffset, 24);
+
+    let kickerTextX = leftOffset;
+    let kickerRaw = '';
+
+    if (metaCumplida) {
+        // Insignia vectorial sniper target estilo Discord (Opción B)
+        drawVectorTarget(ctx, leftOffset + 5, 21, 5, '#4ADE80', 1.4);
+        kickerTextX = leftOffset + 15;
+        kickerRaw = isEn
+            ? `GOAL COMPLETED • ${rangoLabel} (${historyLength} SAMPLES)`
+            : `¡META COMPLETADA! • ${rangoLabel} (${historyLength} MUESTRAS)`;
+    } else if (bajoDelOriginal) {
+        // Insignia vectorial de tendencia a la baja estilo Discord (Opción B)
+        drawVectorTrend(ctx, leftOffset + 5, 21, 7, true, '#34D399');
+        kickerTextX = leftOffset + 14;
+        kickerRaw = isEn
+            ? `BELOW ORIGINAL PRICE • ${rangoLabel}`
+            : `MÁS BAJO QUE EL ORIGINAL • ${rangoLabel}`;
+    } else {
+        kickerRaw = isEn
+            ? `PRICE HISTORY • ${rangoLabel} (${historyLength} SAMPLES)`
+            : `HISTORIAL DE PRECIOS • ${rangoLabel} (${historyLength} MUESTRAS)`;
+    }
+
+    const availableKickerW = Math.max(50, startX - kickerTextX - 14);
+    ctx.fillText(fitText(ctx, kickerRaw, availableKickerW), kickerTextX, 24);
 
     const textoActual = fmtMoneda(lastPrice, esUSD);
     ctx.fillStyle = '#F8FAFC';
@@ -450,7 +519,7 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     const pctStr = `${signo}${pctChange.toFixed(1).replace('.0', '')}%`;
     const varTextoRaw = diff === 0
         ? (metaCumplida
-            ? (isEn ? '✓ Target Reached' : '✓ Meta Cumplida')
+            ? (isEn ? 'Target Reached' : 'Meta Cumplida')
             : (isEn ? '0% vs Original' : '0% vs Original'))
         : (bajoDelOriginal
             ? `${signo}${fmtMonedaCompacta(diff, esUSD)} (${pctStr} ${isEn ? 'vs Orig.' : 'vs Orig.'})`
@@ -459,9 +528,11 @@ async function generatePriceChart(historyData, itemName, options = {}) {
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
     const varX = leftOffset + anchoPrecio + 10;
     const availableVarW = Math.max(64, startX - 14 - varX);
-    const varTexto = fitText(ctx, varTextoRaw, availableVarW - 16);
+    const hasPillIcon = metaCumplida || (bajoDelOriginal && diff !== 0);
+    const iconW = hasPillIcon ? 14 : 0;
+    const varTexto = fitText(ctx, varTextoRaw, availableVarW - 16 - iconW);
     const textVarW = ctx.measureText(varTexto).width;
-    const varWidth = textVarW + 16;
+    const varWidth = textVarW + 16 + iconW;
     const varY = 33;
     const varH = 23;
 
@@ -480,29 +551,48 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ctx.fill();
         ctx.stroke();
 
+        let textDrawX = varX + 8;
+        if (metaCumplida) {
+            drawVectorCheckmark(ctx, varX + 10, varY + varH / 2, 8, badgeColor, 1.6);
+            textDrawX = varX + 20;
+        } else if (bajoDelOriginal && diff !== 0) {
+            drawVectorTrend(ctx, varX + 10, varY + varH / 2, 6, true, badgeColor);
+            textDrawX = varX + 19;
+        }
+
         ctx.fillStyle = badgeColor;
         ctx.textBaseline = 'middle';
-        ctx.fillText(varTexto, varX + 8, varY + varH / 2);
+        ctx.fillText(varTexto, textDrawX, varY + varH / 2);
         ctx.textBaseline = 'alphabetic';
     }
 
     ctx.fillStyle = metaCumplida ? '#A7F3D0' : '#94A3B8';
     ctx.font = `bold 11px "${FONT_FAMILY}", sans-serif`;
     let subTitleLine = `${String(itemName || 'Objeto')} • ID ${itemId}`;
+    let subTextX = leftOffset;
+
     if (metaCumplida && bajoDelOriginal) {
+        drawVectorCheckmark(ctx, leftOffset + 5, 66, 8, '#34D399', 1.5);
+        subTextX = leftOffset + 14;
         subTitleLine = isEn
-            ? `✓ Saved ${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
-            : `✓ Ahorro: -${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
+            ? `Saved ${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
+            : `Ahorro: -${fmtMonedaCompacta(ahorroOriginal, esUSD)} vs Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
     } else if (metaCumplida) {
+        drawVectorCheckmark(ctx, leftOffset + 5, 66, 8, '#34D399', 1.5);
+        subTextX = leftOffset + 14;
         subTitleLine = isEn
-            ? `✓ Target ${fmtMonedaCompacta(metaNum, esUSD)} reached! • ${String(itemName || 'Item')}`
-            : `✓ ¡Meta de ${fmtMonedaCompacta(metaNum, esUSD)} alcanzada! • ${String(itemName || 'Objeto')}`;
+            ? `Target ${fmtMonedaCompacta(metaNum, esUSD)} reached! • ${String(itemName || 'Item')}`
+            : `¡Meta de ${fmtMonedaCompacta(metaNum, esUSD)} alcanzada! • ${String(itemName || 'Objeto')}`;
     } else if (bajoDelOriginal) {
+        drawVectorTrend(ctx, leftOffset + 5, 66, 6, true, '#34D399');
+        subTextX = leftOffset + 14;
         subTitleLine = isEn
-            ? `📉 -${fmtMonedaCompacta(ahorroOriginal, esUSD)} below Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
-            : `📉 -${fmtMonedaCompacta(ahorroOriginal, esUSD)} más bajo que el Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
+            ? `-${fmtMonedaCompacta(ahorroOriginal, esUSD)} below Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Item')}`
+            : `-${fmtMonedaCompacta(ahorroOriginal, esUSD)} más bajo que el Original (${fmtMonedaCompacta(firstPrice, esUSD)}) • ${String(itemName || 'Objeto')}`;
     }
-    ctx.fillText(fitText(ctx, subTitleLine, maxLeftHeaderWidth), leftOffset, 70);
+
+    const availableSubW = Math.max(50, startX - subTextX - 14);
+    ctx.fillText(fitText(ctx, subTitleLine, availableSubW), subTextX, 70);
 
     cards.forEach((card, idx) => {
         const cx = startX + idx * (cardW + gap);
@@ -519,6 +609,17 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ctx.lineWidth = card.highlightSuccess ? 1.8 : 1;
         drawRoundedRect(ctx, cx, cardY, cardW, cardH, 8);
         ctx.stroke();
+
+        if (card.highlightSuccess) {
+            // Insignia circular vector estilo Discord con tilde en la esquina superior derecha de la tarjeta (Opción B)
+            const badgeX = cx + cardW - 14;
+            const badgeY = cardY + 14;
+            ctx.fillStyle = '#10B981';
+            ctx.beginPath();
+            ctx.arc(badgeX, badgeY, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+            drawVectorCheckmark(ctx, badgeX, badgeY, 7, '#FFFFFF', 1.6);
+        }
 
         ctx.fillStyle = card.highlightSuccess ? '#A7F3D0' : '#94A3B8';
         ctx.font = `bold 9px "${FONT_FAMILY}", sans-serif`;
@@ -684,11 +785,11 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         if (metaCumplida) {
             metaText = ahorroBajoMeta > 0
                 ? (isEn
-                    ? `✓ GOAL MET: ${fmtMoneda(metaNum, esUSD)} (-${fmtMonedaCompacta(ahorroBajoMeta, esUSD)} below target)`
-                    : `✓ ¡META LOGRADA!: ${fmtMoneda(metaNum, esUSD)} (-${fmtMonedaCompacta(ahorroBajoMeta, esUSD)} bajo meta)`)
+                    ? `GOAL MET: ${fmtMoneda(metaNum, esUSD)} (-${fmtMonedaCompacta(ahorroBajoMeta, esUSD)} below target)`
+                    : `¡META LOGRADA!: ${fmtMoneda(metaNum, esUSD)} (-${fmtMonedaCompacta(ahorroBajoMeta, esUSD)} bajo meta)`)
                 : (isEn
-                    ? `✓ GOAL MET: ${fmtMoneda(metaNum, esUSD)} (Reached!)`
-                    : `✓ ¡META LOGRADA!: ${fmtMoneda(metaNum, esUSD)} (¡Alcanzada!)`);
+                    ? `GOAL MET: ${fmtMoneda(metaNum, esUSD)} (Reached!)`
+                    : `¡META LOGRADA!: ${fmtMoneda(metaNum, esUSD)} (¡Alcanzada!)`);
         } else if (lastPrice > metaNum) {
             const falta = lastPrice - metaNum;
             metaText = isEn
@@ -698,7 +799,8 @@ async function generatePriceChart(historyData, itemName, options = {}) {
 
         ctx.font = `bold 10px "${FONT_FAMILY}", sans-serif`;
         const metaTextW = ctx.measureText(metaText).width;
-        const pillW = metaTextW + 18;
+        const iconOffset = metaCumplida ? 14 : 0;
+        const pillW = metaTextW + 18 + iconOffset;
         const pillH = 21;
         // Ubicar la píldora en el tercio central-izquierdo (x ≈ 190) lejos del borde izquierdo (x=86) y del borde derecho (x=776)
         const pillX = 190;
@@ -712,9 +814,14 @@ async function generatePriceChart(historyData, itemName, options = {}) {
         ctx.fill();
         ctx.stroke();
 
+        if (metaCumplida) {
+            // Insignia vectorial tilde en verde esmeralda (Opción B)
+            drawVectorCheckmark(ctx, pillX + 10, pillY + pillH / 2, 8, '#4ADE80', 1.6);
+        }
+
         ctx.fillStyle = metaCumplida ? '#4ADE80' : '#FBBF24';
         ctx.textBaseline = 'middle';
-        ctx.fillText(metaText, pillX + 9, pillY + pillH / 2);
+        ctx.fillText(metaText, pillX + 9 + iconOffset, pillY + pillH / 2);
         ctx.textBaseline = 'alphabetic';
     }
 
@@ -1959,14 +2066,14 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         ctx.fillStyle = '#949ba4';
         ctx.font = `12px "${FONT_FAMILY}", sans-serif`;
         if (isEn) {
-            ctx.fillText('1. Click "+ Try Accessory / Clothing" or "⚡ Demo Outfit" below.', rightX + 28, 198);
-            ctx.fillText('2. Click "👕 Worn Clothing" to inspect and quote what this avatar wears.', rightX + 28, 224);
-            ctx.fillText('3. Click "🧑 Change Avatar" to test outfits on any Roblox @username.', rightX + 28, 250);
+            ctx.fillText('1. Click "+ Try Accessory / Clothing" or "Demo Outfit" below.', rightX + 28, 198);
+            ctx.fillText('2. Click "Worn Clothing" to inspect and quote what this avatar wears.', rightX + 28, 224);
+            ctx.fillText('3. Click "Change Avatar" to test outfits on any Roblox @username.', rightX + 28, 250);
             ctx.fillText('4. Kortex maps each anatomical slot and charts the cost breakdown.', rightX + 28, 276);
         } else {
-            ctx.fillText('1. Tocá "+ Probar Accesorio / Ropa" o "⚡ Conjunto Demo" abajo.', rightX + 28, 198);
-            ctx.fillText('2. Tocá "👕 Ropa Puesta" para cargar y cotizar lo que viste este avatar.', rightX + 28, 224);
-            ctx.fillText('3. Tocá "🧑 Cambiar Avatar" para probar ropa sobre cualquier @usuario.', rightX + 28, 250);
+            ctx.fillText('1. Tocá "+ Probar Accesorio / Ropa" o "Conjunto Demo" abajo.', rightX + 28, 198);
+            ctx.fillText('2. Tocá "Ropa Puesta" para cargar y cotizar lo que viste este avatar.', rightX + 28, 224);
+            ctx.fillText('3. Tocá "Cambiar Avatar" para probar ropa sobre cualquier @usuario.', rightX + 28, 250);
             ctx.fillText('4. Kortex detecta la zona anatómica y grafica el costo del conjunto.', rightX + 28, 276);
         }
     } else {
@@ -2950,13 +3057,14 @@ async function generate3DShowcaseCard(exportInfo, explicitLang = null) {
     ctx.fill();
     ctx.stroke();
 
+    drawVectorCheckmark(ctx, 398, 92, 9, '#23a55a', 1.8);
     ctx.fillStyle = '#23a55a';
     ctx.font = `bold 13px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
         isEn
-            ? '✓ HD RENDER + .ZIP PACKAGE READY FOR DOWNLOAD'
-            : '✓ RENDER HD + ARCHIVO .ZIP LISTOS PARA DESCARGAR',
-        390,
+            ? 'HD RENDER + .ZIP PACKAGE READY FOR DOWNLOAD'
+            : 'RENDER HD + ARCHIVO .ZIP LISTOS PARA DESCARGAR',
+        410,
         96
     );
 
