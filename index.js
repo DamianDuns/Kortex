@@ -129,7 +129,8 @@ const {
     registrarEventoHistorialCuenta,
     obtenerHistorialYEstadoCuenta,
     migrarDatosDeSesion,
-    restaurarRespaldoCliente
+    restaurarRespaldoCliente,
+    sincronizarPersistenciaDesdeSupabase
 } = require('./src/utils/fastLink');
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -140,8 +141,8 @@ const oauthStates = new Map();
 // Sesiones verificadas de Discord OAuth2 hidratadas desde disco al iniciar el servidor
 const verifiedDiscordSessions = new Map();
 
-// Hidratar sesiones guardadas en disco y calibrar subsistemas para que el bot arranque de forma óptima
-(function hydratePersistedSessionsOnBoot() {
+// Hidratar sesiones guardadas y calibrar subsistemas
+function hydratePersistedSessionsOnBoot() {
     for (const [discId, cfg] of discordConfigCache.entries()) {
         if (cfg && (cfg.oauth_verified || cfg.discord_username)) {
             verifiedDiscordSessions.set(String(discId), {
@@ -153,7 +154,18 @@ const verifiedDiscordSessions = new Map();
             });
         }
     }
+}
+hydratePersistedSessionsOnBoot();
 
+// Sincronizar cuentas persistentes con Supabase en segundo plano al iniciar
+sincronizarPersistenciaDesdeSupabase().then(() => {
+    hydratePersistedSessionsOnBoot();
+    logger.ok('Persistencia remota con Supabase sincronizada e hidratada.');
+}).catch((err) => {
+    logger.warn('Sincronización inicial con Supabase en background:', err.message);
+});
+
+(function runDiagnosticsOnBoot() {
     try {
         const {
             registerCachePurger,
@@ -433,15 +445,26 @@ function renderOAuthGatewayPage({ provider, discordId, authUrl, callbackUrl, bas
 <body>
   <div class="card">
     <h1>${title}</h1>
-    <p>Elegí cómo querés conectar tu cuenta. La <strong>Opción 1 (Rápida)</strong> funciona al instante sin depender de redirecciones externas.</p>
+    <p>Elegí cómo querés conectar tu cuenta. El <strong>Portal Oficial OAuth 2.0</strong> es la vía recomendada para iniciar sesión y registrar tu cuenta con total comodidad.</p>
 
     <div class="box">
       <div class="box-title">
-        <span>🛡️ Opción 1: Conexión con Código Alojado en <code>/config</code></span>
+        <span>🔐 Opción 1: Portal Oficial OAuth 2.0 (${isDiscord ? 'Discord' : 'Roblox'})</span>
         <span class="badge">RECOMENDADO</span>
       </div>
+      <p style="margin-bottom:8px;font-size:0.8rem;">Iniciá sesión o registrate de forma segura y directa con los servidores oficiales de ${isDiscord ? 'Discord' : 'Roblox'}:</p>
+      <a class="btn" style="background:${isDiscord ? '#5865F2' : '#0284C7'};color:#FFFFFF;margin-bottom:10px;text-align:center;display:block;" href="${authUrl}">🌐 Iniciar Sesión con ${isDiscord ? 'Discord' : 'Roblox'} OAuth 2.0</a>
+      <p style="margin-top:6px;font-size:0.72rem;color:#94A3B8;">Si el portal muestra <em>"Invalid redirect_uri / URL no válida"</em>, agregá esta redirección en tu aplicación:</p>
+      <code class="uri-code">${callbackUrl}</code>
+      ${sharedCallbackUrl !== callbackUrl ? `<code class="uri-code">${sharedCallbackUrl}</code>` : ''}
+    </div>
+
+    <div class="box">
+      <div class="box-title">
+        <span>🔑 Opción 2: Conexión Alternativa con Código en <code>/config</code></span>
+      </div>
       ${isDiscord ? `
-        <p style="margin-bottom:8px;font-size:0.8rem;">Para verificar tu cuenta con total comodidad y privacidad, tu clave personal se aloja en el comando <strong><code>/config</code></strong> dentro de Discord (apartado <strong>1. Cuenta de Discord</strong>). Copiala de ahí y pegala abajo:</p>
+        <p style="margin-bottom:8px;font-size:0.8rem;">Método manual alternativo: tu clave personal se aloja en el comando <strong><code>/config</code></strong> dentro de Discord (apartado <strong>1. Cuenta de Discord</strong>). Copiala de ahí y pegala abajo:</p>
         <div class="input-row">
           <input id="quick-input" type="text" value="${discordId && !discordId.startsWith('guest_') && discordId !== 'default_session' ? discordId : ''}" placeholder="Tu Discord ID (ej: 123456789012345678)" />
         </div>
@@ -449,14 +472,14 @@ function renderOAuthGatewayPage({ provider, discordId, authUrl, callbackUrl, bas
           <div class="input-row">
             <input id="quick-code-input" type="text" placeholder="Tu código de /config (Ej: KTX-123456)" />
           </div>
-          <button type="button" class="btn" style="margin-top:8px;background:#23A55A;" onclick="runQuickLink('verify')">✅ Conectar con Código de /config</button>
+          <button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="runQuickLink('verify')">Conectar con Código de /config</button>
         </div>
       ` : `
-        <p style="margin-bottom:8px;font-size:0.8rem;">Paso 1: Escribí tu <strong>@Usuario de Roblox</strong> o tu <strong>ID numérico</strong> para generar tu código de propiedad (en Roblox los permisos del bot están en <strong>Configuración → Permisos de la aplicación</strong>):</p>
+        <p style="margin-bottom:8px;font-size:0.8rem;">Método manual alternativo: escribí tu <strong>@Usuario de Roblox</strong> o tu <strong>ID numérico</strong> para generar tu código de propiedad en tu biografía:</p>
         <div class="input-row">
           <input id="quick-input" type="text" placeholder="Ej: TuUsuarioRoblox o tu ID de Roblox" />
         </div>
-        <button type="button" class="btn" id="btn-step1" style="margin-top:8px;" onclick="runQuickLink('start')">🛡️ Paso 1: Generar Código de Propiedad</button>
+        <button type="button" class="btn btn-secondary" id="btn-step1" style="margin-top:8px;" onclick="runQuickLink('start')">Paso 1: Generar Código de Propiedad</button>
         <div id="verify-step2-box" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid #22293A;">
           <p style="margin-bottom:6px;font-size:0.78rem;color:#E2E8F0;">Paso 2: Pegá este código único en la descripción (<strong>"Acerca de"</strong>) de tu perfil en Roblox y guardá:</p>
           <code class="uri-code" id="roblox-verify-phrase" style="font-size:0.9rem;font-weight:800;color:#4ADE80;text-align:center;">KORTEX-0000</code>
@@ -465,16 +488,6 @@ function renderOAuthGatewayPage({ provider, discordId, authUrl, callbackUrl, bas
         </div>
       `}
       <div id="quick-status" class="status-msg"></div>
-    </div>
-
-    <div class="box">
-      <div class="box-title">
-        <span>🔐 Opción 2: Portal Oficial OAuth 2.0 (${isDiscord ? 'Discord' : 'Roblox'})</span>
-      </div>
-      <p style="margin-bottom:6px;font-size:0.78rem;">Si el portal de ${isDiscord ? 'Discord' : 'Roblox'} muestra <em>"Invalid redirect_uri / URL no válida"</em>, asegurate de agregar estas 2 URLs en <strong>Redirects</strong> de tu aplicación:</p>
-      <code class="uri-code">${callbackUrl}</code>
-      ${sharedCallbackUrl !== callbackUrl ? `<code class="uri-code">${sharedCallbackUrl}</code>` : ''}
-      <a class="btn btn-secondary" href="${authUrl}">🌐 Continuar a ${isDiscord ? 'Discord' : 'Roblox'} OAuth 2.0 Oficial</a>
     </div>
   </div>
 

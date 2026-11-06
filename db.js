@@ -677,17 +677,22 @@ function createResilientHybridBuilder(tableName, realClient) {
                 }
             }
             const remoteRes = await remoteQuery;
-            if (!remoteRes.error && remoteRes.data !== null && remoteRes.data !== undefined) {
-                // Si es lectura y remoto trajo datos vacíos pero en disco local ya teníamos sesión/datos, conservar los datos
-                if (Array.isArray(remoteRes.data) && remoteRes.data.length === 0 && Array.isArray(localResult.data) && localResult.data.length > 0) {
-                    return localResult;
-                }
-                return remoteRes;
+            if (remoteRes.error) {
+                console.warn(`[DB-HYBRID] Error en Supabase remoto para tabla '${tableName}':`, remoteRes.error.message || remoteRes.error);
+                return localResult;
             }
-        } catch {
-            // Usar respaldo local en disco
+            // Si es lectura y remoto trajo datos vacíos pero en disco local ya teníamos sesión/datos, conservar los datos locales
+            if (Array.isArray(remoteRes.data) && remoteRes.data.length === 0 && Array.isArray(localResult.data) && localResult.data.length > 0) {
+                return localResult;
+            }
+            return {
+                ...remoteRes,
+                data: remoteRes.data !== null && remoteRes.data !== undefined ? remoteRes.data : localResult.data
+            };
+        } catch (err) {
+            console.warn(`[DB-HYBRID] Excepción al ejecutar query en Supabase ('${tableName}'):`, err.message);
+            return localResult;
         }
-        return localResult;
     };
 
     const proxy = new Proxy(localBuilder, {
@@ -730,6 +735,7 @@ if (supabaseUrl && supabaseKey) {
 
 const supabase = {
     isMemoryFallback: !realSupabase,
+    realClient: realSupabase,
     memoryTables,
     guardarSnapshotEnDisco,
     from(tableName) {
