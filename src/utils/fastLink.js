@@ -117,6 +117,157 @@ function esRegistroMasReciente(nuevo, actual) {
 }
 
 /**
+ * Persistencia en Supabase para asegurar que sesiones, cuentas vinculadas e historiales
+ * se conserven 100% intactos cuando el bot se actualiza o Railway reinicia el contenedor.
+ */
+async function persistirConfigDiscordEnSupabase(discordId, cfg) {
+    const key = String(discordId || '').trim();
+    if (!key || key === 'default_session' || key.startsWith('guest_')) return;
+    try {
+        const payload = {
+            discord_id: key,
+            discord_username: cfg.discord_username || null,
+            discord_tag: cfg.discord_tag || null,
+            discord_avatar: cfg.discord_avatar || null,
+            access_token: cfg.access_token || null,
+            refresh_token: cfg.refresh_token || null,
+            oauth_verified: Boolean(cfg.oauth_verified),
+            verified_at: cfg.verified_at ? new Date(cfg.verified_at).toISOString() : null,
+            lang: cfg.lang || 'es',
+            language_selected: Boolean(cfg.language_selected),
+            default_tier: cfg.default_tier || 'Classic',
+            default_category: cfg.default_category || 'All',
+            default_chart_range: cfg.default_chart_range || '7d',
+            default_camera_mode: cfg.default_camera_mode || 'front',
+            auto_cashback_40: Boolean(cfg.auto_cashback_40),
+            ephemeral_config: Boolean(cfg.ephemeral_config),
+            dm_alerts_enabled: cfg.dm_alerts_enabled !== false,
+            pending_web_code: cfg.pending_web_code || null,
+            pending_web_digits: cfg.pending_web_digits || null,
+            pending_web_expires_at: cfg.pending_web_expires_at ? Number(cfg.pending_web_expires_at) : null,
+            web_approved_in_discord: Boolean(cfg.web_approved_in_discord),
+            web_approved_until: cfg.web_approved_until ? Number(cfg.web_approved_until) : null,
+            updated_at: new Date().toISOString()
+        };
+        await supabase.from('discord_configs').upsert(payload, { onConflict: 'discord_id' });
+    } catch (err) {
+        console.warn(`[PERSIST-CONFIG] Advertencia al persistir discord_configs en Supabase (${key}):`, err.message);
+    }
+}
+
+async function persistirCuentaVinculadaEnSupabase(discordId, rec) {
+    const key = String(discordId || '').trim();
+    if (!key || key === 'default_session') return;
+    try {
+        const payload = {
+            discord_id: key,
+            roblox_user_id: rec.roblox_user_id ? Number(rec.roblox_user_id) : null,
+            roblox_username: rec.roblox_username ? String(rec.roblox_username) : null,
+            display_name: String(rec.display_name || rec.roblox_username || ''),
+            avatar_url: rec.avatar_url || rec.avatar_full_url || null,
+            auth_method: rec.auth_method || 'code_verified',
+            updated_at: new Date().toISOString()
+        };
+        await supabase.from('user_links').upsert(payload, { onConflict: 'discord_id' });
+    } catch (err) {
+        console.warn(`[PERSIST-LINK] Advertencia al persistir user_links en Supabase (${key}):`, err.message);
+    }
+}
+
+async function persistirHistorialEnSupabase(discordId, events) {
+    const key = String(discordId || '').trim();
+    if (!key || key === 'default_session' || key.startsWith('guest_')) return;
+    try {
+        const payload = {
+            discord_id: key,
+            events: Array.isArray(events) ? events : [],
+            updated_at: new Date().toISOString()
+        };
+        await supabase.from('account_history').upsert(payload, { onConflict: 'discord_id' });
+    } catch (err) {
+        console.warn(`[PERSIST-HIST] Advertencia al persistir account_history en Supabase (${key}):`, err.message);
+    }
+}
+
+/**
+ * Hidrata todas las cuentas, sesiones e historiales desde Supabase para que ninguna cuenta
+ * se pierda al reiniciar o actualizar el bot en Railway.
+ */
+let supabaseSyncPromise = null;
+async function sincronizarPersistenciaDesdeSupabase() {
+    if (supabaseSyncPromise) return supabaseSyncPromise;
+    supabaseSyncPromise = (async () => {
+        try {
+            // 1. Cuentas de Roblox vinculadas
+            const { data: remoteLinks, error: errLinks } = await supabase.from('user_links').select('*');
+            if (!errLinks && Array.isArray(remoteLinks)) {
+                let loadedLinks = 0;
+                for (const row of remoteLinks) {
+                    if (row && row.discord_id && row.roblox_user_id) {
+                        const key = String(row.discord_id);
+                        const existing = fastLinkCache.get(key);
+                        if (esRegistroMasReciente(row, existing)) {
+                            fastLinkCache.set(key, { ...existing, ...row });
+                            loadedLinks++;
+                        }
+                    }
+                }
+                guardarLinksEnDisco();
+                if (loadedLinks > 0) {
+                    console.log(`[FAST-LINK] ✅ ${loadedLinks} cuenta(s) de Roblox hidratada(s) desde Supabase.`);
+                }
+            }
+
+            // 2. Sesiones y configuraciones de Discord
+            const { data: remoteConfigs, error: errConfigs } = await supabase.from('discord_configs').select('*');
+            if (!errConfigs && Array.isArray(remoteConfigs)) {
+                let loadedConfigs = 0;
+                for (const row of remoteConfigs) {
+                    if (row && row.discord_id) {
+                        const key = String(row.discord_id);
+                        const existing = discordConfigCache.get(key);
+                        if (esRegistroMasReciente(row, existing)) {
+                            const merged = { ...existing, ...row, discord_id: key };
+                            discordConfigCache.set(key, merged);
+                            loadedConfigs++;
+                            for (const fn of accountChangeListeners) {
+                                try { fn(key, merged); } catch {}
+                            }
+                        }
+                    }
+                }
+                guardarConfigsDiscordEnDisco();
+                if (loadedConfigs > 0) {
+                    console.log(`[FAST-LINK] ✅ ${loadedConfigs} sesión(es) de Discord hidratada(s) desde Supabase.`);
+                }
+            }
+
+            // 3. Historial de actividad de usuarios
+            const { data: remoteHist, error: errHist } = await supabase.from('account_history').select('*');
+            if (!errHist && Array.isArray(remoteHist)) {
+                let loadedHist = 0;
+                for (const row of remoteHist) {
+                    if (row && row.discord_id && Array.isArray(row.events)) {
+                        const key = String(row.discord_id);
+                        if (!accountHistoryCache.has(key) || accountHistoryCache.get(key).length === 0) {
+                            accountHistoryCache.set(key, row.events);
+                            loadedHist++;
+                        }
+                    }
+                }
+                guardarHistorialEnDisco();
+                if (loadedHist > 0) {
+                    console.log(`[FAST-LINK] ✅ ${loadedHist} historial(es) de cuentas hidratado(s) desde Supabase.`);
+                }
+            }
+        } catch (err) {
+            console.warn('[FAST-LINK] Error durante la sincronización inicial con Supabase:', err.message);
+        }
+    })();
+    return supabaseSyncPromise;
+}
+
+/**
  * 1. Carga y guardado de Cuentas de Roblox en disco + snapshot DB
  */
 function cargarLinksDesdeDisco() {
@@ -293,10 +444,11 @@ function guardarHistorialEnDisco() {
     }
 }
 
-// Inicializar las 3 cachés desde disco al arrancar el bot
+// Inicializar las cachés desde disco y sincronizar con Supabase en background
 cargarLinksDesdeDisco();
 cargarConfigsDiscordDesdeDisco();
 cargarHistorialDesdeDisco();
+sincronizarPersistenciaDesdeSupabase().catch(() => {});
 
 // Almacén en memoria de códigos de seguridad pendientes para vincular Roblox por Nombre/ID
 // key (discordId) -> { code, profile, createdAt, expiresAt, dmDelivered, botInboxMessage }
@@ -394,6 +546,7 @@ function registrarEventoHistorialCuenta(discordId, { category = 'account', title
     const updated = [entry, ...existing].slice(0, MAX_HISTORY_EVENTS);
     accountHistoryCache.set(key, updated);
     guardarHistorialEnDisco();
+    persistirHistorialEnSupabase(key, updated).catch(() => {});
     return updated;
 }
 
@@ -837,7 +990,8 @@ function obtenerConfigDiscord(discordId) {
 }
 
 function guardarConfigDiscord(discordId, partialConfig) {
-    const key = String(discordId || '');
+    const key = String(discordId || '').trim();
+    if (!key || key === 'default_session') return { ...partialConfig, discord_id: '' };
     const current = obtenerConfigDiscord(key);
     const updated = {
         ...current,
@@ -847,6 +1001,13 @@ function guardarConfigDiscord(discordId, partialConfig) {
     };
     discordConfigCache.set(key, updated);
     guardarConfigsDiscordEnDisco();
+
+    // Persistir de forma robusta en Supabase para que sobreviva actualizaciones del bot
+    persistirConfigDiscordEnSupabase(key, updated).catch(() => {});
+
+    for (const fn of accountChangeListeners) {
+        try { fn(key, updated); } catch {}
+    }
     return updated;
 }
 
@@ -855,9 +1016,22 @@ function guardarConfigDiscord(discordId, partialConfig) {
  * cuando el bot se actualiza o cuando el access_token temporal caduca.
  */
 async function verificarAutorizacionDiscordOAuth(discordId, { checkRemoteRevocation = false } = {}) {
-    const key = String(discordId || '');
-    if (!key) return obtenerConfigDiscord('');
-    const current = obtenerConfigDiscord(key);
+    const key = String(discordId || '').trim();
+    if (!key || key === 'default_session') return obtenerConfigDiscord('');
+    let current = discordConfigCache.get(key);
+
+    // Si no está en RAM con sesión verificada, consultar Supabase directamente
+    if (!current || !current.oauth_verified) {
+        try {
+            const { data, error } = await supabase.from('discord_configs').select('*').eq('discord_id', key).maybeSingle();
+            if (!error && data && data.discord_id) {
+                current = { ...(current || {}), ...data, discord_id: key };
+                discordConfigCache.set(key, current);
+                guardarConfigsDiscordEnDisco();
+            }
+        } catch {}
+    }
+    if (!current) current = obtenerConfigDiscord(key);
 
     if (!current.oauth_verified) {
         return current;
@@ -912,7 +1086,9 @@ async function guardarCuentaVinculada(discordId, profileData, { recordHistory = 
         discord_id: key,
         roblox_user_id: Number(profileData.roblox_user_id || prev.roblox_user_id || 0),
         roblox_username: String(profileData.roblox_username || prev.roblox_username || ''),
+        display_name: String(profileData.display_name || profileData.roblox_username || prev.display_name || ''),
         avatar_url: profileData.avatar_url || prev.avatar_url || null,
+        auth_method: authMethod,
         updated_at: new Date().toISOString()
     };
 
@@ -972,15 +1148,17 @@ async function eliminarCuentaVinculada(discordId, provider = 'roblox') {
     const key = String(discordId || 'default_session').trim();
     if (provider === 'discord') {
         const current = obtenerConfigDiscord(key);
-        discordConfigCache.set(key, {
+        const disconnected = {
             ...current,
             oauth_verified: false,
             access_token: null,
             refresh_token: null,
             verified_at: null,
             updated_at: new Date().toISOString()
-        });
+        };
+        discordConfigCache.set(key, disconnected);
         guardarConfigsDiscordEnDisco();
+        persistirConfigDiscordEnSupabase(key, disconnected).catch(() => {});
         depurarHistorialSegunCuentasActivas(key);
         return true;
     }
@@ -3592,6 +3770,10 @@ module.exports = {
     obtenerVerificacionRobloxPendiente: obtenerVerificacionPendienteRoblox,
     obtenerConfigDiscord,
     guardarConfigDiscord,
+    persistirConfigDiscordEnSupabase,
+    persistirCuentaVinculadaEnSupabase,
+    persistirHistorialEnSupabase,
+    sincronizarPersistenciaDesdeSupabase,
     verificarAutorizacionDiscordOAuth,
     verificarAutorizacionRobloxOAuth,
     registrarEventoHistorialCuenta,
