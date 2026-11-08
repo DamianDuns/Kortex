@@ -632,6 +632,17 @@ async function procesarInteraccionInterna(interaction) {
         const currentPrefs = obtenerPreferenciasUsuario(uid);
         const isEn = currentPrefs.lang === 'en';
 
+        if (choice === 'prefix_reset_defaults') {
+            const { restaurarPreferenciasUsuarioPorDefecto } = require('../src/utils/i18n');
+            restaurarPreferenciasUsuarioPorDefecto(uid);
+            await interaction.deferUpdate();
+            const feedback = isEn
+                ? '🔄 **Preferences restored to default settings!**'
+                : '🔄 **¡Tus preferencias volvieron a los valores predeterminados!**';
+            const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+            return await interaction.editReply(panel);
+        }
+
         if (choice === 'prefix_modal_custom') {
             const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
             const modal = new ModalBuilder()

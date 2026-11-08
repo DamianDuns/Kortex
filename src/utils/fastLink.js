@@ -2785,9 +2785,9 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         const headerPref = new TextDisplayBuilder().setContent(
             (isEn
                 ? `# 🌐 Language & Preferences\n` +
-                  `🗣️ **Language:** ${langActualBadge}  •  ⚡ **Prefix:** \`${userPrefix}\`  •  🔔 **Alerts:** ${alertsBadge}`
+                  `⚡ **Prefix:** \`${userPrefix}\`  •  🗣️ **Language:** ${langActualBadge}  •  🔔 **Alerts:** ${alertsBadge}  •  ${privacyBadge}`
                 : `# 🌐 Idioma y Preferencias\n` +
-                  `🗣️ **Idioma:** ${langActualBadge}  •  ⚡ **Prefijo:** \`${userPrefix}\`  •  🔔 **Alertas:** ${alertsBadge}`) +
+                  `⚡ **Prefijo:** \`${userPrefix}\`  •  🗣️ **Idioma:** ${langActualBadge}  •  🔔 **Alertas:** ${alertsBadge}  •  ${privacyBadge}`) +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         );
 
@@ -2810,23 +2810,24 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
                 ? `### ⚡ 1. Bot Command Prefix\n` +
-                  `**Active Prefix:** \`${userPrefix}\` — Mentioning \`@Kortex\` always works.\n` +
-                  `-# Choose the prefix to execute bot commands directly in chat.`
+                  `• **Active:** \`${userPrefix}\` — Mentioning \`@Kortex\` is always available\n` +
+                  `-# Choose the prefix to run bot commands directly in chat.`
                 : `### ⚡ 1. Prefijo de Comandos del Bot\n` +
-                  `**Prefijo Activo:** \`${userPrefix}\` — La mención \`@Kortex\` siempre funciona.\n` +
-                  `-# Elegí el prefijo con el que querés ejecutar los comandos del bot en el chat.`
+                  `• **Activo:** \`${userPrefix}\` — La mención \`@Kortex\` siempre está disponible\n` +
+                  `-# Elegí el prefijo para ejecutar comandos del bot en el chat.`
         ));
 
         const prefixOptions = [
             { label: isEn ? '! — Default Prefix' : '! — Prefijo Predeterminado', value: '!', desc: isEn ? 'Use !roblox, !tycoon, !help' : 'Usar !roblox, !tycoon, !help' },
             { label: '? — Question Mark', value: '?', desc: isEn ? 'Use ?roblox, ?tycoon, ?help' : 'Usar ?roblox, ?tycoon, ?help' },
-            { label: '. — Period / Dot', value: '.', desc: isEn ? 'Use .roblox, .tycoon, .help' : 'Usar .roblox, .tycoon, .help' },
+            { label: '. — Period or Dot', value: '.', desc: isEn ? 'Use .roblox, .tycoon, .help' : 'Usar .roblox, .tycoon, .help' },
             { label: 'k! — Kortex Prefix', value: 'k!', desc: isEn ? 'Use k!roblox, k!tycoon, k!help' : 'Usar k!roblox, k!tycoon, k!help' },
             { label: '$ — Dollar Sign', value: '$', desc: isEn ? 'Use $roblox, $tycoon, $help' : 'Usar $roblox, $tycoon, $help' },
-            { label: '- — Hyphen / Dash', value: '-', desc: isEn ? 'Use -roblox, -tycoon, -help' : 'Usar -roblox, -tycoon, -help' },
+            { label: '- — Hyphen or Dash', value: '-', desc: isEn ? 'Use -roblox, -tycoon, -help' : 'Usar -roblox, -tycoon, -help' },
             { label: '+ — Plus Sign', value: '+', desc: isEn ? 'Use +roblox, +tycoon, +help' : 'Usar +roblox, +tycoon, +help' },
             { label: '* — Asterisk', value: '*', desc: isEn ? 'Use *roblox, *tycoon, *help' : 'Usar *roblox, *tycoon, *help' },
-            { label: isEn ? '✏️ Custom Prefix...' : '✏️ Otro Prefijo Personalizado...', value: 'prefix_modal_custom', desc: isEn ? 'Type your own prefix (1 to 5 characters)' : 'Escribí tu propio prefijo (1 a 5 caracteres)' }
+            { label: isEn ? '✏️ Custom Prefix...' : '✏️ Otro Prefijo Personalizado...', value: 'prefix_modal_custom', desc: isEn ? 'Type your own prefix: 1 to 5 characters' : 'Escribí tu propio prefijo: 1 a 5 caracteres' },
+            { label: isEn ? '🔄 Reset to Default Preferences' : '🔄 Restaurar Preferencias por Defecto', value: 'prefix_reset_defaults', desc: isEn ? 'Reset prefix, category, tier, alerts and privacy' : 'Restablecer prefijo, categoría, tier, alertas y privacidad' }
         ];
 
         const isStandardPrefix = ['!', '?', '.', 'k!', '$', '-', '+', '*'].includes(userPrefix);
@@ -2861,12 +2862,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 📂 2. Default Starting Category in \`/roblox\`\n` +
-                  `**Active:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
-                  `-# Choose which category opens first whenever you run \`/roblox\`.`
+                ? `### 📂 2. Default Starting Tab in \`/roblox\`\n` +
+                  `• **Active:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
+                  `-# Choose which category opens when running \`/roblox\`.`
                 : `### 📂 2. Categoría de Inicio en \`/roblox\`\n` +
-                  `**Activa:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
-                  `-# Elegí en cuál de las 4 categorías querés que abra directamente el comando \`/roblox\`.`
+                  `• **Activa:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
+                  `-# Elegí qué pestaña se abre al ejecutar el comando \`/roblox\`.`
         ));
 
         const selectPrefDefaultCat = new StringSelectMenuBuilder()
@@ -2911,12 +2912,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 🌎 3. Default Pricing Region (Regional Tiers)\n` +
-                  `**Active:** ${tierActualLabel}\n` +
-                  `-# Pre-selected automatically in 1.2 Economy Calculator and regional price analyses.`
-                : `### 🌎 3. Región de Precios Predeterminada (Tiers Regionales)\n` +
-                  `**Activa:** ${tierActualLabel}\n` +
-                  `-# Se aplica automáticamente en 1.2 Calculadora de Economía y análisis regionales.`
+                ? `### 🌎 3. Default Pricing Region\n` +
+                  `• **Active:** ${tierActualLabel}\n` +
+                  `-# Regional discount applied in the Economy Calculator.`
+                : `### 🌎 3. Región de Precios Predeterminada\n` +
+                  `• **Activa:** ${tierActualLabel}\n` +
+                  `-# Descuento regional para cálculos en la Calculadora de Economía.`
         ));
 
         const selectPrefTier = new StringSelectMenuBuilder()
@@ -2945,27 +2946,31 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 🔔 4. Language, DM Alerts & Privacy\n` +
-                  `• **🔔 Personal DM Alerts:** ${alertsBadge}\n` +
-                  `• **👁️ Command Visibility:** ${privacyBadge}`
-                : `### 🔔 4. Idioma, Alertas por MD y Privacidad\n` +
-                  `• **🔔 Alertas por MD:** ${alertsBadge}\n` +
-                  `• **👁️ Visibilidad de Comandos:** ${privacyBadge}`
+                ? `### ⚙️ 4. Language, DM Alerts & Privacy\n` +
+                  `• 🗣️ **Language:** ${langActualBadge}\n` +
+                  `• 🔔 **DM Alerts:** ${alertsBadge}\n` +
+                  `• 👁️ **Visibility:** ${privacyBadge}\n` +
+                  `-# Click a button to toggle each setting directly.`
+                : `### ⚙️ 4. Idioma, Alertas y Privacidad\n` +
+                  `• 🗣️ **Idioma:** ${langActualBadge}\n` +
+                  `• 🔔 **Alertas por MD:** ${alertsBadge}\n` +
+                  `• 👁️ **Visibilidad:** ${privacyBadge}\n` +
+                  `-# Pulsá un botón para alternar el ajuste correspondiente.`
         ));
 
         container.addActionRowComponents(
             new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(isEn ? 'btn_pref_lang:es' : 'btn_pref_lang:en')
-                    .setLabel(isEn ? 'Cambiar a Español' : 'Switch to English')
+                    .setLabel(isEn ? 'Español' : 'English')
                     .setEmoji(isEn ? '🇪🇸' : '🇺🇸')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('btn_pref_toggle_alerts')
                     .setLabel(
                         prefs.dm_alerts_enabled !== false
-                            ? (isEn ? 'Alerts: ON' : 'Alertas MD: ON')
-                            : (isEn ? 'Alerts: DND' : 'No Molestar')
+                            ? (isEn ? 'Alerts: ON' : 'Alertas: ON')
+                            : (isEn ? 'Alerts: OFF' : 'Alertas: OFF')
                     )
                     .setEmoji(prefs.dm_alerts_enabled !== false ? '🔔' : '🔕')
                     .setStyle(prefs.dm_alerts_enabled !== false ? ButtonStyle.Success : ButtonStyle.Secondary),
@@ -2977,12 +2982,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                             : (isEn ? 'Mode: Public' : 'Modo: Público')
                     )
                     .setEmoji(prefs.ephemeral_config ? '🔒' : '👁️')
-                    .setStyle(prefs.ephemeral_config ? ButtonStyle.Primary : ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('btn_pref_reset')
-                    .setLabel(isEn ? 'Reset' : 'Restaurar')
-                    .setEmoji('🔄')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(prefs.ephemeral_config ? ButtonStyle.Primary : ButtonStyle.Secondary)
             )
         );
 

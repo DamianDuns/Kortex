@@ -27,15 +27,15 @@ const REGIONAL_TIERS_LIST = [
         discountPct: 0,
         emoji: '🌐',
         label_es: 'Tier 100% — EE.UU., España, Global',
-        desc_es: 'Pagás el 100% del precio base (0% de descuento regional)',
-        full_es: '🌐 Tier 100% — EE.UU., España, Global (0% desc. regional)',
+        desc_es: 'Pagás el 100% del precio base — 0% de descuento regional',
+        full_es: '🌐 Tier 100% — EE.UU., España, Global',
         label_en: 'Tier 100% — US, Spain, Global',
-        desc_en: 'Pay 100% of base price (0% regional discount)',
-        full_en: '🌐 Tier 100% — US, Spain, Global (0% regional discount)',
+        desc_en: 'Pay 100% of base price — 0% regional discount',
+        full_en: '🌐 Tier 100% — US, Spain, Global',
         labelEs: 'Tier 100% — EE.UU., España, Global',
-        descEs: 'Pagás el 100% del precio base (0% de descuento regional)',
+        descEs: 'Pagás el 100% del precio base — 0% de descuento regional',
         labelEn: 'Tier 100% — US, Spain, Global',
-        descEn: 'Pay 100% of base price (0% regional discount)'
+        descEn: 'Pay 100% of base price — 0% regional discount'
     },
     {
         id: 'TIER_80',
@@ -44,15 +44,15 @@ const REGIONAL_TIERS_LIST = [
         discountPct: 20,
         emoji: '🇲🇽',
         label_es: 'Tier 80% — México, Chile, Uruguay',
-        desc_es: 'Pagás el 80% del precio base (20% de descuento regional)',
-        full_es: '🇲🇽 Tier 80% — México, Chile, Uruguay (20% desc. regional)',
+        desc_es: 'Pagás el 80% del precio base — 20% de descuento regional',
+        full_es: '🇲🇽 Tier 80% — México, Chile, Uruguay — 20% desc.',
         label_en: 'Tier 80% — Mexico, Chile, Uruguay',
-        desc_en: 'Pay 80% of base price (20% regional discount)',
-        full_en: '🇲🇽 Tier 80% — Mexico, Chile, Uruguay (20% regional discount)',
+        desc_en: 'Pay 80% of base price — 20% regional discount',
+        full_en: '🇲🇽 Tier 80% — Mexico, Chile, Uruguay — 20% off',
         labelEs: 'Tier 80% — México, Chile, Uruguay',
-        descEs: 'Pagás el 80% del precio base (20% de descuento regional)',
+        descEs: 'Pagás el 80% del precio base — 20% de descuento regional',
         labelEn: 'Tier 80% — Mexico, Chile, Uruguay',
-        descEn: 'Pay 80% of base price (20% regional discount)'
+        descEn: 'Pay 80% of base price — 20% regional discount'
     },
     {
         id: 'TIER_60',
@@ -61,15 +61,15 @@ const REGIONAL_TIERS_LIST = [
         discountPct: 40,
         emoji: '🇦🇷',
         label_es: 'Tier 60% — Argentina, Brasil, Colombia, Perú',
-        desc_es: 'Pagás el 60% del precio base (40% de descuento regional)',
-        full_es: '🇦🇷 Tier 60% — Argentina, Brasil, Colombia, Perú (40% desc. regional)',
+        desc_es: 'Pagás el 60% del precio base — 40% de descuento regional',
+        full_es: '🇦🇷 Tier 60% — Argentina, Brasil, Colombia, Perú — 40% desc.',
         label_en: 'Tier 60% — Argentina, Brazil, Colombia, Peru',
-        desc_en: 'Pay 60% of base price (40% regional discount)',
-        full_en: '🇦🇷 Tier 60% — Argentina, Brazil, Colombia, Peru (40% regional discount)',
+        desc_en: 'Pay 60% of base price — 40% regional discount',
+        full_en: '🇦🇷 Tier 60% — Argentina, Brazil, Colombia, Peru — 40% off',
         labelEs: 'Tier 60% — Argentina, Brasil, Colombia, Perú',
-        descEs: 'Pagás el 60% del precio base (40% de descuento regional)',
+        descEs: 'Pagás el 60% del precio base — 40% de descuento regional',
         labelEn: 'Tier 60% — Argentina, Brazil, Colombia, Peru',
-        descEn: 'Pay 60% of base price (40% regional discount)'
+        descEn: 'Pay 60% of base price — 40% regional discount'
     },
     {
         id: 'TIER_40',
@@ -78,15 +78,15 @@ const REGIONAL_TIERS_LIST = [
         discountPct: 60,
         emoji: '🇻🇪',
         label_es: 'Tier 40% — Venezuela, Bolivia, Paraguay',
-        desc_es: 'Pagás el 40% del precio base (60% de descuento regional)',
-        full_es: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay (60% desc. regional)',
+        desc_es: 'Pagás el 40% del precio base — 60% de descuento regional',
+        full_es: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay — 60% desc.',
         label_en: 'Tier 40% — Venezuela, Bolivia, Paraguay',
-        desc_en: 'Pay 40% of base price (60% regional discount)',
-        full_en: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay (60% regional discount)',
+        desc_en: 'Pay 40% of base price — 60% regional discount',
+        full_en: '🇻🇪 Tier 40% — Venezuela, Bolivia, Paraguay — 60% off',
         labelEs: 'Tier 40% — Venezuela, Bolivia, Paraguay',
-        descEs: 'Pagás el 40% del precio base (60% de descuento regional)',
+        descEs: 'Pagás el 40% del precio base — 60% de descuento regional',
         labelEn: 'Tier 40% — Venezuela, Bolivia, Paraguay',
-        descEn: 'Pay 40% of base price (60% regional discount)'
+        descEn: 'Pay 40% of base price — 60% regional discount'
     }
 ];
 
