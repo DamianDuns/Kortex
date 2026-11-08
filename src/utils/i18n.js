@@ -125,10 +125,14 @@ function obtenerPreferenciasUsuario(userId) {
     const defaultChartRange = validRanges.includes(cfg.default_chart_range) ? cfg.default_chart_range : '7d';
     const validCameras = ['full', 'headshot'];
     const defaultCameraMode = validCameras.includes(cfg.default_camera_mode) ? cfg.default_camera_mode : 'full';
+    const customPrefix = (typeof cfg.custom_prefix === 'string' && cfg.custom_prefix.trim().length > 0)
+        ? cfg.custom_prefix.trim().slice(0, 5)
+        : '!';
 
     return {
         discord_id: key,
         lang,
+        custom_prefix: customPrefix,
         language_selected: Boolean(cfg.language_selected),
         default_tier: defaultTier,
         default_category: defaultCategory,
@@ -238,9 +242,14 @@ function guardarPreferenciasUsuario(userId, partial = {}) {
         ? Boolean(partial.ephemeral_config)
         : current.ephemeral_config;
 
+    const nextPrefix = partial.custom_prefix !== undefined
+        ? (String(partial.custom_prefix).trim().slice(0, 5) || '!')
+        : (current.custom_prefix || '!');
+
     const updated = guardarConfigDiscord(key, {
         lang: nextLang,
         language_selected: partial.language_selected !== undefined ? Boolean(partial.language_selected) : true,
+        custom_prefix: nextPrefix,
         default_tier: nextTier,
         default_category: nextCategory,
         default_chart_range: nextRange,
@@ -258,6 +267,7 @@ function restaurarPreferenciasUsuarioPorDefecto(userId) {
     return guardarPreferenciasUsuario(userId, {
         lang: current.lang,
         language_selected: true,
+        custom_prefix: '!',
         default_tier: 'TIER_100',
         default_category: 'cat_economy',
         default_chart_range: '7d',
