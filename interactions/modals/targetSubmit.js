@@ -17,12 +17,15 @@ const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/robl
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
 const { MAX_WISHLIST_ITEMS } = require('../../src/utils/fastLink');
 const { obtenerConfigPropietario } = require('../../src/utils/performanceManager');
+const { obtenerPreferenciasUsuario } = require('../../src/utils/i18n');
 
 module.exports = {
     customIdPrefix: 'modal_set_target_submit:',
 
     async execute(interaction) {
         await interaction.deferUpdate();
+        const prefs = obtenerPreferenciasUsuario(interaction.user.id);
+        const isEn = (prefs.lang || 'es') === 'en';
         const [, itemType, idObjet] = interaction.customId.split(':');
 
         const rawTarget = interaction.fields.getTextInputValue('input_target_price_val').trim().replace(',', '.');
@@ -155,11 +158,11 @@ module.exports = {
         container.addSeparatorComponents(separador(true));
 
         const rowButtons = new ActionRowBuilder().addComponents(
-            boton(`roblox_chart_${registroGuardado.id}_7d`, 'Ver Gráfica y Check-in', '📈', ButtonStyle.Success),
-            boton(`btn_action_open_config:${registroGuardado.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
-            boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Secondary),
+            boton(`roblox_chart_${registroGuardado.id}_7d`, isEn ? 'View Chart & Status' : 'Ver Gráfica y Estado', '📈', ButtonStyle.Success),
+            boton(`btn_action_open_config:${registroGuardado.id}`, isEn ? 'Configure' : 'Configurar', '⚙️', ButtonStyle.Primary),
+            boton('btn_nav_wishlist', isEn ? 'View Watchlist' : 'Ver Mi Lista', '📋', ButtonStyle.Secondary),
             new ButtonBuilder()
-                .setLabel('Ver en Roblox')
+                .setLabel(isEn ? 'View on Roblox' : 'Ver en Roblox')
                 .setEmoji('🔗')
                 .setStyle(ButtonStyle.Link)
                 .setURL(obtenerUrlRoblox(idObjet, finalType))

@@ -1789,8 +1789,8 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         fitText(
             ctx,
             isEn
-                ? `OUTFIT SANDBOX (2.1)  •  LIVE TRY-ON (${isZoomed ? 'HEAD & NECK ZOOM' : 'FULL BODY'})`
-                : `PROBADOR DE ROPA EN VIVO (2.1)  •  VISTA (${isZoomed ? 'ZOOM CABEZA Y CUELLO' : 'CUERPO COMPLETO'})`,
+                ? `OUTFIT STUDIO & BUDGET (2.1)  •  3D VISOR (${isZoomed ? 'HEAD & NECK ZOOM' : 'FULL BODY'})`
+                : `ESTUDIO DE OUTFITS Y PRESUPUESTO (2.1)  •  VISOR 3D (${isZoomed ? 'ZOOM CABEZA Y CUELLO' : 'CUERPO COMPLETO'})`,
             maxHeaderW
         ),
         22,
@@ -2021,11 +2021,11 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     ctx.font = `bold 10.5px "${FONT_FAMILY}", sans-serif`;
     const statusText = isEn
         ? (customTryOnCount > 0
-            ? `[OK] ${customTryOnCount} trying on${wornCount > 0 ? ` + ${wornCount} worn` : ''}`
-            : (wornCount > 0 ? `[OK] ${wornCount} item(s) equipped` : 'Try on an outfit or accessory below'))
+            ? `[OK] ${customTryOnCount} planned${wornCount > 0 ? ` + ${wornCount} worn` : ''}`
+            : (wornCount > 0 ? `[OK] ${wornCount} item(s) loaded` : 'Base 3D avatar • No items in cart'))
         : (customTryOnCount > 0
-            ? `[OK] ${customTryOnCount} en prueba${wornCount > 0 ? ` + ${wornCount} puesto(s)` : ''}`
-            : (wornCount > 0 ? `[OK] ${wornCount} prenda(s) equipada(s)` : 'Probá un conjunto o accesorio abajo'));
+            ? `[OK] ${customTryOnCount} en presupuesto${wornCount > 0 ? ` + ${wornCount} puesto(s)` : ''}`
+            : (wornCount > 0 ? `[OK] ${wornCount} prenda(s) cargada(s)` : 'Avatar 3D base • Sin prendas en lista'));
     ctx.fillText(fitText(ctx, statusText, vpW - 36), vpX + 18, vpY + vpH - 64);
 
     ctx.fillStyle = '#4ade80';
@@ -2055,7 +2055,7 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     ctx.fillStyle = '#dbdee1';
     ctx.font = `bold 11.5px "${FONT_FAMILY}", sans-serif`;
     ctx.fillText(
-        isEn ? `EQUIPPED SLOTS (${addedItems.length}/5) & COST BREAKDOWN` : `RANURAS EQUIPADAS (${addedItems.length}/5) Y DESGLOSE DE COSTO`,
+        isEn ? `OUTFIT CART (${addedItems.length}/5) & COST BREAKDOWN` : `PRENDAS EN PRESUPUESTO (${addedItems.length}/5) Y DESGLOSE`,
         rightX,
         76
     );
@@ -2071,22 +2071,22 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold 15px "${FONT_FAMILY}", sans-serif`;
         ctx.fillText(
-            isEn ? 'Try on any accessory or clothing on the avatar' : 'Probate cualquier accesorio o ropa sobre el avatar',
+            isEn ? 'Outfit Studio & Budget Breakdown' : 'Estudio de Outfits y Desglose de Presupuesto',
             rightX + 28,
             165
         );
         ctx.fillStyle = '#949ba4';
         ctx.font = `12px "${FONT_FAMILY}", sans-serif`;
         if (isEn) {
-            ctx.fillText('1. Click "+ Try Accessory / Clothing" or "Demo Outfit" below.', rightX + 28, 198);
-            ctx.fillText('2. Click "Worn Clothing" to inspect and quote what this avatar wears.', rightX + 28, 224);
-            ctx.fillText('3. Click "Change Avatar" to test outfits on any Roblox @username.', rightX + 28, 250);
-            ctx.fillText('4. Kortex maps each anatomical slot and charts the cost breakdown.', rightX + 28, 276);
+            ctx.fillText('1. Click "Worn Clothing" to load and quote this avatar\'s current outfit.', rightX + 28, 198);
+            ctx.fillText('2. Click "+ Add Item" or "Demo Outfit" to plan a custom outfit cart.', rightX + 28, 224);
+            ctx.fillText('3. Click "Change Avatar" to inspect any Roblox @username in 3D.', rightX + 28, 250);
+            ctx.fillText('4. Kortex calculates total Robux, 40% method cashback and saves targets.', rightX + 28, 276);
         } else {
-            ctx.fillText('1. Tocá "+ Probar Accesorio / Ropa" o "Conjunto Demo" abajo.', rightX + 28, 198);
-            ctx.fillText('2. Tocá "Ropa Puesta" para cargar y cotizar lo que viste este avatar.', rightX + 28, 224);
-            ctx.fillText('3. Tocá "Cambiar Avatar" para probar ropa sobre cualquier @usuario.', rightX + 28, 250);
-            ctx.fillText('4. Kortex detecta la zona anatómica y grafica el costo del conjunto.', rightX + 28, 276);
+            ctx.fillText('1. Tocá "Ropa del Avatar" para cargar y cotizar su conjunto actual.', rightX + 28, 198);
+            ctx.fillText('2. Tocá "+ Agregar Prenda" o "Conjunto Demo" para armar tu presupuesto.', rightX + 28, 224);
+            ctx.fillText('3. Tocá "Cambiar Avatar" para inspeccionar en 3D a cualquier @usuario.', rightX + 28, 250);
+            ctx.fillText('4. Kortex calcula el total en Robux, cashback del 40% y fija metas.', rightX + 28, 276);
         }
     } else {
         equippedList.forEach((eq, idx) => {

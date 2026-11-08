@@ -531,7 +531,7 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# 🧪 2.1 Probador de Ropa en Vivo • Estudio 3D\n` +
+            `# 🪞 2.1 Estudio de Outfits y Presupuesto 3D\n` +
             `👤 **Avatar:** \`@${state.username}\` • 📷 **Vista:** \`${state.zoomHead ? '🔍 Zoom Cabeza y Cuello' : '🧍 Cuerpo Completo'}\` • 💰 **Total:** ${state.items.length}/${maxSandbox} • ${formatearPrecio(totalNormal)}` +
             (totalNormal > 0 ? ` • Con 40% Cashback: **${formatearPrecio(totalCashback)}**` : '') +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
@@ -558,7 +558,7 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
         }).join('\n');
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### 🛍️ Objetos Equipados en el Maniquí\n${lines}`
+            `### 🛍️ Prendas en el Presupuesto (Estudio 3D)\n${lines}`
         ));
 
         const selectSave = new StringSelectMenuBuilder()
@@ -579,13 +579,13 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
         container.addSeparatorComponents(separador(true));
     } else {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `-# Usá **➕ Probar Prenda** para equipar objetos por nombre o ID, **👤 Cambiar Avatar** para inspeccionar a cualquier jugador de Roblox, **👕 Ropa del Avatar** para cotizar sus prendas o **⚡ Conjunto Demo**.`
+            `-# 💡 El visor 3D muestra el modelo base de Roblox. Usá **👕 Ropa del Avatar** para cotizar sus prendas puestas, **➕ Agregar Prenda** para planificar un conjunto con 40% cashback o **⚡ Conjunto Demo**.`
         ));
         container.addSeparatorComponents(separador(true));
     }
 
     const row1 = new ActionRowBuilder().addComponents(
-        boton('btn_ava_sandbox_add_modal', 'Probar Prenda', '➕', ButtonStyle.Success),
+        boton('btn_ava_sandbox_add_modal', 'Agregar Prenda', '➕', ButtonStyle.Success),
         boton('btn_ava_sandbox_avatar_modal', 'Cambiar Avatar', '👤', ButtonStyle.Primary),
         boton('btn_ava_sandbox_load_worn', 'Ropa del Avatar', '👕', ButtonStyle.Secondary),
         boton('btn_ava_sandbox_demo', 'Conjunto Demo', '⚡', ButtonStyle.Secondary),
@@ -623,7 +623,7 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Probador de Ropa en Vivo • Motor Skia + ECharts')
+        footer('Estudio de Outfits y Presupuesto 3D • Motor Skia + ECharts')
     ));
 
     return {

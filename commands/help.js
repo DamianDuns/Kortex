@@ -40,8 +40,8 @@ const DETALLE_SUBCATEGORIAS_ROBLOX = {
             titulo: '👕 `/roblox` — Categoría 2: Avatares y Estudio 3D/2D',
             color: 0x8B5CF6,
             contenido:
-                '### 🧪 2.1 Probador de Ropa en Vivo\n' +
-                '> Probate hasta 5 objetos en tu avatar o cotizá el precio total de tu conjunto actual.\n\n' +
+                '### 🪞 2.1 Estudio de Outfits y Presupuesto 3D\n' +
+                '> Cotizá la ropa de cualquier avatar, armá presupuestos con cashback del 40% y fijá metas de precio.\n\n' +
                 '### 🔍 2.2 Buscador de Clones y Similares\n' +
                 '> Encontrá alternativas económicas e ítems parecidos en el catálogo.\n\n' +
                 '### 🧬 2.3 Extractor de Texturas y Maniquí 2D\n' +
@@ -109,8 +109,8 @@ const DETALLE_SUBCATEGORIAS_ROBLOX = {
             titulo: '👕 `/roblox` — Category 2: Avatars & 3D/2D Studio',
             color: 0x8B5CF6,
             contenido:
-                '### 🧪 2.1 Live Outfit Sandbox\n' +
-                '> Try up to 5 items on your avatar or price your currently worn outfit.\n\n' +
+                '### 🪞 2.1 3D Outfit Studio & Budget Breakdown\n' +
+                '> Price any avatar outfit, plan custom budgets with 40% cashback, and track item targets.\n\n' +
                 '### 🔍 2.2 Clones & Similar Items Finder\n' +
                 '> Find affordable alternatives and similar items in the catalog.\n\n' +
                 '### 🧬 2.3 Texture Extractor & 2D Mannequin\n' +

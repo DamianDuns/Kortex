@@ -35,7 +35,9 @@ const ETIQUETA_RANGO = {
  * Construye el payload de la Vista 3 (Inspector de Objeto + Gráfica + Botones de Rango debajo de la gráfica).
  */
 async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = null, checkInNotice = null) {
-    const prefRange = item?.user_id ? obtenerPreferenciasUsuario(item.user_id).default_chart_range : '7d';
+    const prefs = item?.user_id ? obtenerPreferenciasUsuario(item.user_id) : { lang: 'es' };
+    const isEn = (prefs.lang || 'es') === 'en';
+    const prefRange = prefs.default_chart_range || '7d';
     const candidateRange = rangeKey || prefRange || '7d';
     const rangoActivo = ['24h', '7d', '30d', 'all'].includes(candidateRange) ? candidateRange : '7d';
 
@@ -198,20 +200,20 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = null
             new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId('select_manage_item')
-                    .setPlaceholder('📈 Elegí otro objeto de tu lista...')
+                    .setPlaceholder(isEn ? '📈 Select another item from your list...' : '📈 Elegí otro objeto de tu lista...')
                     .addOptions(selectOptions)
             )
         );
     }
 
-    // Fila inferior: Check-in Ahora, Configurar, Volver a la lista y Ver en Roblox
+    // Fila inferior: Comprobar Precio, Configurar, Volver a la lista y Ver en Roblox
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton(`btn_action_checkin:${item.id}`, 'Check-in Ahora', '🔄', ButtonStyle.Success),
-            boton(`btn_action_open_config:${item.id}`, 'Configurar', '⚙️', ButtonStyle.Primary),
-            boton('btn_nav_wishlist', 'Volver Atrás', '⬅️', ButtonStyle.Secondary),
+            boton(`btn_action_checkin:${item.id}`, isEn ? 'Check Price' : 'Comprobar Precio', '🔄', ButtonStyle.Success),
+            boton(`btn_action_open_config:${item.id}`, isEn ? 'Configure' : 'Configurar', '⚙️', ButtonStyle.Primary),
+            boton('btn_nav_wishlist', isEn ? 'Go Back' : 'Volver Atrás', '⬅️', ButtonStyle.Secondary),
             new ButtonBuilder()
-                .setLabel('Ver en Roblox')
+                .setLabel(isEn ? 'View on Roblox' : 'Ver en Roblox')
                 .setEmoji('🔗')
                 .setStyle(ButtonStyle.Link)
                 .setURL(obtenerUrlRoblox(item.id_objet, item.item_type))
@@ -219,7 +221,7 @@ async function renderizarVistaGrafica(item, itemsUsuario = null, rangeKey = null
     );
 
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(footer(`Variaciones en historial: ${stats.totalRecords}/500`))
+        new TextDisplayBuilder().setContent(footer(isEn ? `History variations: ${stats.totalRecords}/500` : `Variaciones en historial: ${stats.totalRecords}/500`))
     );
 
     return {

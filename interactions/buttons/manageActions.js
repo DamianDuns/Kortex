@@ -22,6 +22,7 @@ const { obtenerDetallesCompletos, obtenerMiniaturasBatch, obtenerUrlRoblox } = r
 const { enviarAlertaPrueba } = require('../../services/priceTracker');
 const { renderizarVistaGrafica } = require('./chartView');
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio, formatearPrecioTexto } = require('../../utils/ui');
+const { obtenerPreferenciasUsuario } = require('../../src/utils/i18n');
 
 async function ejecutarCheckInObjeto(item) {
     const type = (item.item_type || 'catalog').toLowerCase();
@@ -63,6 +64,8 @@ async function ejecutarCheckInObjeto(item) {
     ).catch(() => null);
 
     const summary = PriceItem.getPriceCheckSummary(updatedItem, priceRecord?.history || null);
+    const prefs = item?.user_id ? obtenerPreferenciasUsuario(item.user_id) : { lang: 'es' };
+    const isEn = (prefs.lang || 'es') === 'en';
     const fmtActual = formatearPrecio(summary.lastPrice, esUSD);
     const fmtOrig = formatearPrecio(summary.firstPrice, esUSD);
 
@@ -70,29 +73,45 @@ async function ejecutarCheckInObjeto(item) {
     if (summary.isTargetMet) {
         const fmtMeta = formatearPrecio(summary.targetPrice, esUSD);
         const ahorroOrigTxt = summary.isBelowOriginal
-            ? ` y está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo** que su precio original (${fmtOrig})`
+            ? (isEn
+                ? ` and is **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) lower** than original price (${fmtOrig})`
+                : ` y está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${summary.pctSavedVsOriginal.toFixed(1).replace('.0', '')}%) más bajo** que su precio original (${fmtOrig})`)
             : '';
         const bajoMetaTxt = summary.belowTargetAmount > 0
-            ? ` *(**-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)}** más barato que tu meta de ${fmtMeta})*`
-            : ` *(alcanzó tu meta de ${fmtMeta})*`;
-        notice = `🎯 **Check-in completado — ¡META ALCANZADA!:** Precio actual verificado en **${fmtActual}**${bajoMetaTxt}${ahorroOrigTxt}.`;
+            ? (isEn
+                ? ` *(**-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)}** cheaper than your ${fmtMeta} target)*`
+                : ` *(**-${formatearPrecioTexto(summary.belowTargetAmount, esUSD)}** más barato que tu meta de ${fmtMeta})*`)
+            : (isEn ? ` *(reached your ${fmtMeta} target)*` : ` *(alcanzó tu meta de ${fmtMeta})*`);
+        notice = isEn
+            ? `🎯 **Price check completed — TARGET MET!:** Current price verified at **${fmtActual}**${bajoMetaTxt}${ahorroOrigTxt}.`
+            : `🎯 **Comprobación completada — ¡META ALCANZADA!:** Precio actual verificado en **${fmtActual}**${bajoMetaTxt}${ahorroOrigTxt}.`;
     } else if (summary.isBelowOriginal) {
         const pctStr = summary.pctSavedVsOriginal.toFixed(1).replace('.0', '');
         const faltaMeta = summary.hasTarget
-            ? ` • Faltan **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** para tu meta (${formatearPrecio(summary.targetPrice, esUSD)})`
+            ? (isEn
+                ? ` • **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** remaining to your target (${formatearPrecio(summary.targetPrice, esUSD)})`
+                : ` • Faltan **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** para tu meta (${formatearPrecio(summary.targetPrice, esUSD)})`)
             : '';
-        notice = `📉 **Check-in completado:** Precio verificado en **${fmtActual}** — está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${pctStr}%) más bajo** que el precio original (${fmtOrig})${faltaMeta}.`;
+        notice = isEn
+            ? `📉 **Price check completed:** Price verified at **${fmtActual}** — it is **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${pctStr}%) lower** than original price (${fmtOrig})${faltaMeta}.`
+            : `📉 **Comprobación completada:** Precio verificado en **${fmtActual}** — está **-${formatearPrecioTexto(summary.savedVsOriginal, esUSD)} (-${pctStr}%) más bajo** que el precio original (${fmtOrig})${faltaMeta}.`;
     } else {
         const faltaMeta = summary.hasTarget
-            ? ` • Faltan **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** para tu meta (${formatearPrecio(summary.targetPrice, esUSD)})`
+            ? (isEn
+                ? ` • **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** remaining to your target (${formatearPrecio(summary.targetPrice, esUSD)})`
+                : ` • Faltan **${formatearPrecioTexto(summary.remainingToTarget, esUSD)}** para tu meta (${formatearPrecio(summary.targetPrice, esUSD)})`)
             : '';
-        notice = `🔄 **Check-in completado:** Precio verificado en **${fmtActual}** (Precio original: ${fmtOrig})${faltaMeta}.`;
+        notice = isEn
+            ? `🔄 **Price check completed:** Price verified at **${fmtActual}** (Original price: ${fmtOrig})${faltaMeta}.`
+            : `🔄 **Comprobación completada:** Precio verificado en **${fmtActual}** (Precio original: ${fmtOrig})${faltaMeta}.`;
     }
 
     return { updatedItem, summary, notice };
 }
 
 async function renderizarPanelConfig(item, checkInFeedback = null) {
+    const prefs = item?.user_id ? obtenerPreferenciasUsuario(item.user_id) : { lang: 'es' };
+    const isEn = (prefs.lang || 'es') === 'en';
     const [miniaturas, priceRecord] = await Promise.all([
         obtenerMiniaturasBatch([item]).catch(() => new Map()),
         PriceItem.getOrInitItem(item).catch(() => null)
@@ -167,7 +186,7 @@ async function renderizarPanelConfig(item, checkInFeedback = null) {
     container.addSeparatorComponents(separador(true));
 
     const rowButtons = new ActionRowBuilder().addComponents(
-        boton(`btn_action_checkin:${item.id}:config`, 'Check-in', '🔄', ButtonStyle.Success),
+        boton(`btn_action_checkin:${item.id}:config`, isEn ? 'Check Price' : 'Comprobar Precio', '🔄', ButtonStyle.Success),
         boton(`btn_action_edit_target:${item.id}:${item.item_type}:${item.id_objet}`, tieneMeta ? 'Editar Meta' : 'Fijar Meta', '✏️', ButtonStyle.Primary),
         boton(`btn_action_toggle_pause:${item.id}`, labelPausa, emojiPausa, stylePausa),
         boton(`btn_action_test_alert:${item.id}`, 'Probar Alerta', '🔔', ButtonStyle.Secondary),

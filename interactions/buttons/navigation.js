@@ -89,12 +89,12 @@ const DEFINICION_CATEGORIAS = {
         descripcion_en: 'Outfit try-on, similar items finder, 2D templates, 3D models, and color matching.',
         herramientas: [
             {
-                titulo: '### 🧪 2.1 Probador de Ropa en Vivo',
-                titulo_en: '### 🧪 2.1 Live Outfit Sandbox',
-                desc: 'Probate hasta 5 objetos en tu avatar o cotizá tu conjunto actual.',
-                desc_en: 'Try up to 5 items on your avatar or price your current outfit.',
+                titulo: '### 🪞 2.1 Estudio de Outfits y Presupuesto 3D',
+                titulo_en: '### 🪞 2.1 3D Outfit Studio & Budget Breakdown',
+                desc: 'Cotizá la ropa de cualquier avatar, armá presupuestos con cashback del 40% y fijá metas.',
+                desc_en: 'Price any avatar outfit, plan budgets with 40% cashback and track item targets.',
                 btnId: 'btn_ava_sandbox',
-                emoji: '🧪',
+                emoji: '🪞',
                 style: ButtonStyle.Primary
             },
             {
@@ -274,21 +274,31 @@ function construirMenuPrincipal(userId, categoryKey = null, feedbackMsg = null) 
 
     const container = new ContainerBuilder().setAccentColor(cat.color);
 
-    const fastLinkLine = cuentaVinculada
-        ? (isEn
-            ? `\n-# 🎮 **Account:** \`@${cuentaVinculada.roblox_username}\``
-            : `\n-# 🎮 **Cuenta:** \`@${cuentaVinculada.roblox_username}\``)
-        : (isEn
-            ? '\n-# 🎮 *No linked Roblox account*'
-            : '\n-# 🎮 *Sin cuenta de Roblox vinculada*');
+    const avatarUrl = cuentaVinculada?.avatar_url;
+    const cuentaBadge = cuentaVinculada
+        ? (isEn ? `🎮 **Account:** \`@${cuentaVinculada.roblox_username}\`` : `🎮 **Cuenta:** \`@${cuentaVinculada.roblox_username}\``)
+        : (isEn ? '🎮 **Account:** *No linked account*' : '🎮 **Cuenta:** *Sin cuenta vinculada*');
+    const langBadge = isEn ? '🌐 **Language:** English' : '🌐 **Idioma:** Español';
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+    const headerText = new TextDisplayBuilder().setContent(
         (isEn ? '# ⚡ Roblox Toolkit — Kortex\n' : '# ⚡ Herramientas de Roblox — Kortex\n') +
-        `**${isEn ? cat.titulo_en : cat.titulo}**\n` +
-        `${isEn ? cat.descripcion_en : cat.descripcion}` +
-        fastLinkLine +
+        `• ${cuentaBadge} • ${langBadge}\n\n` +
+        `### ${isEn ? cat.titulo_en : cat.titulo}\n` +
+        `> ${isEn ? cat.descripcion_en : cat.descripcion}` +
         (feedbackMsg ? `\n\n> ✅ ${feedbackMsg}` : '')
-    ));
+    );
+
+    if (avatarUrl && /^https?:\/\//i.test(String(avatarUrl))) {
+        container.addSectionComponents(
+            new SectionBuilder()
+                .addTextDisplayComponents(headerText)
+                .setThumbnailAccessory(thumb => thumb.setURL(String(avatarUrl)))
+        );
+    } else {
+        container.addTextDisplayComponents(headerText);
+    }
+
+    container.addSeparatorComponents(separador(true));
 
     // Selector de las 3 grandes categorías (customId: 'roblox_category_select')
     const selectCategoria = new StringSelectMenuBuilder()
@@ -531,7 +541,7 @@ async function construirLista(items, miniaturas, lang = null) {
     if (metasCompletadas > 0) {
         resumenSuperior = isEn
             ? `\n> 🎯 **${metasCompletadas} item(s) reached your TARGET GOAL!** Select an item below to inspect its chart & savings.`
-            : `\n> 🎯 **¡Tenés ${metasCompletadas} objeto(s) con la META COMPLETADA!** Elegí un objeto abajo para ver su check-in y gráfica.`;
+            : `\n> 🎯 **¡Tenés ${metasCompletadas} objeto(s) con la META COMPLETADA!** Elegí un objeto abajo para ver su estado y gráfica.`;
     } else if (bajoOriginalCount > 0) {
         resumenSuperior = isEn
             ? `\n> 📉 **${bajoOriginalCount} item(s) are currently below their original price!**`
@@ -658,8 +668,8 @@ async function construirLista(items, miniaturas, lang = null) {
                 .setCustomId('select_manage_item')
                 .setPlaceholder(
                     isEn
-                        ? '⚙️ Select an item to view its chart, check-in, or configure alerts...'
-                        : '⚙️ Elegí un objeto para ver su gráfica, check-in o configurar alertas...'
+                        ? '⚙️ Select an item to view its chart or configure alerts...'
+                        : '⚙️ Elegí un objeto para ver su gráfica o configurar alertas...'
                 )
                 .addOptions(selectOptions)
         )
@@ -670,7 +680,7 @@ async function construirLista(items, miniaturas, lang = null) {
         botonesNav.push(boton('btn_quick_sniper', isEn ? 'Add Item' : 'Añadir Objeto', '➕', ButtonStyle.Primary));
     }
     botonesNav.push(
-        boton('btn_nav_wishlist', isEn ? 'Check-in / Refresh' : 'Check-in / Actualizar', '🔄', ButtonStyle.Success),
+        boton('btn_nav_wishlist', isEn ? 'Refresh Prices' : 'Actualizar Precios', '🔄', ButtonStyle.Success),
         boton('btn_nav_sniper', isEn ? 'Go Back' : 'Volver Atrás', '⬅️')
     );
     container.addActionRowComponents(new ActionRowBuilder().addComponents(botonesNav));
