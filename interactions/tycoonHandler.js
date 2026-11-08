@@ -136,8 +136,9 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         return construirPanelAvisoModeracion({
             titulo: isEn ? '⏸️ /tycoon Temporarily Paused' : '⏸️ /tycoon Pausado Temporalmente',
             descripcion: isEn
-                ? 'The bot owner temporarily paused the **/tycoon** module from `/config`. Please try again soon.'
-                : 'El propietario del bot pausó temporalmente el módulo **/tycoon** desde `/config`. Intentá nuevamente en unos minutos.'
+                ? 'The **/tycoon** module is temporarily paused. Please try again in a few minutes.'
+                : 'El módulo **/tycoon** se encuentra pausado temporalmente. Intentá nuevamente en unos minutos.',
+            includeBackButton: false
         });
     }
 
