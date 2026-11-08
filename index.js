@@ -304,7 +304,7 @@ function renderOAuthCallbackPage({ ok, title, subtitle, payload }) {
   <div class="card">
     <h1>${title}</h1>
     <p>${subtitle}</p>
-    <a class="btn" href="/" onclick="if(window.opener){window.close();return false;}">Volver a Kortex</a>
+    <a class="btn" href="https://damianduns.github.io/Kortex/" onclick="if(window.opener){window.close();return false;}">Volver a Kortex</a>
   </div>
   <script>
     (function() {
@@ -601,262 +601,14 @@ const server = http.createServer(async (req, res) => {
             }));
         }
 
-        if (pathname === '/privacy' || pathname === '/terms') {
-            const isPrivacy = pathname === '/privacy';
-            const pageTitle = isPrivacy ? 'Política de Privacidad — Kortex' : 'Términos de Servicio — Kortex';
-            const htmlLegal = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${pageTitle}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-base: #090B10;
-            --bg-surface: #11141D;
-            --bg-elevated: #171B26;
-            --border-subtle: #222736;
-            --border-hover: #36405A;
-            --text-primary: #F3F5F9;
-            --text-secondary: #9CA5B8;
-            --text-muted: #687287;
-            --brand-blurple: #5865F2;
-            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
+        if (pathname === '/privacy') {
+            res.writeHead(302, { 'Location': 'https://damianduns.github.io/Kortex/privacy.html' });
+            return res.end();
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            min-height: 100vh;
-            background-color: var(--bg-base);
-            color: var(--text-primary);
-            font-family: var(--font-sans);
-            line-height: 1.65;
-            background-image: radial-gradient(circle at 18% 8%, rgba(88, 101, 242, 0.1), transparent 35%);
-        }
-        .topbar {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(16px);
-            background: rgba(13, 16, 23, 0.9);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-        .topbar-inner {
-            max-width: 1040px;
-            margin: 0 auto;
-            padding: 0.85rem 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1.5rem;
-        }
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.65rem;
-            text-decoration: none;
-            color: var(--text-primary);
-            font-weight: 800;
-            font-size: 1.1rem;
-        }
-        .brand-mark {
-            width: 30px;
-            height: 30px;
-            border-radius: 7px;
-            background: var(--brand-blurple);
-            display: grid;
-            place-items: center;
-            color: #fff;
-            font-weight: 800;
-            font-size: 0.9rem;
-        }
-        .legal-switch {
-            display: inline-flex;
-            gap: 0.35rem;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            padding: 0.25rem;
-            border-radius: 8px;
-        }
-        .legal-switch a {
-            text-decoration: none;
-            font-size: 0.82rem;
-            font-weight: 600;
-            padding: 0.38rem 0.85rem;
-            border-radius: 6px;
-            color: var(--text-secondary);
-            transition: all 0.15s ease;
-        }
-        .legal-switch a.active {
-            background: var(--bg-elevated);
-            color: var(--text-primary);
-        }
-        .back-btn {
-            text-decoration: none;
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-subtle);
-            padding: 0.45rem 0.9rem;
-            border-radius: 8px;
-            transition: border-color 0.15s ease;
-        }
-        .back-btn:hover { border-color: var(--border-hover); }
-        .container {
-            max-width: 860px;
-            margin: 0 auto;
-            padding: 3rem 1.5rem 5rem;
-        }
-        .doc-kicker {
-            font-family: var(--font-mono);
-            font-size: 0.76rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-        }
-        h1 {
-            font-size: clamp(1.85rem, 3vw, 2.5rem);
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 0.75rem;
-        }
-        .lead {
-            color: var(--text-secondary);
-            font-size: 1rem;
-            margin-bottom: 2.25rem;
-            padding-bottom: 1.75rem;
-            border-bottom: 1px solid var(--border-subtle);
-        }
-        .clauses {
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }
-        .clause-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: 12px;
-            padding: 1.4rem 1.5rem;
-        }
-        .clause-num {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            display: block;
-        }
-        .clause-card h2 {
-            font-size: 1.08rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-        }
-        .clause-card p {
-            color: var(--text-secondary);
-            font-size: 0.92rem;
-        }
-        footer {
-            margin-top: 3.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--border-subtle);
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-            font-size: 0.82rem;
-            color: var(--text-muted);
-        }
-        footer a { color: var(--text-secondary); text-decoration: none; }
-        footer a:hover { color: var(--text-primary); }
-    </style>
-</head>
-<body>
-    <header class="topbar">
-        <div class="topbar-inner">
-            <a href="/" class="brand">
-                <span class="brand-mark">K</span>
-                <span>Kortex</span>
-            </a>
-            <nav class="legal-switch">
-                <a href="/privacy" class="${isPrivacy ? 'active' : ''}">Política de Privacidad</a>
-                <a href="/terms" class="${!isPrivacy ? 'active' : ''}">Términos de Servicio</a>
-            </nav>
-            <a href="/" class="back-btn">Volver a la Documentación</a>
-        </div>
-    </header>
 
-    <main class="container">
-        <div class="doc-kicker">DOCUMENTACIÓN LEGAL OFICIAL · KORTEX</div>
-        <h1>${isPrivacy ? 'Política de Privacidad' : 'Términos de Servicio'}</h1>
-        <p class="lead">
-            ${isPrivacy
-                ? 'Explicación clara y transparente sobre qué información básica se procesa al usar los comandos públicos del bot o al iniciar sesión voluntariamente con tus cuentas de Discord y Roblox.'
-                : 'Condiciones de uso de los comandos interactivos, herramientas de consulta y sistemas opcionales de conexión de cuentas de Kortex en Discord.'}
-        </p>
-
-        <div class="clauses">
-            ${isPrivacy ? `
-            <article class="clause-card">
-                <span class="clause-num">SECCIÓN 01</span>
-                <h2>Uso sin Registro vs. Funciones con Cuenta Conectada</h2>
-                <p>Podés consultar las herramientas generales de Kortex en Discord sin necesidad de iniciar sesión ni vincular cuentas. El inicio de sesión únicamente se solicita cuando deseás desbloquear funciones que dependen de tu perfil personal (como guardar listas de seguimiento, recibir alertas automáticas por Discord o cargar tu propio avatar de Roblox).</p>
-            </article>
-            <article class="clause-card">
-                <span class="clause-num">SECCIÓN 02</span>
-                <h2>Alcance de la Autorización con Discord y Roblox (OAuth 2.0)</h2>
-                <p>Cuando iniciás sesión voluntariamente mediante Discord OAuth 2.0 (ámbitos <code>openid</code> e <code>identify</code>) o Roblox OAuth 2.0 (ámbitos <code>openid</code> y <code>profile</code>), Kortex únicamente lee tu identificador público, nombre de usuario y miniatura de avatar. Nunca accedemos a contraseñas, correos privados, mensajes privados de terceros ni métodos de pago.</p>
-            </article>
-            <article class="clause-card">
-                <span class="clause-num">SECCIÓN 03</span>
-                <h2>Listas de Seguimiento, Códigos y Alertas Automáticas</h2>
-                <p>Los objetos que agregás a tu lista de monitoreo de precios, tus lotes agendados de Robux pendientes, tu progreso de códigos canjeados y tus suscripciones a actualizaciones de juegos se almacenan asociados a tu identificador de usuario únicamente para enviarte los avisos que configuraste.</p>
-            </article>
-            <article class="clause-card">
-                <span class="clause-num">SECCIÓN 04</span>
-                <h2>Revocación de Permisos y Desvinculación Automática</h2>
-                <p>En cualquier momento podés retirar la autorización desde <em>Configuración → Permisos de la aplicación / Aplicaciones Autorizadas</em> en Discord o desde <em>Configuración → Permisos de la aplicación</em> en tu cuenta de Roblox (donde está alojado el bot y sus permisos). El bot detecta automáticamente la revocación del permiso y limpia el estado de conexión sin requerir pasos adicionales.</p>
-            </article>
-            ` : `
-            <article class="clause-card">
-                <span class="clause-num">CLÁUSULA 01</span>
-                <h2>Propósito del Bot y Disponibilidad de Herramientas</h2>
-                <p>Kortex proporciona comandos interactivos en Discord (<code>/roblox</code>, <code>/config</code>, <code>/help</code> y <code>/ping</code>) junto con 15 utilidades de consulta económica, taller de avatares 3D/2D y buscadores de experiencias de Roblox. Las herramientas de consulta general están abiertas a todos los usuarios.</p>
-            </article>
-            <article class="clause-card">
-                <span class="clause-num">CLÁUSULA 02</span>
-                <h2>Desbloqueo Funcional de Herramientas Personales</h2>
-                <p>Algunas mecánicas específicas requieren iniciar sesión para poder cumplir su función técnica sin errores: las funciones que envían alertas automáticas o guardan listas personales requieren iniciar sesión con tu Cuenta de Discord, y las funciones que importan o cotizan tu personaje requieren vincular tu Cuenta de Roblox.</p>
-            </article>
-            <article class="clause-card">
-                <span class="clause-num">CLÁUSULA 03</span>
-                <h2>Uso Adecuado de Paneles Interactivos</h2>
-                <p>Cada panel interactivo abierto en un servidor de Discord está protegido para que únicamente el autor que ejecutó el comando pueda operar sus botones y menús desplegables. Se prohíbe el uso automatizado masivo (spam) que busque degradar la velocidad de respuesta del servicio.</p>
-            </article>
-            <article class="clause-card">
-                <span class="clause-num">CLÁUSULA 04</span>
-                <h2>Independencia de Plataformas Oficiales</h2>
-                <p>Kortex utiliza las APIs públicas y los sistemas oficiales de autorización OAuth 2.0 de Discord y Roblox conforme a sus directrices para desarrolladores. Los precios del catálogo y el estado de los servidores reflejan la información pública reportada en tiempo real por Roblox.</p>
-            </article>
-            `}
-        </div>
-
-        <footer>
-            <span>Kortex — Documentación Oficial del Bot</span>
-            <div style="display: flex; gap: 1.25rem;">
-                <a href="/">Inicio</a>
-                <a href="/privacy">Política de Privacidad</a>
-                <a href="/terms">Términos de Servicio</a>
-            </div>
-        </footer>
-    </main>
-</body>
-</html>`;
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            return res.end(htmlLegal);
+        if (pathname === '/terms') {
+            res.writeHead(302, { 'Location': 'https://damianduns.github.io/Kortex/terms.html' });
+            return res.end();
         }
 
         // ==========================================================
@@ -1619,15 +1371,20 @@ const server = http.createServer(async (req, res) => {
             return res.end(pngBuffer);
         }
 
-        // Servir docs/index.html por defecto
-        if (fs.existsSync(DOCS_HTML_PATH)) {
-            const html = fs.readFileSync(DOCS_HTML_PATH, 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            return res.end(html);
+        // Redirigir la navegación web hacia la web oficial unificada en GitHub Pages
+        if (pathname === '/' || pathname === '/docs' || pathname === '/index.html' || pathname === '/app') {
+            res.writeHead(302, { 'Location': 'https://damianduns.github.io/Kortex/' });
+            return res.end();
         }
 
-        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Kortex v2.0 Server Online');
+        // Si la ruta no pertenece a APIs o OAuth, redirigir a GitHub Pages
+        if (!pathname.startsWith('/api/') && !pathname.startsWith('/auth/')) {
+            res.writeHead(302, { 'Location': 'https://damianduns.github.io/Kortex/' });
+            return res.end();
+        }
+
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Endpoint not found' }));
     } catch (err) {
         res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end(`Internal Server Error: ${err.message}`);
