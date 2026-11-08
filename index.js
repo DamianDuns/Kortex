@@ -6,7 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes } = require('discord.js');
 require('dotenv').config();
 const logger = require('./utils/logger');
 const supabase = require('./db');
@@ -54,7 +54,12 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.MessageContent
+    ],
+    partials: [
+        Partials.Channel,
+        Partials.Message
     ]
 });
 

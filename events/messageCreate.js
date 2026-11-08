@@ -4,6 +4,7 @@
 // ==========================================
 
 const { Events } = require('discord.js');
+const logger = require('../utils/logger');
 const { construirMenuPrincipal } = require('../interactions/buttons/navigation');
 const { construirPanelPing } = require('../commands/ping');
 const { construirPanelHelp } = require('../commands/help');
@@ -38,18 +39,21 @@ module.exports = {
 
         // Obtener preferencias y prefijo personalizado (default '!')
         const prefs = obtenerPreferenciasUsuario(userId);
-        const userPrefix = (prefs && prefs.custom_prefix) ? prefs.custom_prefix : '!';
+        const userPrefix = (prefs && prefs.custom_prefix) ? String(prefs.custom_prefix).trim() : '!';
 
         // Detectar si el mensaje usa mención directa al bot (@Kortex ...)
         const botMentionRegex = new RegExp(`^<@!?${clientUser.id}>(?:\\s+)?`, 'i');
         const empiezaConMencion = botMentionRegex.test(rawContent);
 
         let commandBody = null;
+        const rawLower = rawContent.toLowerCase();
+        const prefixLower = userPrefix.toLowerCase();
+
         if (empiezaConMencion) {
             commandBody = rawContent.replace(botMentionRegex, '').trim();
-        } else if (rawContent.startsWith(userPrefix)) {
+        } else if (rawLower.startsWith(prefixLower)) {
             commandBody = rawContent.slice(userPrefix.length).trim();
-        } else if (userPrefix !== '!' && rawContent.startsWith('!')) {
+        } else if (userPrefix !== '!' && rawLower.startsWith('!')) {
             // Fallback universal '!' para que nunca quede bloqueado si olvida su prefijo
             commandBody = rawContent.slice(1).trim();
         }
@@ -59,63 +63,69 @@ module.exports = {
             return;
         }
 
-        return await ejecutarConContextoIdioma(userId, async () => {
-            // Modo Mantenimiento activado por el propietario
-            const ownerCfg = obtenerConfigPropietario();
-            if (ownerCfg.maintenanceMode) {
-                const esOwner = await esPropietarioDelBot(userId, message.client);
-                if (!esOwner) {
-                    return await message.reply(traducirPayloadDiscord(construirPanelAvisoModeracion({
-                        titulo: '🛠️ Mantenimiento Temporal',
-                        descripcion: 'El bot se encuentra en mantenimiento temporalmente. Intentá nuevamente en unos minutos.',
-                        includeBackButton: false
-                    }), lang));
+        try {
+            return await ejecutarConContextoIdioma(userId, async () => {
+                // Modo Mantenimiento activado por el propietario
+                const ownerCfg = obtenerConfigPropietario();
+                if (ownerCfg.maintenanceMode) {
+                    const esOwner = await esPropietarioDelBot(userId, message.client);
+                    if (!esOwner) {
+                        return await message.reply(traducirPayloadDiscord(construirPanelAvisoModeracion({
+                            titulo: '🛠️ Mantenimiento Temporal',
+                            descripcion: 'El bot se encuentra en mantenimiento temporalmente. Intentá nuevamente en unos minutos.',
+                            includeBackButton: false
+                        }), lang));
+                    }
                 }
-            }
 
-            const tokens = commandBody.split(/\s+/);
-            const cmd = (tokens[0] || '').toLowerCase();
+                const tokens = commandBody.split(/\s+/);
+                const cmd = (tokens[0] || '').toLowerCase();
 
-            // Si es la primera vez que interactúa, solicitar idioma
-            if (!haSeleccionadoIdioma(userId)) {
-                return await message.reply(construirPanelSeleccionIdiomaInicial(userId, cmd || 'roblox'));
-            }
+                // Si es la primera vez que interactúa, solicitar idioma
+                if (!haSeleccionadoIdioma(userId)) {
+                    return await message.reply(construirPanelSeleccionIdiomaInicial(userId, cmd || 'roblox'));
+                }
 
-            // 1. Comando /config (o !config, @Kortex config, !prefijo)
-            if (cmd === 'config' || cmd === 'configuracion' || cmd === 'settings' || cmd === 'prefijo' || cmd === 'prefix') {
-                const targetCat = (cmd === 'prefijo' || cmd === 'prefix') ? 'cat_preferences' : 'cat_accounts';
-                const panel = await construirPanelConfigDiscord(message.author, null, targetCat, message.client);
-                return await message.reply(traducirPayloadDiscord(panel, lang));
-            }
+                logger.info(`[PREFIX] Comando '${cmd || 'hub'}' solicitado por ${message.author.tag} (${userId})`);
 
-            // 2. Comando /tycoon (o !tycoon, @Kortex tycoon)
-            if (cmd === 'tycoon' || cmd === 'estudio' || cmd === 'studio') {
-                const panel = await construirPanelTycoon(message.author, 'sec_studio', null);
-                return await message.reply(panel);
-            }
+                // 1. Comando /config (o !config, @Kortex config, !prefijo, !c)
+                if (cmd === 'config' || cmd === 'configuracion' || cmd === 'settings' || cmd === 'prefijo' || cmd === 'prefix' || cmd === 'c') {
+                    const targetCat = (cmd === 'prefijo' || cmd === 'prefix') ? 'cat_preferences' : 'cat_accounts';
+                    const panel = await construirPanelConfigDiscord(message.author, null, targetCat, message.client);
+                    return await message.reply(traducirPayloadDiscord(panel, lang));
+                }
 
-            // 3. Comando /ping (o !ping, @Kortex ping)
-            if (cmd === 'ping' || cmd === 'latencia' || cmd === 'ms') {
-                const latencia = Math.max(0, Date.now() - message.createdTimestamp);
-                return await message.reply(construirPanelPing(message.client, latencia, lang));
-            }
+                // 2. Comando /tycoon (o !tycoon, @Kortex tycoon, !t)
+                if (cmd === 'tycoon' || cmd === 'estudio' || cmd === 'studio' || cmd === 't') {
+                    const panel = await construirPanelTycoon(message.author, 'sec_studio', null);
+                    return await message.reply(panel);
+                }
 
-            // 4. Comando /help (o !help, !ayuda, @Kortex help)
-            if (cmd === 'help' || cmd === 'ayuda' || cmd === 'guia') {
-                return await message.reply(construirPanelHelp('cmd_overview', 'sub_economy', lang));
-            }
+                // 3. Comando /ping (o !ping, @Kortex ping, !p)
+                if (cmd === 'ping' || cmd === 'latencia' || cmd === 'ms' || cmd === 'p') {
+                    const latencia = Math.max(0, Date.now() - message.createdTimestamp);
+                    return await message.reply(construirPanelPing(message.client, latencia, lang));
+                }
 
-            // 5. Comando /roblox o mención directa sola (@Kortex o !roblox)
-            if (cmd === '' || cmd === 'roblox' || cmd === 'menu' || cmd === 'hub' || cmd === 'inicio') {
+                // 4. Comando /help (o !help, !ayuda, @Kortex help, !h)
+                if (cmd === 'help' || cmd === 'ayuda' || cmd === 'guia' || cmd === 'h') {
+                    return await message.reply(construirPanelHelp('cmd_overview', 'sub_economy', lang));
+                }
+
+                // 5. Comando /roblox o mención directa sola (@Kortex o !roblox, !rblx, !)
+                if (cmd === '' || cmd === 'roblox' || cmd === 'menu' || cmd === 'hub' || cmd === 'inicio' || cmd === 'rblx' || cmd === 'r') {
+                    await obtenerCuentaVinculada(userId).catch(() => null);
+                    const hub = construirMenuPrincipal(userId);
+                    return await message.reply(traducirPayloadDiscord(hub, lang));
+                }
+
+                // Si se envió un comando desconocido con prefijo o mención, abrir Action Hub principal
                 await obtenerCuentaVinculada(userId).catch(() => null);
                 const hub = construirMenuPrincipal(userId);
                 return await message.reply(traducirPayloadDiscord(hub, lang));
-            }
-
-            // Si se envió un comando desconocido con prefijo o mención, abrir Action Hub principal
-            await obtenerCuentaVinculada(userId).catch(() => null);
-            const hub = construirMenuPrincipal(userId);
-            return await message.reply(traducirPayloadDiscord(hub, lang));
-        });
+            });
+        } catch (err) {
+            logger.error(`[PREFIX] Error al procesar mensaje con prefijo de ${message.author?.tag || userId}:`, err);
+        }
     }
 };
