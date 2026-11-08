@@ -976,8 +976,8 @@ async function procesarInteraccionInterna(interaction) {
         const savedCfg = await activarSesionDiscordDirecta(interaction.user);
         const newChallenge = generarCodigoVinculacionDiscord(uid, interaction.user, { forceNew: true });
         const msg = isEn
-            ? `⚡ **Discord Account Active & Web Code Generated in \`/config\`:** Connected as **@${savedCfg?.discord_username || interaction.user.username}** (ID \`${uid}\`). Your code to link on the web is **\`${newChallenge?.code}\`** *(no DM spam)*.`
-            : `⚡ **Cuenta de Discord Activa y Código Alojado en \`/config\`:** Conectada como **@${savedCfg?.discord_username || interaction.user.username}** (ID \`${uid}\`). Tu código para conectar tu ID en la web es **\`${newChallenge?.code}\`** *(sin enviar MDs)*.`;
+            ? `🔑 **Web login code updated:** ||\`${newChallenge?.code}\`||`
+            : `🔑 **Código para iniciar sesión en la Web renovado:** ||\`${newChallenge?.code}\`||`;
         const panel = await construirPanelConfigDiscord(interaction.user, msg, 'cat_accounts', interaction.client);
         return await interaction.editReply(panel);
     }
@@ -1004,17 +1004,17 @@ async function procesarInteraccionInterna(interaction) {
         ]);
         const estadoDisc = updatedCfg?.oauth_verified
             ? (isEn
-                ? `🟢 **Connected** (\`@${updatedCfg.discord_username || interaction.user.username}\`)`
-                : `🟢 **Conectada** (\`@${updatedCfg.discord_username || interaction.user.username}\`)`)
-            : (isEn ? `🔴 **Not connected**` : `🔴 **Sin conectar**`);
+                ? `🟢 Connected: \`@${updatedCfg.discord_username || interaction.user.username}\``
+                : `🟢 Conectada: \`@${updatedCfg.discord_username || interaction.user.username}\``)
+            : (isEn ? `🔴 Not connected` : `🔴 Sin conectar`);
         const estadoRob = cuentaRoblox && cuentaRoblox.roblox_user_id
             ? (isEn
-                ? `🟢 **Connected** (\`@${cuentaRoblox.roblox_username}\` • ID \`${cuentaRoblox.roblox_user_id}\`)`
-                : `🟢 **Conectada** (\`@${cuentaRoblox.roblox_username}\` • ID \`${cuentaRoblox.roblox_user_id}\`)`)
-            : (isEn ? `🔴 **Not linked**` : `🔴 **Sin vincular**`);
+                ? `🟢 Connected: \`@${cuentaRoblox.roblox_username}\``
+                : `🟢 Conectada: \`@${cuentaRoblox.roblox_username}\``)
+            : (isEn ? `🔴 Not linked` : `🔴 Sin vincular`);
         const msg = isEn
-            ? `🔄 **Account Verification Completed:**  💬 Discord: ${estadoDisc}   •   🎮 Roblox: ${estadoRob}`
-            : `🔄 **Verificación de Cuentas Completada:**  💬 Discord: ${estadoDisc}   •   🎮 Roblox: ${estadoRob}`;
+            ? `🔄 **Verification:** 💬 ${estadoDisc} • 🎮 ${estadoRob}`
+            : `🔄 **Verificación:** 💬 ${estadoDisc} • 🎮 ${estadoRob}`;
         const panel = await construirPanelConfigDiscord(interaction.user, msg, 'cat_accounts', interaction.client);
         return await interaction.editReply(panel);
     }
