@@ -10,6 +10,7 @@ const axios = require('axios');
 const supabase = require('../../db');
 const { fetchWithRetry } = require('../../utils/http');
 const PriceItem = require('../../models/PriceItem');
+const { obtenerConfigPropietario } = require('./performanceManager');
 
 const MAX_WISHLIST_ITEMS = 5;
 const MAX_HISTORY_EVENTS = 25;
