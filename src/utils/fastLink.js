@@ -1883,7 +1883,7 @@ function generarCodigoVinculacionDiscord(discordId, userMeta = null, { forceNew 
 
     const rawDigits = String(Math.floor(100000 + Math.random() * 900000));
     const code = `KTX-${rawDigits}`;
-    const expiresAt = now + 30 * 60 * 1000; // 30 minutos alojado en /config
+    const expiresAt = now + 10 * 60 * 1000; // Se actualiza automáticamente cada 10 minutos para máxima seguridad
     const challenge = {
         discordId: key,
         code,
@@ -3355,10 +3355,10 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
     // 1. CUENTA DE DISCORD
     const webCodeNoteEs = webDiscordChallenge?.code
-        ? `\n🔑 **Código Web:** \`${webDiscordChallenge.code}\``
+        ? `\n\n🔑 **Código para iniciar sesión en la Web:** ||\`${webDiscordChallenge.code}\`||`
         : '';
     const webCodeNoteEn = webDiscordChallenge?.code
-        ? `\n🔑 **Web Code:** \`${webDiscordChallenge.code}\``
+        ? `\n\n🔑 **Web Login Code:** ||\`${webDiscordChallenge.code}\`||`
         : '';
 
     container.addSectionComponents(
