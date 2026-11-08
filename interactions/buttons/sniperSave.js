@@ -7,7 +7,8 @@ const supabase = require('../../db');
 const PriceItem = require('../../models/PriceItem');
 const { obtenerDetallesCompletos, obtenerUrlRoblox } = require('../../utils/roblox');
 const { COLORES, EMOJI_TIPO, NOMBRE_TIPO, EMOJI_ROBUX, footer, separador, boton, formatearPrecio } = require('../../utils/ui');
-const { obtenerConfigPropietario, MAX_WISHLIST_ITEMS } = require('../../src/utils/fastLink');
+const { MAX_WISHLIST_ITEMS } = require('../../src/utils/fastLink');
+const { obtenerConfigPropietario } = require('../../src/utils/performanceManager');
 
 module.exports = {
     customIdPrefix: 'btn_save_no_target:',
