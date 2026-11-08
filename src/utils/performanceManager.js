@@ -659,22 +659,26 @@ function liberarSlotRecurso(esPesadoGpu = false) {
     }
 }
 
-function construirPanelAvisoModeracion({ titulo, descripcion, backButtonId = 'btn_nav_main_menu' }) {
+function construirPanelAvisoModeracion({ titulo, descripcion, backButtonId = null, includeBackButton = false }) {
     const container = new ContainerBuilder()
         .setAccentColor(COLORES.alerta)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `# ${titulo}\n${descripcion}`
-        ))
-        .addSeparatorComponents(separador(true))
-        .addActionRowComponents(
-            new ActionRowBuilder().addComponents(
-                boton(backButtonId, 'Volver al Menú Principal', '🏠', ButtonStyle.Secondary),
-                boton('btn_config_refresh', 'Abrir /config', '⚙️', ButtonStyle.Primary)
-            )
-        )
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Control de Moderación del Propietario • Kortex')
         ));
+
+    if (includeBackButton && backButtonId) {
+        container
+            .addSeparatorComponents(separador(true))
+            .addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                    boton(backButtonId, 'Volver', '↩️', ButtonStyle.Secondary)
+                )
+            );
+    }
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        footer('Kortex')
+    ));
 
     return {
         components: [container],
