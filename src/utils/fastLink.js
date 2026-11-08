@@ -200,7 +200,8 @@ async function sincronizarPersistenciaDesdeSupabase() {
     supabaseSyncPromise = (async () => {
         try {
             // 1. Cuentas de Roblox vinculadas
-            const { data: remoteLinks, error: errLinks } = await supabase.from('user_links').select('*');
+            const client = supabase.realClient || supabase;
+            const { data: remoteLinks, error: errLinks } = await client.from('user_links').select('*');
             if (!errLinks && Array.isArray(remoteLinks)) {
                 let loadedLinks = 0;
                 for (const row of remoteLinks) {
@@ -210,6 +211,14 @@ async function sincronizarPersistenciaDesdeSupabase() {
                         if (esRegistroMasReciente(row, existing)) {
                             fastLinkCache.set(key, { ...existing, ...row });
                             loadedLinks++;
+                        }
+                        if (Array.isArray(supabase.memoryTables?.user_links)) {
+                            const idx = supabase.memoryTables.user_links.findIndex(r => String(r.discord_id) === key);
+                            if (idx >= 0) {
+                                supabase.memoryTables.user_links[idx] = { ...supabase.memoryTables.user_links[idx], ...row };
+                            } else {
+                                supabase.memoryTables.user_links.push(row);
+                            }
                         }
                     }
                 }
@@ -899,16 +908,33 @@ async function resolverUsuarioRoblox(input) {
 }
 
 /**
- * Obtiene la cuenta vinculada de un usuario de Discord desde RAM, Disco o Supabase.
+ * Obtiene la cuenta vinculada de un usuario de Discord desde RAM, Snapshot de Memoria o Supabase Remoto.
  */
 async function obtenerCuentaVinculada(discordId) {
     if (!discordId) return null;
     const key = String(discordId);
 
+    // 1. Caché ultra-rápida en RAM
     const cached = fastLinkCache.get(key);
+    if (cached && cached.roblox_user_id) {
+        return cached;
+    }
 
+    // 2. Snapshot de tablas en memoria (db.js)
+    const memRows = supabase.memoryTables?.user_links;
+    if (Array.isArray(memRows)) {
+        const found = memRows.find(r => r && String(r.discord_id) === key && r.roblox_user_id);
+        if (found) {
+            const merged = { ...cached, ...found };
+            fastLinkCache.set(key, merged);
+            return merged;
+        }
+    }
+
+    // 3. Consulta directa y resiliente a Supabase remoto
     try {
-        const { data, error } = await supabase
+        const client = supabase.realClient || supabase;
+        const { data, error } = await client
             .from('user_links')
             .select('*')
             .eq('discord_id', key)
@@ -921,33 +947,26 @@ async function obtenerCuentaVinculada(discordId) {
             return merged;
         }
     } catch {
-        // Fallback a memoria/disco
+        // Fallback silencioso
     }
 
-    try {
-        const { data: memData } = await supabase
-            .memoryFrom('user_links')
-            .select('*')
-            .eq('discord_id', key)
-            .maybeSingle();
-        if (memData && memData.roblox_user_id) {
-            const merged = { ...cached, ...memData };
-            fastLinkCache.set(key, merged);
-            guardarLinksEnDisco();
-            return merged;
-        }
-    } catch {
-        // Silencioso
-    }
-
-    if (cached && cached.roblox_user_id) return cached;
     return null;
 }
 
 function obtenerCuentaVinculadaSync(discordId) {
     if (!discordId) return null;
     const key = String(discordId);
-    return fastLinkCache.get(key) || null;
+    const cached = fastLinkCache.get(key);
+    if (cached && cached.roblox_user_id) return cached;
+    const memRows = supabase.memoryTables?.user_links;
+    if (Array.isArray(memRows)) {
+        const found = memRows.find(r => r && String(r.discord_id) === key && r.roblox_user_id);
+        if (found) {
+            fastLinkCache.set(key, found);
+            return found;
+        }
+    }
+    return null;
 }
 
 function obtenerConfigDiscord(discordId) {
@@ -1124,9 +1143,10 @@ async function guardarCuentaVinculada(discordId, profileData, { recordHistory = 
         }
 
         try {
-            await supabase.from('user_links').upsert(dbPayload, { onConflict: 'discord_id' });
-        } catch {
-            // Silencioso
+            const client = supabase.realClient || supabase;
+            await client.from('user_links').upsert(dbPayload, { onConflict: 'discord_id' });
+        } catch (err) {
+            console.warn(`[PERSIST-LINK] Advertencia al persistir user_links en Supabase (${key}):`, err.message);
         }
 
         for (const fn of accountChangeListeners) {
@@ -3333,12 +3353,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectConfigCat));
     container.addSeparatorComponents(separador(true));
 
-    // 1. CUENTA DE DISCORD (Aloja aquí mismo el código KTX-XXXXXX para conectar en la Web)
+    // 1. CUENTA DE DISCORD
     const webCodeNoteEs = webDiscordChallenge?.code
-        ? `\n🔑 **Tu código de verificación para conectar tu ID (\`${uid}\`) en la Web:** \`${webDiscordChallenge.code}\` *(alojado aquí en \`/config\` para tu comodidad y privacidad)*`
+        ? `\n🔑 **Código Web:** \`${webDiscordChallenge.code}\``
         : '';
     const webCodeNoteEn = webDiscordChallenge?.code
-        ? `\n🔑 **Your verification code to link your ID (\`${uid}\`) on the Web:** \`${webDiscordChallenge.code}\` *(hosted right here in \`/config\` for privacy & convenience)*`
+        ? `\n🔑 **Web Code:** \`${webDiscordChallenge.code}\``
         : '';
 
     container.addSectionComponents(
@@ -3347,12 +3367,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                 isEn
                     ? `### 💬 1. Discord Account\n` +
                       (tieneDiscord
-                          ? `🟢 **Connected:** \`@${cfg.discord_username || username}\`\n-# Linked to your personal settings and saved watchlists. Permissions are managed in **Settings → App Permissions / Authorized Apps**.${webCodeNoteEn}`
-                          : `🔴 **Not connected**\n-# Click the button on the right to activate your Discord account here and generate your web code.${webCodeNoteEn}`)
+                          ? `🟢 **Connected:** \`@${cfg.discord_username || username}\`${webCodeNoteEn}`
+                          : `🔴 **Not connected**\n-# Link your account with the button on the right.${webCodeNoteEn}`)
                     : `### 💬 1. Cuenta de Discord\n` +
                       (tieneDiscord
-                          ? `🟢 **Conectada:** \`@${cfg.discord_username || username}\`\n-# Sincronizada con tus preferencias y datos del bot. Los permisos están alojados en **Configuración → Permisos de la aplicación**.${webCodeNoteEs}`
-                          : `🔴 **Sin conectar**\n-# Tocá el botón de la derecha para activar tu cuenta de Discord acá mismo y generar tu código web.${webCodeNoteEs}`)
+                          ? `🟢 **Conectada:** \`@${cfg.discord_username || username}\`${webCodeNoteEs}`
+                          : `🔴 **Sin conectar**\n-# Vinculá tu cuenta con el botón de la derecha.${webCodeNoteEs}`)
             ))
             .setButtonAccessory(
                 boton(
@@ -3368,12 +3388,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
     container.addSeparatorComponents(separador());
 
-    // 2. CUENTA DE ROBLOX (La autorización y desvinculación están alojadas en Configuración -> Permisos de la aplicación)
+    // 2. CUENTA DE ROBLOX
     const pendingRobloxNoteEs = pendingRoblox && pendingRoblox.profile
-        ? `\n🛡️ **Verificación pendiente para \`@${pendingRoblox.profile.roblox_username}\`:** Pegá \`${pendingRoblox.robloxProfileVerifyPhrase}\` en "Acerca de" de tu perfil en Roblox y tocá **✅ Comprobar Verificación**.`
+        ? `\n⏳ **Pegá** \`${pendingRoblox.robloxProfileVerifyPhrase}\` en "Acerca de" de tu perfil en Roblox y tocá **Comprobar Verificación**.`
         : '';
     const pendingRobloxNoteEn = pendingRoblox && pendingRoblox.profile
-        ? `\n🛡️ **Pending verification for \`@${pendingRoblox.profile.roblox_username}\`:** Paste \`${pendingRoblox.robloxProfileVerifyPhrase}\` in your Roblox profile "About" and click **✅ Verify Now**.`
+        ? `\n⏳ **Paste** \`${pendingRoblox.robloxProfileVerifyPhrase}\` in your Roblox profile "About" and click **Verify Now**.`
         : '';
 
     container.addSectionComponents(
@@ -3382,12 +3402,12 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                 isEn
                     ? `### 🎮 2. Roblox Account\n` +
                       (tieneRoblox
-                          ? `🟢 **Connected:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)\n-# Where the bot and permissions are located in Roblox: **Settings → App Permissions** (*Configuración → Permisos de la aplicación*).${pendingRobloxNoteEn}`
-                          : `🔴 **Not linked**\n-# Click the button on the right to link by **@Username / ID** with profile code verification. App permissions live in **Settings → App Permissions**.${pendingRobloxNoteEn}`)
+                          ? `🟢 **Connected:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)${pendingRobloxNoteEn}`
+                          : `🔴 **Not linked**\n-# Link your account with the button on the right.${pendingRobloxNoteEn}`)
                     : `### 🎮 2. Cuenta de Roblox\n` +
                       (tieneRoblox
-                          ? `🟢 **Conectada:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)\n-# En Roblox, donde está alojado el bot y sus permisos para gestionar o desvincular tu cuenta es en **Configuración → Permisos de la aplicación**.${pendingRobloxNoteEs}`
-                          : `🔴 **Sin vincular**\n-# Tocá el botón de la derecha para vincular por **@Usuario / ID** con código de propiedad. En Roblox los permisos se alojan en **Configuración → Permisos de la aplicación**.${pendingRobloxNoteEs}`)
+                          ? `🟢 **Conectada:** **${cuentaRoblox.display_name || cuentaRoblox.roblox_username}** (\`@${cuentaRoblox.roblox_username}\`)${pendingRobloxNoteEs}`
+                          : `🔴 **Sin vincular**\n-# Vinculá tu cuenta con el botón de la derecha.${pendingRobloxNoteEs}`)
             ))
             .setButtonAccessory(
                 boton(
@@ -3412,74 +3432,76 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
     container.addSeparatorComponents(separador());
 
-    // 3. DATOS GUARDADOS (Enfocado en datos permanentes de valor real: Mi Lista 1.1, Estudio /tycoon y Preferencias Activas)
+    // 3. DATOS GUARDADOS (Concreto, limpio, sin listas excesivas ni comandos entre paréntesis)
     const ownerLimits = obtenerConfigPropietario();
     const maxWishlist = Number(ownerLimits.maxWishlistItems || MAX_WISHLIST_ITEMS);
 
-    let wishlistItemsDirect = Array.isArray(resumen?.savedItems?.wishlist) ? resumen.savedItems.wishlist : [];
-    if (wishlistItemsDirect.length === 0) {
-        try {
-            const { data: wlRows } = await supabase.from('roblox_wishlist').select('*').eq('user_id', uid);
-            if (Array.isArray(wlRows)) {
-                wishlistItemsDirect = wlRows.slice(0, maxWishlist).map(i => ({
-                    id: i.id_objet,
-                    name: i.item_name,
-                    price: i.last_price,
-                    targetPrice: i.target_price
-                }));
-            }
-        } catch {
-            // Silencioso
+    let wishlistCount = 0;
+    try {
+        const { count, error } = await supabase.from('roblox_wishlist').select('*', { count: 'exact', head: true }).eq('user_id', uid);
+        if (!error && typeof count === 'number') {
+            wishlistCount = count;
+        } else {
+            const wlMem = supabase.memoryTables?.roblox_wishlist || [];
+            wishlistCount = wlMem.filter(r => String(r.user_id) === uid).length;
         }
+    } catch {
+        const wlMem = supabase.memoryTables?.roblox_wishlist || [];
+        wishlistCount = wlMem.filter(r => String(r.user_id) === uid).length;
     }
-    const wishlistCount = Math.max(Number(resumen?.stats?.wishlistCount || 0), wishlistItemsDirect.length);
 
-    const wishlistSummaryLine = wishlistItemsDirect.length > 0
-        ? wishlistItemsDirect.slice(0, 3).map((item) => {
-            const nombreCorto = String(item.name || `ID ${item.id}`).slice(0, 26);
-            const metaTxt = item.targetPrice ? ` → 🎯 ${Number(item.targetPrice).toLocaleString('en-US')} R$` : '';
-            return `\`${nombreCorto}\` (${Number(item.price || 0).toLocaleString('en-US')} R$${metaTxt})`;
-        }).join(' • ') + (wishlistItemsDirect.length > 3 ? ` *(+${wishlistItemsDirect.length - 3})*` : '')
-        : (isEn
-            ? '*No items tracked yet in `1.1 Price Tracker & Watchlist`.*'
-            : '*Sin ítems monitoreados actualmente en `1.1 Seguimiento de Precios y Mi Lista`.*');
+    let tycoonProfile = null;
+    try {
+        const { data: tyRow } = await supabase.from('tycoon_profiles').select('*').eq('user_id', uid).maybeSingle();
+        if (tyRow) {
+            tycoonProfile = tyRow;
+        } else {
+            const tycoonRows = Array.isArray(supabase.memoryTables?.tycoon_profiles) ? supabase.memoryTables.tycoon_profiles : [];
+            tycoonProfile = tycoonRows.find(r => r && String(r.user_id) === uid) || null;
+        }
+    } catch {
+        const tycoonRows = Array.isArray(supabase.memoryTables?.tycoon_profiles) ? supabase.memoryTables.tycoon_profiles : [];
+        tycoonProfile = tycoonRows.find(r => r && String(r.user_id) === uid) || null;
+    }
 
-    // Progreso guardado en /tycoon (si existe perfil en memoria/disco)
-    const tycoonRows = Array.isArray(supabase.memoryTables?.tycoon_profiles) ? supabase.memoryTables.tycoon_profiles : [];
-    const tycoonProfile = tycoonRows.find(r => r && String(r.user_id) === uid) || null;
+    const trackerLine = isEn
+        ? (wishlistCount > 0
+            ? `• 🎯 **Tracking:** \`${wishlistCount}/${maxWishlist}\` active items`
+            : `• 🎯 **Tracking:** No items monitored`)
+        : (wishlistCount > 0
+            ? `• 🎯 **Seguimiento:** \`${wishlistCount}/${maxWishlist}\` objetos activos`
+            : `• 🎯 **Seguimiento:** Sin objetos en monitoreo`);
+
     const tycoonLine = tycoonProfile
         ? (isEn
-            ? `🏭 **Studio Progress (\`/tycoon\`):** Level \`${tycoonProfile.studio_level || 1}/6\`  •  ♻️ Rebirth \`x${tycoonProfile.rebirths || 0}\`  •  🎟️ \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\`  •  💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``
-            : `🏭 **Estudio Tycoon (\`/tycoon\`):** Nivel \`${tycoonProfile.studio_level || 1}/6\`  •  ♻️ Rebirth \`x${tycoonProfile.rebirths || 0}\`  •  🎟️ \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\`  •  💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``)
+            ? `• 🏭 **Tycoon:** Level \`${tycoonProfile.studio_level || 1}/6\` • Rebirth \`x${tycoonProfile.rebirths || 0}\` • \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\` • 💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``
+            : `• 🏭 **Tycoon:** Nivel \`${tycoonProfile.studio_level || 1}/6\` • Rebirth \`x${tycoonProfile.rebirths || 0}\` • \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\` • 💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``)
         : (isEn
-            ? `🏭 **Studio Progress (\`/tycoon\`):** *Not started yet — run \`/tycoon\` to open your studio*`
-            : `🏭 **Estudio Tycoon (\`/tycoon\`):** *Sin iniciar — ejecutá \`/tycoon\` para abrir tu estudio*`);
+            ? `• 🏭 **Tycoon:** Not started`
+            : `• 🏭 **Tycoon:** Sin iniciar`);
 
-    const tierMapSaved = TIER_LABELS[isEn ? 'en' : 'es'] || TIER_LABELS.es;
-    const activeTierShort = tierMapSaved[prefs.default_tier] || tierMapSaved.TIER_100;
-    const catShortNames = isEn
-        ? {
-            cat_economy: '💰 1. Economy',
-            cat_avatar: '👕 2. Avatars',
-            cat_games: '🎮 3. Games',
-            cat_status: '📊 4. Analytics'
-        }
-        : {
-            cat_economy: '💰 1. Economía',
-            cat_avatar: '👕 2. Avatares',
-            cat_games: '🎮 3. Juegos',
-            cat_status: '📊 4. Estadísticas'
-        };
+    const tierClean = prefs.default_tier === 'TIER_100' ? 'Tier 100%' : (prefs.default_tier || 'Tier 100%');
+    const catCleanName = isEn
+        ? ({
+            cat_economy: '💰 Economy',
+            cat_avatar: '👕 Avatars',
+            cat_games: '🎮 Games',
+            cat_status: '📊 Analytics'
+        }[prefs.default_category] || '💰 Economy')
+        : ({
+            cat_economy: '💰 Economía',
+            cat_avatar: '👕 Avatares',
+            cat_games: '🎮 Juegos',
+            cat_status: '📊 Estadísticas'
+        }[prefs.default_category] || '💰 Economía');
+
+    const prefsLine = isEn
+        ? `• ⚙️ **Preferences:** 🇺🇸 English • ${tierClean} • ${catCleanName}`
+        : `• ⚙️ **Preferencias:** 🇪🇸 Español • ${tierClean} • ${catCleanName}`;
 
     const textoBoveda = isEn
-        ? `### 🗂️ 3. Saved Account Data\n` +
-          `• 🎯 **My Watchlist (\`1.1\`):** \`${wishlistCount}/${maxWishlist}\` — ${wishlistSummaryLine}\n` +
-          `• ${tycoonLine}\n` +
-          `• ⚙️ **Saved Preferences:** ${isEn ? '🇺🇸 English' : '🇪🇸 Español'}  •  ${activeTierShort}  •  Start in ${catShortNames[prefs.default_category] || catShortNames.cat_economy}`
-        : `### 🗂️ 3. Datos Guardados\n` +
-          `• 🎯 **Mi Lista de Seguimiento (\`1.1\`):** \`${wishlistCount}/${maxWishlist}\` — ${wishlistSummaryLine}\n` +
-          `• ${tycoonLine}\n` +
-          `• ⚙️ **Preferencias Guardadas:** ${isEn ? '🇺🇸 English' : '🇪🇸 Español'}  •  ${activeTierShort}  •  Inicio en ${catShortNames[prefs.default_category] || catShortNames.cat_economy}`;
+        ? `### 📁 3. Saved Data\n${trackerLine}\n${tycoonLine}\n${prefsLine}`
+        : `### 📁 3. Datos Guardados\n${trackerLine}\n${tycoonLine}\n${prefsLine}`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(textoBoveda));
 
