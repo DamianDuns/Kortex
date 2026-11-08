@@ -45,13 +45,13 @@ function setDetectedPublicAppUrl(urlCandidate) {
 function obtenerUrlBasePublica(overrideUrl = '') {
     if (overrideUrl) {
         const clean = normalizarUrlPublica(overrideUrl);
-        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) {
+        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0|railway\.app)/i.test(clean)) {
             return clean;
         }
     }
     if (process.env.PUBLIC_URL) {
         const clean = normalizarUrlPublica(process.env.PUBLIC_URL);
-        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) {
+        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0|railway\.app)/i.test(clean)) {
             return clean;
         }
     }

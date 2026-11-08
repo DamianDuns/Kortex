@@ -2485,10 +2485,10 @@
 
             <div class="canvas-grid">
                 <div class="canvas-card" style="grid-column: 1 / -1;">
-                    <img id="img-tycoon" data-endpoint="/api/canvas/tycoon?section=sec_studio" src="https://kortex-production-155b.up.railway.app/api/canvas/tycoon?section=sec_studio" alt="Vitrina Visual Interactiva de /tycoon" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '/tycoon — Vitrina Visual en 4 Categorías')">
+                    <img id="img-tycoon" src="assets/preview-tycoon-studio.svg" alt="Vitrina Visual Interactiva de /tycoon" loading="lazy">
                     <div class="canvas-caption" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-                            <span id="tycoon-preview-caption"><strong>/tycoon — Categoría 1 (Mi Estudio 3D Roblox):</strong> Plataforma isométrica 3D cartoon/low-poly (sin neón cibernético), PJ 3D con assets equipados, Cinta en L y Bóveda Colectora</span>
+                            <span id="tycoon-preview-caption"><strong>/tycoon — Categoría 1 (Mi Estudio 3D Roblox):</strong> Plataforma isométrica 3D cartoon/low-poly, PJ 3D con assets equipados, Cinta en L y Bóveda Colectora</span>
                             <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCurrentTycoonCanvas()">↻ Recargar Lienzo</button>
                         </div>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
@@ -2501,34 +2501,34 @@
                 </div>
 
                 <div class="canvas-card">
-                    <img id="img-status" data-endpoint="/api/canvas/status" src="https://kortex-production-155b.up.railway.app/api/canvas/status" alt="Estado de Servidores de Roblox en Tiempo Real" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '4.1 Estado de Servidores de Roblox en Vivo')">
+                    <img id="img-status" src="assets/preview-status.svg" alt="Estado de Servidores de Roblox en Tiempo Real" loading="lazy">
                     <div class="canvas-caption">
                         <span><strong>4.1 Estado de Roblox (Categoría 4):</strong> Servidores prendidos, ping HTTP y 5 subsistemas en vivo</span>
-                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-status', '/api/canvas/status')">Recargar</button>
+                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-status', 'assets/preview-status.svg')">Recargar</button>
                     </div>
                 </div>
 
                 <div class="canvas-card">
-                    <img id="img-sniper" data-endpoint="/api/canvas/sniper" src="https://kortex-production-155b.up.railway.app/api/canvas/sniper" alt="Gráfica Histórica de Precios" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '1.1 Seguimiento de Precios — Evolución Histórica')">
+                    <img id="img-sniper" src="assets/preview-sniper.svg" alt="Gráfica Histórica de Precios" loading="lazy">
                     <div class="canvas-caption">
                         <span><strong>1.1 Historial de Precios:</strong> Evolución por días y meta configurada</span>
-                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-sniper', '/api/canvas/sniper')">Recargar</button>
+                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-sniper', 'assets/preview-sniper.svg')">Recargar</button>
                     </div>
                 </div>
 
                 <div class="canvas-card">
-                    <img id="img-floors" data-endpoint="/api/canvas/floors" src="https://kortex-production-155b.up.railway.app/api/canvas/floors" alt="Monitor de Pisos UGC con Apache ECharts" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '1.3 Monitor de Pisos UGC (Apache ECharts)')">
+                    <img id="img-floors" src="assets/preview-floors.svg" alt="Monitor de Pisos UGC con Apache ECharts" loading="lazy">
                     <div class="canvas-caption">
                         <span><strong>1.3 Monitor de Pisos UGC (Apache ECharts + Resvg):</strong> Barras con degradado, curva suave de área y medidor circular</span>
-                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-floors', '/api/canvas/floors')">Recargar</button>
+                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-floors', 'assets/preview-floors.svg')">Recargar</button>
                     </div>
                 </div>
 
                 <div class="canvas-card">
-                    <img id="img-sandbox" data-endpoint="/api/canvas/sandbox" src="https://kortex-production-155b.up.railway.app/api/canvas/sandbox" alt="Probador de Combinaciones en Vivo" loading="lazy" referrerPolicy="no-referrer" onerror="handleCanvasFallback(this, '2.1 Probador de Ropa y Presupuesto')">
+                    <img id="img-sandbox" src="assets/preview-sandbox.svg" alt="Probador de Combinaciones en Vivo" loading="lazy">
                     <div class="canvas-caption">
                         <span><strong>2.1 Probador de Ropa:</strong> Vista previa sobre el personaje y presupuesto</span>
-                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-sandbox', '/api/canvas/sandbox')">Recargar</button>
+                        <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCanvas('img-sandbox', 'assets/preview-sandbox.svg')">Recargar</button>
                     </div>
                 </div>
             </div>
@@ -3502,14 +3502,19 @@
             sec_perks: '<strong>/tycoon — Categoría 4 (Misiones y Top 5):</strong> 4 Misiones Semanales con barras de progreso para ganar Cristales Kortex + Ranking Top 5'
         };
 
+        const TYCOON_PREVIEW_MAP = {
+            sec_studio: 'assets/preview-tycoon-studio.svg',
+            sec_shop: 'assets/preview-tycoon-shop.svg',
+            sec_vault: 'assets/preview-tycoon-vault.svg',
+            sec_perks: 'assets/preview-tycoon-perks.svg'
+        };
+
         function switchTycoonCanvasPreview(secKey) {
             currentTycoonPreviewSec = secKey || 'sec_studio';
             const img = document.getElementById('img-tycoon');
             const cap = document.getElementById('tycoon-preview-caption');
-            const ep = `/api/canvas/tycoon?section=${encodeURIComponent(currentTycoonPreviewSec)}`;
-            if (img) {
-                img.setAttribute('data-endpoint', ep);
-                img.src = `${apiUrl(ep)}&t=${Date.now()}`;
+            if (img && TYCOON_PREVIEW_MAP[currentTycoonPreviewSec]) {
+                img.src = `${TYCOON_PREVIEW_MAP[currentTycoonPreviewSec]}?t=${Date.now()}`;
             }
             if (cap && TYCOON_PREVIEW_CAPTIONS[currentTycoonPreviewSec]) {
                 cap.innerHTML = TYCOON_PREVIEW_CAPTIONS[currentTycoonPreviewSec];
@@ -3549,11 +3554,11 @@
             `).join('');
         }
 
-        function reloadCanvas(imgId, baseUrl) {
+        function reloadCanvas(imgId, assetUrl) {
             const img = document.getElementById(imgId);
             if (img) {
-                const sep = baseUrl.includes('?') ? '&' : '?';
-                img.src = `${apiUrl(baseUrl)}${sep}t=${Date.now()}`;
+                const sep = assetUrl.includes('?') ? '&' : '?';
+                img.src = `${assetUrl}${sep}t=${Date.now()}`;
             }
         }
 
@@ -3769,19 +3774,6 @@
         }
 
         function clearAllSessions() {
-            const discordId = getActiveDiscordId() || readLocalAccountBackup()?.discordId || '';
-            if (discordId && discordId !== 'default_session') {
-                fetch(apiUrl('/api/auth/disconnect'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ discordId, provider: 'discord' })
-                }).catch(() => {});
-                fetch(apiUrl('/api/auth/disconnect'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ discordId, provider: 'roblox' })
-                }).catch(() => {});
-            }
             localStorage.removeItem(LOCAL_BACKUP_KEY);
             localStorage.removeItem('kortex_discord_id');
             localStorage.removeItem('kortex_session_id');
@@ -3793,14 +3785,12 @@
         }
 
         /**
-         * Verifica el estado en el servidor y, si el bot fue actualizado o reiniciado perdiendo la memoria volátil,
-         * restaura automáticamente las sesiones activas desde el respaldo local del navegador.
+         * En GitHub Pages, las sesiones y configuraciones se gestionan directamente en Discord (/config).
          */
         async function checkAccountStatus() {
             const backup = readLocalAccountBackup();
             const discordId = getActiveDiscordId() || backup?.discordId || '';
 
-            // Si no hay ID de usuario guardado localmente, asegurar estado neutral de invitado
             if (!discordId || discordId === 'default_session') {
                 currentDiscordName = null;
                 currentRobloxName = null;
@@ -3810,54 +3800,12 @@
                 return;
             }
 
-            // 1. Pintar de inmediato el respaldo local si hay una cuenta activa guardada
             if (backup && (backup.discordConfig?.oauth_verified || backup.linkedAccount?.roblox_user_id)) {
                 renderDiscordConfigUI(backup.discordConfig || null, null);
                 renderRobloxAccountUI(backup.linkedAccount || null);
                 renderAccountHistoryUI(backup.history || [], backup.stats || {}, true);
             }
-
-            try {
-                const res = await fetch(apiUrl(`/api/auth/status?discord_id=${encodeURIComponent(discordId)}`));
-                const data = await res.json();
-
-                const serverHasDiscord = Boolean(data.discordConfig?.oauth_verified || data.discordSession);
-                const serverHasRoblox = Boolean(data.linkedAccount?.roblox_user_id);
-                const backupHasDiscord = Boolean(backup?.discordConfig?.oauth_verified);
-                const backupHasRoblox = Boolean(backup?.linkedAccount?.roblox_user_id);
-
-                // Si ninguna cuenta está activa ni en el servidor ni en el backup para este ID:
-                if (!serverHasDiscord && !serverHasRoblox && !backupHasDiscord && !backupHasRoblox) {
-                    currentDiscordName = null;
-                    currentRobloxName = null;
-                    renderDiscordConfigUI(null, null);
-                    renderRobloxAccountUI(null);
-                    renderAccountHistoryUI([], {}, false);
-                    localStorage.removeItem(LOCAL_BACKUP_KEY);
-                    localStorage.removeItem('kortex_discord_id');
-                    return;
-                }
-
-                // 2. Si el bot se actualizó o reinició y perdió alguna de las sesiones activas en el navegador, restaurarlas automáticamente
-                if ((backupHasDiscord && !serverHasDiscord) || (backupHasRoblox && !serverHasRoblox)) {
-                    const restoreRes = await fetch(apiUrl('/api/auth/restore'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            discordId: discordId || backup.discordId,
-                            discordConfig: backup.discordConfig,
-                            linkedAccount: backup.linkedAccount,
-                            history: backup.history || []
-                        })
-                    });
-                    const restoredData = await restoreRes.json();
-                    if (restoredData.ok) {
-                        if (restoredData.discordId && restoredData.discordId !== 'default_session' && !restoredData.discordId.startsWith('guest_')) {
-                            setActiveDiscordId(restoredData.discordId);
-                        }
-                        renderDiscordConfigUI(restoredData.discordConfig || null, null);
-                        renderRobloxAccountUI(restoredData.linkedAccount || null);
-                        renderAccountHistoryUI(restoredData.history || [], restoredData.stats || {}, true);
+        }
                         saveLocalAccountBackup(restoredData);
                         return;
                     }
@@ -3956,186 +3904,29 @@
             const codeEl = document.getElementById('quick-discord-code');
             const step2Box = document.getElementById('discord-step2-verify');
             const dFeedback = document.getElementById('discord-feedback');
-            const query = (inputEl?.value || getActiveDiscordId() || '').trim();
-            const code = (codeEl?.value || '').trim();
 
-            if (!query || !/^\d{15,22}$/.test(query)) {
-                if (actionMode !== 'poll' && dFeedback) {
-                    dFeedback.style.color = '#F0B232';
-                    dFeedback.textContent = '1️⃣ Ingresá tu Discord ID numérico (17 a 20 dígitos) y el código KTX-XXXXXX que aparece al usar /config en Discord.';
+            if (!apiUrl('')) {
+                if (dFeedback) {
+                    dFeedback.style.color = '#38BDF8';
+                    dFeedback.innerHTML = '⚡ Kortex funciona de forma integrada en Discord. Abrí Discord y ejecutá <code>/config</code> para gestionar tu cuenta.';
                 }
-                if (inputEl) inputEl.focus();
                 return;
             }
-
-            const effectiveAction = actionMode === 'poll' ? 'poll' : (code ? 'verify' : 'start');
-
-            if (effectiveAction !== 'poll' && dFeedback) {
-                dFeedback.style.color = '#9BA5BA';
-                dFeedback.textContent = effectiveAction === 'verify'
-                    ? 'Verificando tu código KTX-XXXXXX de /config...'
-                    : 'Preparando verificación con tu código alojado en /config...';
-            }
-            try {
-                const res = await fetch(apiUrl('/api/auth/discord/quick-link'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ discordId: query, query, action: effectiveAction, code })
-                });
-                const data = await res.json();
-                if (!data.ok) {
-                    if (effectiveAction === 'poll') return;
-                    if (dFeedback) {
-                        dFeedback.style.color = '#F0B232';
-                        dFeedback.textContent = data.message || 'Ejecutá /config en Discord y copiá tu código KTX-XXXXXX alojado en "1. Cuenta de Discord".';
-                    }
-                    if (step2Box) step2Box.style.display = 'block';
-                    if (codeEl && !code) codeEl.focus();
-                    return;
-                }
-                if (data.step === 'verify_required') {
-                    if (effectiveAction !== 'poll') {
-                        if (step2Box) step2Box.style.display = 'block';
-                        if (dFeedback) {
-                            dFeedback.style.color = '#38BDF8';
-                            dFeedback.textContent = data.message || '🔑 Escribí /config en el bot de Discord, copiá tu código KTX-XXXXXX alojado en "1. Cuenta de Discord" y pegalo arriba.';
-                        }
-                        if (codeEl) codeEl.focus();
-                    }
-                    return;
-                }
-                stopDiscordWebAutoPoll();
-                if (codeEl) codeEl.value = '';
-                if (data.discordId) setActiveDiscordId(data.discordId);
-                saveLocalAccountBackup({
-                    discordId: data.discordId,
-                    discordConfig: data.discordConfig,
-                    linkedAccount: data.linkedAccount,
-                    history: data.history
-                });
-                if (dFeedback) {
-                    dFeedback.style.color = '#23A55A';
-                    dFeedback.textContent = data.message;
-                }
-                checkAccountStatus();
-            } catch {
-                if (effectiveAction !== 'poll' && dFeedback) {
-                    dFeedback.style.color = '#F23F43';
-                    dFeedback.textContent = 'No se pudo conectar en este momento.';
-                }
-            }
-        }
 
         async function quickVerifyRobloxWeb(actionMode = 'start') {
-            const inputEl = document.getElementById('quick-roblox-input');
-            const step2Box = document.getElementById('roblox-step2-verify');
-            const badgeEl = document.getElementById('roblox-verify-code-badge');
-            const targetLabelEl = document.getElementById('roblox-verify-target-label');
             const rFeedback = document.getElementById('roblox-feedback');
-            const query = (inputEl?.value || '').trim();
-
-            if (actionMode !== 'verify' && !query) {
-                if (rFeedback) {
-                    rFeedback.style.color = '#F0B232';
-                    rFeedback.textContent = 'Escribí tu @Usuario de Roblox o tu ID numérico en la casilla de arriba y tocá "🔑 Generar Código".';
-                }
-                if (inputEl) inputEl.focus();
-                return;
-            }
             if (rFeedback) {
-                rFeedback.style.color = '#9BA5BA';
-                rFeedback.textContent = actionMode === 'verify'
-                    ? 'Revisando la descripción "Acerca de" de tu perfil en Roblox...'
-                    : `Generando código de verificación para "${query}"...`;
-            }
-            try {
-                const activeId = getActiveDiscordId();
-                const sessionGuestId = activeId || (localStorage.getItem('kortex_session_id') || ('guest_' + Math.random().toString(36).substring(2, 10)));
-                if (!activeId) localStorage.setItem('kortex_session_id', sessionGuestId);
-
-                const res = await fetch(apiUrl('/api/auth/roblox/quick-link'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ discordId: sessionGuestId, query, action: actionMode })
-                });
-                const data = await res.json();
-                if (!data.ok) {
-                    if (rFeedback) {
-                        rFeedback.style.color = '#F0B232';
-                        rFeedback.textContent = data.message || 'No se pudo completar la verificación.';
-                    }
-                    return;
-                }
-                if (data.discordId && data.discordId !== 'default_session') {
-                    if (!data.discordId.startsWith('guest_')) {
-                        setActiveDiscordId(data.discordId);
-                    } else {
-                        localStorage.setItem('kortex_session_id', data.discordId);
-                    }
-                }
-                if (data.step === 'verify_required') {
-                    if (step2Box) step2Box.style.display = 'block';
-                    if (badgeEl && data.verifyCode) badgeEl.textContent = data.verifyCode;
-                    if (targetLabelEl && data.robloxUsername) {
-                        targetLabelEl.textContent = `(@${data.robloxUsername})`;
-                    }
-                    if (rFeedback) {
-                        rFeedback.style.color = '#38BDF8';
-                        rFeedback.textContent = data.message || `Pegá el código ${data.verifyCode} en tu perfil de Roblox y tocá comprobar.`;
-                    }
-                    return;
-                }
-                if (step2Box) step2Box.style.display = 'none';
-                saveLocalAccountBackup({
-                    discordId: data.discordId,
-                    discordConfig: data.discordConfig,
-                    linkedAccount: data.linkedAccount,
-                    history: data.history
-                });
-                if (inputEl) inputEl.value = '';
-                if (rFeedback) {
-                    rFeedback.style.color = '#23A55A';
-                    rFeedback.textContent = data.message;
-                }
-                checkAccountStatus();
-            } catch {
-                if (rFeedback) {
-                    rFeedback.style.color = '#F23F43';
-                    rFeedback.textContent = 'No se pudo conectar con el servidor en este momento.';
-                }
+                rFeedback.style.color = '#38BDF8';
+                rFeedback.innerHTML = '⚡ Para conectar tu cuenta de Roblox, usá el comando <code>/config</code> en Discord (opción 2. Cuenta de Roblox).';
             }
         }
 
         async function startOAuthPopup(provider) {
-            const activeId = getActiveDiscordId();
-            const discordId = activeId || (document.getElementById('quick-discord-input')?.value || '').trim() || localStorage.getItem('kortex_session_id') || ('guest_' + Math.random().toString(36).substring(2, 10));
-            if (!activeId) localStorage.setItem('kortex_session_id', discordId);
             const isRoblox = provider === 'roblox';
             const feedbackEl = document.getElementById(isRoblox ? 'roblox-feedback' : 'discord-feedback');
-
             if (feedbackEl) {
                 feedbackEl.style.color = '#38BDF8';
-                feedbackEl.textContent = isRoblox
-                    ? '🔐 Abriendo Autenticador OAuth 2.0 de Roblox...'
-                    : '🔐 Abriendo Autenticador OAuth 2.0 de Discord...';
-            }
-
-            try {
-                const endpoint = isRoblox ? '/api/auth/roblox/url' : '/api/auth/discord/url';
-                const res = await fetch(apiUrl(`${endpoint}?discord_id=${encodeURIComponent(discordId)}`));
-                const data = await res.json();
-                const targetUrl = data.url || data.gatewayUrl || apiUrl(`/api/auth/${isRoblox ? 'roblox' : 'discord'}/redirect?discord_id=${encodeURIComponent(discordId)}`);
-
-                const popup = window.open(targetUrl, `kortex_oauth_${provider}`, 'width=560,height=720,menubar=no,toolbar=no,location=yes,status=no');
-                if (!popup) {
-                    window.location.href = targetUrl;
-                }
-            } catch {
-                const fallbackUrl = apiUrl(`/api/auth/${isRoblox ? 'roblox' : 'discord'}/redirect?discord_id=${encodeURIComponent(discordId)}`);
-                const popup = window.open(fallbackUrl, `kortex_oauth_${provider}`, 'width=560,height=720');
-                if (!popup) {
-                    window.location.href = fallbackUrl;
-                }
+                feedbackEl.innerHTML = `⚡ Kortex funciona de forma 100% nativa en Discord. Usá el comando <code>/config</code> para gestionar tu cuenta de ${isRoblox ? 'Roblox' : 'Discord'}.`;
             }
         }
 

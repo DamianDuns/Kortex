@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c101a"/>
+      <stop offset="50%" stop-color="#111625"/>
+      <stop offset="100%" stop-color="#0b0e17"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="800" height="420" rx="14" fill="url(#bgGrad)"/>
+  <rect x="2" y="2" width="796" height="416" rx="13" fill="none" stroke="#252d43" stroke-width="1.5"/>
+
+  <!-- Top Title Bar -->
+  <rect x="20" y="16" width="760" height="46" rx="8" fill="#151b2c" stroke="#2a344f" stroke-width="1"/>
+  <circle cx="42" cy="39" r="6" fill="#22c55e"/>
+  <text x="58" y="44" fill="#f8fafc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="15" font-weight="bold">🎒 /tycoon — Categoría 2: Vitrina de Ítems (2×4)</text>
+  <text x="760" y="44" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" text-anchor="end">Taller UGC • 8 Tarjetas de Ítems • Rarezas y Multiplicadores</text>
+
+  <!-- Content -->
+  
+  <!-- 8 Item Cards in 2 rows x 4 cols -->
+  
+    <rect x="20" y="74" width="175" height="158" rx="8" fill="#161d31" stroke="#94a3b8" stroke-width="1.2"/>
+    <rect x="30" y="84" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="107" cy="121" r="22" fill="#94a3b8" opacity="0.2"/>
+    <text x="107" y="127" fill="#94a3b8" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="32" y="178" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Gorra Clásica</text>
+    <rect x="32" y="186" width="58" height="16" rx="4" fill="#94a3b8" opacity="0.2"/>
+    <text x="61" y="198" fill="#94a3b8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Común</text>
+    <text x="183" y="198" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+5 Tix/m</text>
+    <rect x="32" y="208" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="107" y="219" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="215" y="74" width="175" height="158" rx="8" fill="#161d31" stroke="#38bdf8" stroke-width="1.2"/>
+    <rect x="225" y="84" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="302" cy="121" r="22" fill="#38bdf8" opacity="0.2"/>
+    <text x="302" y="127" fill="#38bdf8" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="227" y="178" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Capa Estelar</text>
+    <rect x="227" y="186" width="58" height="16" rx="4" fill="#38bdf8" opacity="0.2"/>
+    <text x="256" y="198" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Raro</text>
+    <text x="378" y="198" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+15 Tix/m</text>
+    <rect x="227" y="208" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="302" y="219" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="410" y="74" width="175" height="158" rx="8" fill="#161d31" stroke="#a855f7" stroke-width="1.2"/>
+    <rect x="420" y="84" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="497" cy="121" r="22" fill="#a855f7" opacity="0.2"/>
+    <text x="497" y="127" fill="#a855f7" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="422" y="178" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Alas de Neón</text>
+    <rect x="422" y="186" width="58" height="16" rx="4" fill="#a855f7" opacity="0.2"/>
+    <text x="451" y="198" fill="#a855f7" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Épico</text>
+    <text x="573" y="198" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+35 Tix/m</text>
+    <rect x="422" y="208" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="497" y="219" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="605" y="74" width="175" height="158" rx="8" fill="#161d31" stroke="#f59e0b" stroke-width="1.2"/>
+    <rect x="615" y="84" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="692" cy="121" r="22" fill="#f59e0b" opacity="0.2"/>
+    <text x="692" y="127" fill="#f59e0b" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="617" y="178" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Corona Real</text>
+    <rect x="617" y="186" width="58" height="16" rx="4" fill="#f59e0b" opacity="0.2"/>
+    <text x="646" y="198" fill="#f59e0b" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Legendario</text>
+    <text x="768" y="198" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+80 Tix/m</text>
+    <rect x="617" y="208" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="692" y="219" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="20" y="242" width="175" height="158" rx="8" fill="#161d31" stroke="#94a3b8" stroke-width="1.2"/>
+    <rect x="30" y="252" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="107" cy="289" r="22" fill="#94a3b8" opacity="0.2"/>
+    <text x="107" y="295" fill="#94a3b8" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="32" y="346" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Lentes Retro</text>
+    <rect x="32" y="354" width="58" height="16" rx="4" fill="#94a3b8" opacity="0.2"/>
+    <text x="61" y="366" fill="#94a3b8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Común</text>
+    <text x="183" y="366" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+6 Tix/m</text>
+    <rect x="32" y="376" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="107" y="387" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="215" y="242" width="175" height="158" rx="8" fill="#161d31" stroke="#38bdf8" stroke-width="1.2"/>
+    <rect x="225" y="252" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="302" cy="289" r="22" fill="#38bdf8" opacity="0.2"/>
+    <text x="302" y="295" fill="#38bdf8" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="227" y="346" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Katana Tix</text>
+    <rect x="227" y="354" width="58" height="16" rx="4" fill="#38bdf8" opacity="0.2"/>
+    <text x="256" y="366" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Raro</text>
+    <text x="378" y="366" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+18 Tix/m</text>
+    <rect x="227" y="376" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="302" y="387" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="410" y="242" width="175" height="158" rx="8" fill="#161d31" stroke="#a855f7" stroke-width="1.2"/>
+    <rect x="420" y="252" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="497" cy="289" r="22" fill="#a855f7" opacity="0.2"/>
+    <text x="497" y="295" fill="#a855f7" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="422" y="346" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Aura Espectral</text>
+    <rect x="422" y="354" width="58" height="16" rx="4" fill="#a855f7" opacity="0.2"/>
+    <text x="451" y="366" fill="#a855f7" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Épico</text>
+    <text x="573" y="366" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+40 Tix/m</text>
+    <rect x="422" y="376" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="497" y="387" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+    <rect x="605" y="242" width="175" height="158" rx="8" fill="#161d31" stroke="#ef4444" stroke-width="1.2"/>
+    <rect x="615" y="252" width="155" height="74" rx="6" fill="#1f2843"/>
+    <circle cx="692" cy="289" r="22" fill="#ef4444" opacity="0.2"/>
+    <text x="692" y="295" fill="#ef4444" font-family="sans-serif" font-size="20" text-anchor="middle">★</text>
+    <text x="617" y="346" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">Dominus Vórtice</text>
+    <rect x="617" y="354" width="58" height="16" rx="4" fill="#ef4444" opacity="0.2"/>
+    <text x="646" y="366" fill="#ef4444" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Mítico</text>
+    <text x="768" y="366" fill="#4ade80" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="end">+150 Tix/m</text>
+    <rect x="617" y="376" width="151" height="16" rx="4" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+    <text x="692" y="387" fill="#4ade80" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">Equipado en Maniquí</text>
+  
+
+</svg>

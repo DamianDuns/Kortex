@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c101a"/>
+      <stop offset="50%" stop-color="#111625"/>
+      <stop offset="100%" stop-color="#0b0e17"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="800" height="420" rx="14" fill="url(#bgGrad)"/>
+  <rect x="2" y="2" width="796" height="416" rx="13" fill="none" stroke="#252d43" stroke-width="1.5"/>
+
+  <!-- Top Title Bar -->
+  <rect x="20" y="16" width="760" height="46" rx="8" fill="#151b2c" stroke="#2a344f" stroke-width="1"/>
+  <circle cx="42" cy="39" r="6" fill="#22c55e"/>
+  <text x="58" y="44" fill="#f8fafc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="15" font-weight="bold">💠 /tycoon — Categoría 4: Misiones y Top 5</text>
+  <text x="760" y="44" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" text-anchor="end">Misiones Semanales • Recompensas en Cristales • Ranking de la Temporada</text>
+
+  <!-- Content -->
+  
+  <!-- Left Missions Column -->
+  <rect x="20" y="74" width="460" height="326" rx="10" fill="#161d31" stroke="#2d3752" stroke-width="1.2"/>
+  <text x="40" y="105" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="bold">MISIONES SEMANALES ACTIVAS</text>
+
+  
+    <rect x="35" y="125" width="430" height="54" rx="6" fill="#1c253d" stroke="#334155" stroke-width="1"/>
+    <text x="48" y="145" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Fabricá 10 prendas en el Taller UGC</text>
+    <text x="450" y="145" fill="#38bdf8" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">+5 Cristales</text>
+    <rect x="48" y="155" width="402" height="8" rx="4" fill="#0f172a"/>
+    <rect x="48" y="155" width="322" height="8" rx="4" fill="#38bdf8"/>
+  
+    <rect x="35" y="190" width="430" height="54" rx="6" fill="#1c253d" stroke="#334155" stroke-width="1"/>
+    <text x="48" y="210" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Generá 50.000 Tix con tu Estudio</text>
+    <text x="450" y="210" fill="#22c55e" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">+8 Cristales</text>
+    <rect x="48" y="220" width="402" height="8" rx="4" fill="#0f172a"/>
+    <rect x="48" y="220" width="338" height="8" rx="4" fill="#22c55e"/>
+  
+    <rect x="35" y="255" width="430" height="54" rx="6" fill="#1c253d" stroke="#334155" stroke-width="1"/>
+    <text x="48" y="275" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Alcanzá Rebirth #1 en el Tycoon</text>
+    <text x="450" y="275" fill="#a855f7" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">+15 Cristales</text>
+    <rect x="48" y="285" width="402" height="8" rx="4" fill="#0f172a"/>
+    <rect x="48" y="285" width="0" height="8" rx="4" fill="#a855f7"/>
+  
+    <rect x="35" y="320" width="430" height="54" rx="6" fill="#1c253d" stroke="#334155" stroke-width="1"/>
+    <text x="48" y="340" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Completá 3 intercambios de Limiteds</text>
+    <text x="450" y="340" fill="#f59e0b" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">+6 Cristales</text>
+    <rect x="48" y="350" width="402" height="8" rx="4" fill="#0f172a"/>
+    <rect x="48" y="350" width="268" height="8" rx="4" fill="#f59e0b"/>
+  
+
+  <!-- Right Leaderboard -->
+  <rect x="495" y="74" width="285" height="326" rx="10" fill="#161d31" stroke="#2d3752" stroke-width="1.2"/>
+  <text x="515" y="105" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="bold">TOP 5 JUGADORES (RANKING)</text>
+
+  
+    <rect x="510" y="125" width="255" height="42" rx="6" fill="#1c253d"/>
+    <text x="525" y="151" fill="#fbbf24" font-family="sans-serif" font-size="13" font-weight="bold">🥇</text>
+    <text x="550" y="151" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">DarcyBlox</text>
+    <text x="750" y="151" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">1.420.000 Tix</text>
+  
+    <rect x="510" y="177" width="255" height="42" rx="6" fill="#1c253d"/>
+    <text x="525" y="203" fill="#fbbf24" font-family="sans-serif" font-size="13" font-weight="bold">🥈</text>
+    <text x="550" y="203" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">RobloxTycoonKing</text>
+    <text x="750" y="203" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">980.000 Tix</text>
+  
+    <rect x="510" y="229" width="255" height="42" rx="6" fill="#1c253d"/>
+    <text x="525" y="255" fill="#fbbf24" font-family="sans-serif" font-size="13" font-weight="bold">🥉</text>
+    <text x="550" y="255" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">BuildMaster_99</text>
+    <text x="750" y="255" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">740.000 Tix</text>
+  
+    <rect x="510" y="281" width="255" height="42" rx="6" fill="#1c253d"/>
+    <text x="525" y="307" fill="#fbbf24" font-family="sans-serif" font-size="13" font-weight="bold">4</text>
+    <text x="550" y="307" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">AlexGamerPro</text>
+    <text x="750" y="307" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">510.000 Tix</text>
+  
+    <rect x="510" y="333" width="255" height="42" rx="6" fill="#1c253d"/>
+    <text x="525" y="359" fill="#fbbf24" font-family="sans-serif" font-size="13" font-weight="bold">5</text>
+    <text x="550" y="359" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="bold">KortexStudioDev</text>
+    <text x="750" y="359" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="end">390.000 Tix</text>
+  
+
+</svg>

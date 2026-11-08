@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c101a"/>
+      <stop offset="50%" stop-color="#111625"/>
+      <stop offset="100%" stop-color="#0b0e17"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="800" height="420" rx="14" fill="url(#bgGrad)"/>
+  <rect x="2" y="2" width="796" height="416" rx="13" fill="none" stroke="#252d43" stroke-width="1.5"/>
+
+  <!-- Top Title Bar -->
+  <rect x="20" y="16" width="760" height="46" rx="8" fill="#151b2c" stroke="#2a344f" stroke-width="1"/>
+  <circle cx="42" cy="39" r="6" fill="#22c55e"/>
+  <text x="58" y="44" fill="#f8fafc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="15" font-weight="bold">📉 1.3 Monitor de Pisos UGC (Apache ECharts)</text>
+  <text x="760" y="44" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" text-anchor="end">Precios Mínimos por Categoría de Accesorios • Análisis de Mercado Roblox</text>
+
+  <!-- Content -->
+  
+  <!-- Categories Bars -->
+  <rect x="20" y="74" width="760" height="326" rx="10" fill="#161d31" stroke="#2d3752" stroke-width="1.2"/>
+  <text x="45" y="105" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="bold">COMPARATIVA DE PISOS DE PRECIO (ROBUX)</text>
+
+  
+    <!-- Bar Background -->
+    <rect x="40" y="130" width="60" height="210" rx="6" fill="#1c253d"/>
+    <!-- Value Bar with Gradient -->
+    <rect x="44" y="200" width="52" height="140" rx="5" fill="#38bdf8" opacity="0.85"/>
+    <text x="70" y="190" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">65 R$</text>
+    <text x="70" y="362" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle">Sombreros</text>
+  
+    <!-- Bar Background -->
+    <rect x="160" y="130" width="60" height="210" rx="6" fill="#1c253d"/>
+    <!-- Value Bar with Gradient -->
+    <rect x="164" y="160" width="52" height="180" rx="5" fill="#a855f7" opacity="0.85"/>
+    <text x="190" y="150" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">85 R$</text>
+    <text x="190" y="362" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle">Pelo</text>
+  
+    <!-- Bar Background -->
+    <rect x="280" y="130" width="60" height="210" rx="6" fill="#1c253d"/>
+    <!-- Value Bar with Gradient -->
+    <rect x="284" y="230" width="52" height="110" rx="5" fill="#22c55e" opacity="0.85"/>
+    <text x="310" y="220" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">50 R$</text>
+    <text x="310" y="362" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle">Accesorios</text>
+  
+    <!-- Bar Background -->
+    <rect x="400" y="130" width="60" height="210" rx="6" fill="#1c253d"/>
+    <!-- Value Bar with Gradient -->
+    <rect x="404" y="185" width="52" height="155" rx="5" fill="#f59e0b" opacity="0.85"/>
+    <text x="430" y="175" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">70 R$</text>
+    <text x="430" y="362" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle">Cuello</text>
+  
+    <!-- Bar Background -->
+    <rect x="520" y="130" width="60" height="210" rx="6" fill="#1c253d"/>
+    <!-- Value Bar with Gradient -->
+    <rect x="524" y="120" width="52" height="220" rx="5" fill="#ec4899" opacity="0.85"/>
+    <text x="550" y="110" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">100 R$</text>
+    <text x="550" y="362" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle">Espalda</text>
+  
+    <!-- Bar Background -->
+    <rect x="640" y="130" width="60" height="210" rx="6" fill="#1c253d"/>
+    <!-- Value Bar with Gradient -->
+    <rect x="644" y="175" width="52" height="165" rx="5" fill="#6366f1" opacity="0.85"/>
+    <text x="670" y="165" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">75 R$</text>
+    <text x="670" y="362" fill="#94a3b8" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle">Cintura</text>
+  
+
+  <line x1="40" y1="340" x2="740" y2="340" stroke="#334155" stroke-width="1.5"/>
+
+</svg>

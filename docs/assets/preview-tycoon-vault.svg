@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c101a"/>
+      <stop offset="50%" stop-color="#111625"/>
+      <stop offset="100%" stop-color="#0b0e17"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="800" height="420" rx="14" fill="url(#bgGrad)"/>
+  <rect x="2" y="2" width="796" height="416" rx="13" fill="none" stroke="#252d43" stroke-width="1.5"/>
+
+  <!-- Top Title Bar -->
+  <rect x="20" y="16" width="760" height="46" rx="8" fill="#151b2c" stroke="#2a344f" stroke-width="1"/>
+  <circle cx="42" cy="39" r="6" fill="#22c55e"/>
+  <text x="58" y="44" fill="#f8fafc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="15" font-weight="bold">👑 /tycoon — Categoría 3: Cofres 3D y Limiteds</text>
+  <text x="760" y="44" fill="#94a3b8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="12" text-anchor="end">Bóveda de Reliquias Seriadas • Edición Coleccionista • Multiplicador P2P</text>
+
+  <!-- Content -->
+  
+  <!-- Left Chest Showcase -->
+  <rect x="20" y="74" width="310" height="326" rx="10" fill="#161d31" stroke="#f59e0b" stroke-width="1.5"/>
+  <rect x="35" y="90" width="280" height="200" rx="8" fill="#1c243a"/>
+  <!-- 3D Chest representation -->
+  <rect x="105" y="160" width="140" height="80" rx="10" fill="#78350f" stroke="#fbbf24" stroke-width="2"/>
+  <rect x="95" y="135" width="160" height="35" rx="10" fill="#b45309" stroke="#fbbf24" stroke-width="2"/>
+  <circle cx="175" cy="175" r="12" fill="#fbbf24"/>
+  <rect x="173" y="175" width="4" height="12" fill="#451a03"/>
+  <text x="175" y="315" fill="#fbbf24" font-family="sans-serif" font-size="15" font-weight="bold" text-anchor="middle">COFRE DE ASCENSIÓN 3D</text>
+  <text x="175" y="338" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Disponible cada 24h • Bono Tix ×1.8</text>
+  <rect x="65" y="352" width="220" height="34" rx="6" fill="#f59e0b"/>
+  <text x="175" y="374" fill="#0f172a" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle">ABRIR COFRE DIARIO</text>
+
+  <!-- Right Serialized Limiteds Grid -->
+  <rect x="345" y="74" width="435" height="326" rx="10" fill="#161d31" stroke="#2d3752" stroke-width="1.2"/>
+  <text x="365" y="102" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="bold">RELIQUIAS LIMITED / LIMITED U (2×3)</text>
+  
+  
+    <rect x="365" y="118" width="195" height="82" rx="6" fill="#1c253d" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="375" y="142" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Valkyrie Dorada</text>
+    <rect x="375" y="150" width="54" height="16" rx="3" fill="rgba(56,189,248,0.2)"/>
+    <text x="402" y="161" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">#01/15</text>
+    <text x="375" y="186" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold">Valor: 120.000 Tix</text>
+  
+    <rect x="575" y="118" width="195" height="82" rx="6" fill="#1c253d" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="585" y="142" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Sparkle Time Fed</text>
+    <rect x="585" y="150" width="54" height="16" rx="3" fill="rgba(56,189,248,0.2)"/>
+    <text x="612" y="161" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">#03/20</text>
+    <text x="585" y="186" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold">Valor: 85.000 Tix</text>
+  
+    <rect x="365" y="210" width="195" height="82" rx="6" fill="#1c253d" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="375" y="234" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Gorra Clockwork</text>
+    <rect x="375" y="242" width="54" height="16" rx="3" fill="rgba(56,189,248,0.2)"/>
+    <text x="402" y="253" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">#07/30</text>
+    <text x="375" y="278" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold">Valor: 45.000 Tix</text>
+  
+    <rect x="575" y="210" width="195" height="82" rx="6" fill="#1c253d" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="585" y="234" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Dominus Frigidus</text>
+    <rect x="585" y="242" width="54" height="16" rx="3" fill="rgba(56,189,248,0.2)"/>
+    <text x="612" y="253" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">#02/10</text>
+    <text x="585" y="278" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold">Valor: 310.000 Tix</text>
+  
+    <rect x="365" y="302" width="195" height="82" rx="6" fill="#1c253d" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="375" y="326" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Red Domino</text>
+    <rect x="375" y="334" width="54" height="16" rx="3" fill="rgba(56,189,248,0.2)"/>
+    <text x="402" y="345" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">#12/50</text>
+    <text x="375" y="370" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold">Valor: 28.000 Tix</text>
+  
+    <rect x="575" y="302" width="195" height="82" rx="6" fill="#1c253d" stroke="#38bdf8" stroke-width="0.8"/>
+    <text x="585" y="326" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold">Shaggy Rainbow</text>
+    <rect x="585" y="334" width="54" height="16" rx="3" fill="rgba(56,189,248,0.2)"/>
+    <text x="612" y="345" fill="#38bdf8" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">#05/25</text>
+    <text x="585" y="370" fill="#4ade80" font-family="sans-serif" font-size="11" font-weight="bold">Valor: 52.000 Tix</text>
+  
+
+</svg>
