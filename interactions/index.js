@@ -130,6 +130,7 @@ function obtenerResumenHandlers() {
         'help_category_select',
         'help_roblox_subcat_select',
         'config_category_select',
+        'select_pref_prefix',
         'select_pref_default_cat',
         'select_pref_tier',
         'select_pref_comfort',
@@ -144,6 +145,7 @@ function obtenerResumenHandlers() {
     ];
     const extraModales = [
         'modal_fastlink_roblox_submit',
+        'modal_custom_prefix_submit',
         'modal_owner_limits_submit',
         'modal_owner_intervals_submit',
         'modal_owner_presence_submit',
@@ -564,6 +566,8 @@ async function procesarInteraccionInterna(interaction) {
         cid === 'btn_fastlink_cancel_verify' ||
         cid.startsWith('btn_discord_web_') ||
         cid === 'modal_fastlink_roblox_submit' ||
+        cid === 'select_pref_prefix' ||
+        cid === 'modal_custom_prefix_submit' ||
         cid === 'select_pref_default_cat' ||
         cid === 'select_pref_tier' ||
         cid === 'select_pref_comfort' ||
@@ -618,6 +622,56 @@ async function procesarInteraccionInterna(interaction) {
         const feedback = newLang === 'en'
             ? '🇺🇸 **Language updated to English!** All bot panels, tools, and rendered images will now appear in English.'
             : '🇪🇸 **¡Idioma actualizado a Español!** Todos los paneles, herramientas e imágenes del bot se mostrarán en Español.';
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'select_pref_prefix' && interaction.isStringSelectMenu()) {
+        const choice = interaction.values[0] || '!';
+        const uid = interaction.user.id;
+        const currentPrefs = obtenerPreferenciasUsuario(uid);
+        const isEn = currentPrefs.lang === 'en';
+
+        if (choice === 'prefix_modal_custom') {
+            const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+            const modal = new ModalBuilder()
+                .setCustomId('modal_custom_prefix_submit')
+                .setTitle(isEn ? 'Custom Bot Prefix' : 'Prefijo Personalizado');
+
+            const input = new TextInputBuilder()
+                .setCustomId('custom_prefix_input')
+                .setLabel(isEn ? 'Prefix (1 to 5 characters):' : 'Prefijo (1 a 5 caracteres):')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder(currentPrefs.custom_prefix || '!')
+                .setValue(currentPrefs.custom_prefix || '!')
+                .setMinLength(1)
+                .setMaxLength(5)
+                .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            return await interaction.showModal(modal);
+        }
+
+        const prefs = guardarPreferenciasUsuario(uid, { custom_prefix: choice });
+        await interaction.deferUpdate();
+        const feedback = isEn
+            ? `⚡ **Prefix updated to \`${prefs.custom_prefix}\`!** Run \`${prefs.custom_prefix}roblox\`, \`${prefs.custom_prefix}help\`, etc.`
+            : `⚡ **¡Prefijo actualizado a \`${prefs.custom_prefix}\`!** Podés usar \`${prefs.custom_prefix}roblox\`, \`${prefs.custom_prefix}help\`, etc.`;
+        const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'modal_custom_prefix_submit' && interaction.isModalSubmit()) {
+        const uid = interaction.user.id;
+        const rawPrefix = interaction.fields.getTextInputValue('custom_prefix_input') || '!';
+        const cleanPrefix = rawPrefix.trim().slice(0, 5) || '!';
+        const prefs = guardarPreferenciasUsuario(uid, { custom_prefix: cleanPrefix });
+        const isEn = prefs.lang === 'en';
+
+        await interaction.deferUpdate();
+        const feedback = isEn
+            ? `⚡ **Custom prefix set to \`${cleanPrefix}\`!** Run \`${cleanPrefix}roblox\`, \`${cleanPrefix}help\`, etc.`
+            : `⚡ **¡Prefijo personalizado establecido en \`${cleanPrefix}\`!** Podés usar \`${cleanPrefix}roblox\`, \`${cleanPrefix}help\`, etc.`;
         const panel = await construirPanelConfigDiscord(interaction.user, feedback, 'cat_preferences', interaction.client);
         return await interaction.editReply(panel);
     }
