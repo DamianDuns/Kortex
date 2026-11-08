@@ -163,96 +163,76 @@ const DETALLE_SUBCATEGORIAS_ROBLOX = {
 const SECCIONES_PRINCIPALES_HELP = {
     es: {
         cmd_overview: {
-            titulo: '🏠 Comandos Principales',
+            titulo: '🏠 Resumen de Comandos',
             color: COLORES.primario,
             contenido:
-                '### 🎮 `/roblox` *(o mencionar `@Kortex`)*\n' +
-                '> Abre el panel de herramientas de Roblox dividido en 4 categorías: **Economía**, **Avatares 3D/2D**, **Juegos y Servidores** y **Estadísticas y Estado de Roblox**.\n\n' +
+                '### 🎮 `/roblox` o mención `@Kortex`\n' +
+                '> Acceso directo al conjunto de herramientas de Roblox: Economía y Precios, Avatares 3D y 2D, Servidores y Juegos, y Estado de Servidores en vivo.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Abrí tu **Estudio Roblox Tycoon en 3D Isométrico**: Colector de Tix (`🎟️`), **Cristales Kortex (`💠`)**, **Misiones Semanales**, Tienda Normal y de Cristales, Taller UGC (70% regalías), Bóveda Limited / Limited U y Trading P2P.\n\n' +
+                '> Tu Estudio Tycoon en 3D: Colector de Tix, Cristales Kortex, Misiones Semanales, Tienda, Taller UGC con 70% de regalías, Bóveda de Limiteds y Comercio P2P.\n\n' +
                 '### ⚙️ `/config`\n' +
-                '> Configurá tus cuentas vinculadas, datos guardados, **idioma** (**Español / English**) y región de precios.\n\n' +
+                '> Vinculá tus cuentas de Discord y Roblox, configurá tu prefijo personalizado de comandos, idioma y preferencias de uso.\n\n' +
                 '### 🏓 `/ping`\n' +
-                '> Consultá la latencia y velocidad de respuesta del bot en tiempo real.'
+                '> Medición de latencia y velocidad de respuesta con Discord en tiempo real, tiempo activo del bot y consumo de memoria.'
         },
         cmd_tycoon: {
-            titulo: '🏭 Comando `/tycoon` — 4 Categorías Visuales Simétricas',
+            titulo: '🏭 Comando `/tycoon` — Estudio Roblox Tycoon',
             color: 0x22C55E,
             contenido:
-                '### 🏗️ Categoría 1: Mi Estudio y Producción\n' +
-                '> • Mapa 3D isométrico con tu avatar, cinta transportadora, Colector de Tix, **Racha Diaria (`🔥`)** y **Rebirth (`+35%`)**.\n\n' +
-                '### 🎒 Categoría 2: Tienda, Ítems y Taller UGC\n' +
-                '> • **Vitrina Visual 2×4 de Tarjetas de Ítems Ilustradas**: comprá con Tix (`🎟️`) o Cristales (`💠`), equipá hasta 3 ítems y creá tus propios `[🎨 UGC]` (70% regalías).\n\n' +
-                '### 👑 Categoría 3: Cofres, Limiteds e Intercambios\n' +
-                '> • **Vitrina Visual de Cofre de Ascensión 3D + Tarjetas Limited**: abrí cofres con tus llaves de Rebirth, reclamá Limited U seriados (`#01/15`) y comerciá P2P.\n\n' +
-                '### 💠 Categoría 4: Misiones, Pociones y Ranking\n' +
-                '> • **Tablero Visual de 4 Misiones Semanales + Top 5 Estudios**: ganá Cristales Kortex (`💠`) gratis, activá pociones de 30m y sincronizá **Nitro Boost (`+50%`)** y **YouTube VIP (`+35%`)**.'
+                '### 🏗️ 1. Mi Estudio y Producción\n' +
+                '> Mapa 3D isométrico con tu avatar, cinta transportadora, Colector de Tix, Racha Diaria y Rebirth.\n\n' +
+                '### 🎒 2. Tienda, Ítems y Taller UGC\n' +
+                '> Comprá ítems con Tix o Cristales Kortex, equipá hasta 3 ítems y publicá accesorios UGC con 70% de regalías.\n\n' +
+                '### 👑 3. Cofres, Limiteds e Intercambios\n' +
+                '> Abrí cofres con llaves de Rebirth, conseguí ítems Limited U seriados y comerciá P2P.\n\n' +
+                '### 💠 4. Misiones, Pociones y Ranking\n' +
+                '> Completá misiones semanales para ganar Cristales gratis, activá pociones temporales y competí en el ranking de estudios.'
         },
         cmd_config: {
             titulo: '⚙️ Comando `/config` — Configuración',
             color: 0x5865F2,
             contenido:
                 '### 🔗 1. Cuentas y Datos Guardados\n' +
-                '> • Vinculá tus cuentas de **Discord** y **Roblox** con los botones a la derecha de cada sección.\n' +
-                '> • Consultá de un vistazo el resumen de tu lista de precios, Robux pendientes, alertas y códigos.\n\n' +
-                '### 🌐 2. Idioma y Preferencias\n' +
-                '> • Cambiá en cualquier momento entre **🇪🇸 Español** y **🇺🇸 English**.\n' +
-                '> • Elegí tu región de precios predeterminada para la calculadora.'
-        },
-        cmd_ping: {
-            titulo: '🏓 Comando `/ping` — Estado y Latencia',
-            color: 0x10B981,
-            contenido:
-                '### 🏓 Velocidad de Respuesta\n' +
-                '> • Muestra la velocidad de conexión actual con Discord, el tiempo activo y el uso de memoria.\n' +
-                '> • Contás con el botón **🔄 Actualizar** para volver a medir la latencia al instante.'
+                '> Vinculá tus cuentas de Discord y Roblox, generá tu código para iniciar sesión en la web y consultá tu resumen guardado.\n\n' +
+                '### ⚡ 2. Prefijo, Idioma y Preferencias\n' +
+                '> Personalizá tu prefijo de comandos para el chat, cambiá el idioma entre Español e Inglés y configurá tus alertas por mensaje directo.'
         }
     },
     en: {
         cmd_overview: {
-            titulo: '🏠 Main Commands',
+            titulo: '🏠 Main Commands Overview',
             color: COLORES.primario,
             contenido:
-                '### 🎮 `/roblox` *(or mention `@Kortex`)*\n' +
-                '> Opens the Roblox toolkit organized into 4 categories: **Economy**, **3D/2D Avatars**, **Games & Servers**, and **Analytics & Roblox Status**.\n\n' +
+                '### 🎮 `/roblox` or mention `@Kortex`\n' +
+                '> Direct access to the Roblox toolkit: Economy & Pricing, 3D/2D Avatars, Games & Servers, and Live Server Status.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Open your **3D Isometric Roblox Tycoon Studio**: Tix Collector (`🎟️`), **Kortex Crystals (`💠`)**, **Weekly Quests**, Tix & Crystal Shops, UGC Workshop (70% royalties), Limited / Limited U Vault, and P2P Trading.\n\n' +
+                '> Your 3D Tycoon Studio: Tix Collector, Kortex Crystals, Weekly Quests, Shop, UGC Workshop with 70% royalties, Limiteds Vault, and P2P Trading.\n\n' +
                 '### ⚙️ `/config`\n' +
-                '> Manage your linked accounts, saved data, **language** (**Español / English**), and pricing region.\n\n' +
+                '> Link your Discord and Roblox accounts, set your custom command prefix, language, and preferences.\n\n' +
                 '### 🏓 `/ping`\n' +
-                '> Check the bot\'s connection latency and response time in real time.'
+                '> Real-time latency and Discord response time measurement, bot uptime, and memory usage.'
         },
         cmd_tycoon: {
-            titulo: '🏭 Command `/tycoon` — 4 Symmetrical Visual Categories',
+            titulo: '🏭 Command `/tycoon` — Tycoon Studio',
             color: 0x22C55E,
             contenido:
-                '### 🏗️ Category 1: My Studio & Production\n' +
-                '> • 3D isometric studio map with your avatar, conveyor belt, Tix Collector, **Daily Streak (`🔥`)**, and **Rebirth (`+35%`)**.\n\n' +
-                '### 🎒 Category 2: Shop, Items & UGC Workshop\n' +
-                '> • **Visual 2×4 Illustrated Item Card Grid**: buy items with Tix (`🎟️`) or Crystals (`💠`), equip up to 3 items, and publish custom `[🎨 UGC]` items (70% royalties).\n\n' +
-                '### 👑 Category 3: Chests, Limiteds & P2P Trading\n' +
-                '> • **Visual 3D Ascension Chest + Limited Cards Showcase**: unbox chests with Rebirth keys, mint serialized Limited U drops (`#01/15`), and trade P2P.\n\n' +
-                '### 💠 Category 4: Quests, Potions & Leaderboard\n' +
-                '> • **Visual 4 Weekly Quests + Top 5 Studios Board**: earn free Kortex Crystals (`💠`), activate 30m potions, and sync **Nitro Boost (`+50%`)** & **YouTube VIP (`+35%`)**.'
+                '### 🏗️ 1. Studio & Production\n' +
+                '> 3D isometric studio map with your avatar, conveyor belt, Tix Collector, Daily Streak, and Rebirth.\n\n' +
+                '### 🎒 2. Shop, Items & UGC Workshop\n' +
+                '> Buy items with Tix or Kortex Crystals, equip up to 3 items, and publish UGC items with 70% royalties.\n\n' +
+                '### 👑 3. Chests, Limiteds & P2P Trading\n' +
+                '> Unbox chests with Rebirth keys, collect serialized Limited U drops, and trade P2P.\n\n' +
+                '### 💠 4. Quests, Potions & Leaderboard\n' +
+                '> Complete weekly quests to earn free Crystals, activate temporary potions, and climb the studio leaderboard.'
         },
         cmd_config: {
             titulo: '⚙️ Command `/config` — Settings',
             color: 0x5865F2,
             contenido:
                 '### 🔗 1. Accounts & Saved Data\n' +
-                '> • Link your **Discord** and **Roblox** accounts using the buttons on the right of each section.\n' +
-                '> • View a quick summary of your watchlist, pending Robux, alerts, and codes.\n\n' +
-                '### 🌐 2. Language & Preferences\n' +
-                '> • Switch anytime between **🇪🇸 Español** and **🇺🇸 English**.\n' +
-                '> • Select your default pricing region for the calculator.'
-        },
-        cmd_ping: {
-            titulo: '🏓 Command `/ping` — Status & Latency',
-            color: 0x10B981,
-            contenido:
-                '### 🏓 Response Speed\n' +
-                '> • Shows current connection speed with Discord, uptime, and memory usage.\n' +
-                '> • Includes a **🔄 Refresh** button to re-check latency at any time.'
+                '> Link your Discord and Roblox accounts, generate your web login code, and inspect your saved summary.\n\n' +
+                '### ⚡ 2. Prefix, Language & Preferences\n' +
+                '> Customize your chat command prefix, toggle between Spanish and English, and configure personal DM notifications.'
         }
     }
 };
@@ -279,7 +259,7 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
         robloxSubCategory = 'sub_status';
     }
 
-    const validMainKeys = ['cmd_overview', 'cmd_roblox', 'cmd_tycoon', 'cmd_config', 'cmd_ping'];
+    const validMainKeys = ['cmd_overview', 'cmd_roblox', 'cmd_tycoon', 'cmd_config'];
     const activeMain = validMainKeys.includes(mainCategory) ? mainCategory : 'cmd_overview';
 
     const validSubKeys = ['sub_economy', 'sub_avatar', 'sub_games', 'sub_status', 'sub_account'];
@@ -353,26 +333,12 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
                 )
                 .setDescription(
                     isEn
-                        ? 'Linked accounts, saved data, and language (Español/English)'
-                        : 'Cuentas vinculadas, datos guardados e idioma (Español/Inglés)'
+                        ? 'Linked accounts, custom prefix, and preferences'
+                        : 'Cuentas vinculadas, prefijo personalizado y preferencias'
                 )
                 .setValue('cmd_config')
                 .setEmoji('⚙️')
-                .setDefault(activeMain === 'cmd_config'),
-            new StringSelectMenuOptionBuilder()
-                .setLabel(
-                    isEn
-                        ? 'Command /ping — Status & Latency'
-                        : 'Comando /ping — Estado y Latencia'
-                )
-                .setDescription(
-                    isEn
-                        ? 'Connection latency, uptime, and memory usage'
-                        : 'Latencia de conexión, tiempo activo y memoria'
-                )
-                .setValue('cmd_ping')
-                .setEmoji('🏓')
-                .setDefault(activeMain === 'cmd_ping')
+                .setDefault(activeMain === 'cmd_config')
         ]);
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMainHelp));
@@ -481,7 +447,7 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
 
     container.addSeparatorComponents(separador());
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer(isEn ? 'Commands: /roblox • /config • /ping' : 'Comandos: /roblox • /config • /ping')
+        footer(isEn ? 'Commands: /roblox • /tycoon • /config • /ping' : 'Comandos: /roblox • /tycoon • /config • /ping')
     ));
 
     return {
@@ -495,7 +461,7 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Muestra la guía interactiva de comandos (/roblox, /config, /ping) y herramientas del bot.'),
+        .setDescription('Muestra la guía interactiva de comandos y herramientas del bot.'),
 
     construirPanelHelp,
 
