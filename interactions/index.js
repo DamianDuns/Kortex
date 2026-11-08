@@ -573,8 +573,9 @@ async function procesarInteraccionInterna(interaction) {
         if (!esOwner) {
             await interaction.deferUpdate();
             return await interaction.editReply(construirPanelAvisoModeracion({
-                titulo: '🛠️ Bot en Mantenimiento Temporal',
-                descripcion: 'El propietario del bot activó el **Modo Mantenimiento** para optimizar recursos o aplicar ajustes. Intentá nuevamente en unos minutos.'
+                titulo: '🛠️ Mantenimiento Temporal',
+                descripcion: 'El bot se encuentra en mantenimiento temporalmente. Intentá nuevamente en unos minutos.',
+                includeBackButton: false
             }));
         }
     }
