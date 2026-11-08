@@ -3739,7 +3739,6 @@ module.exports = {
     MAX_WISHLIST_ITEMS,
     DEFAULT_APP_URL,
     GITHUB_PAGES_URL,
-    RAILWAY_BACKEND_URL,
     normalizarUrlPublica,
     setDetectedPublicAppUrl,
     obtenerUrlBasePublica,
