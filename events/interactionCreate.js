@@ -54,8 +54,9 @@ module.exports = {
                         const esOwner = await esPropietarioDelBot(interaction.user.id, interaction.client);
                         if (!esOwner) {
                             return await interaction.reply(construirPanelAvisoModeracion({
-                                titulo: '🛠️ Bot en Mantenimiento Temporal',
-                                descripcion: 'El propietario del bot activó el **Modo Mantenimiento** para realizar ajustes o liberar recursos. Volvé a intentarlo en unos minutos.'
+                                titulo: '🛠️ Mantenimiento Temporal',
+                                descripcion: 'El bot se encuentra en mantenimiento temporalmente. Volvé a intentarlo en unos minutos.',
+                                includeBackButton: false
                             }));
                         }
                     }
