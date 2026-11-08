@@ -129,10 +129,11 @@ async function persistirConfigDiscordEnSupabase(discordId, cfg) {
             verified_at: cfg.verified_at ? new Date(cfg.verified_at).toISOString() : null,
             lang: cfg.lang || 'es',
             language_selected: Boolean(cfg.language_selected),
-            default_tier: cfg.default_tier || 'Classic',
-            default_category: cfg.default_category || 'All',
+            custom_prefix: (typeof cfg.custom_prefix === 'string' && cfg.custom_prefix.trim().length > 0) ? cfg.custom_prefix.trim().slice(0, 5) : '!',
+            default_tier: cfg.default_tier || 'TIER_100',
+            default_category: cfg.default_category || 'cat_economy',
             default_chart_range: cfg.default_chart_range || '7d',
-            default_camera_mode: cfg.default_camera_mode || 'front',
+            default_camera_mode: cfg.default_camera_mode || 'full',
             auto_cashback_40: Boolean(cfg.auto_cashback_40),
             ephemeral_config: Boolean(cfg.ephemeral_config),
             dm_alerts_enabled: cfg.dm_alerts_enabled !== false,
@@ -2796,16 +2797,54 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addSeparatorComponents(separador(true));
 
         // =====================================================
-        // SECCIÓN 1: PREFIJO DE COMANDOS DEL BOT
+        // SECCIÓN 1: IDIOMA, ALERTAS Y PRIVACIDAD (Ajustes Rápidos)
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### ⚡ 1. Bot Command Prefix\n` +
-                  `• **Active:** \`${userPrefix}\` — Mentioning \`@Kortex\` is always available\n` +
-                  `-# Choose the prefix to run bot commands directly in chat.`
-                : `### ⚡ 1. Prefijo de Comandos del Bot\n` +
-                  `• **Activo:** \`${userPrefix}\` — La mención \`@Kortex\` siempre está disponible\n` +
-                  `-# Elegí el prefijo para ejecutar comandos del bot en el chat.`
+                ? `### ⚙️ 1. Quick Settings & Privacy\n` +
+                  `• 🗣️ **Language:** ${langActualBadge}  •  🔔 **DM Alerts:** ${alertsBadge}  •  ${privacyBadge}`
+                : `### ⚙️ 1. Ajustes Rápidos y Privacidad\n` +
+                  `• 🗣️ **Idioma:** ${langActualBadge}  •  🔔 **Alertas por MD:** ${alertsBadge}  •  ${privacyBadge}`
+        ));
+
+        container.addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(isEn ? 'btn_pref_lang:es' : 'btn_pref_lang:en')
+                    .setLabel(isEn ? 'Idioma: Español' : 'Language: English')
+                    .setEmoji(isEn ? '🇪🇸' : '🇺🇸')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_toggle_alerts')
+                    .setLabel(
+                        prefs.dm_alerts_enabled !== false
+                            ? (isEn ? 'Alerts: ON' : 'Alertas: ON')
+                            : (isEn ? 'Alerts: OFF' : 'Alertas: OFF')
+                    )
+                    .setEmoji(prefs.dm_alerts_enabled !== false ? '🔔' : '🔕')
+                    .setStyle(prefs.dm_alerts_enabled !== false ? ButtonStyle.Success : ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('btn_pref_toggle_ephemeral')
+                    .setLabel(
+                        prefs.ephemeral_config
+                            ? (isEn ? 'Mode: Private' : 'Modo: Privado')
+                            : (isEn ? 'Mode: Public' : 'Modo: Público')
+                    )
+                    .setEmoji(prefs.ephemeral_config ? '🔒' : '👁️')
+                    .setStyle(prefs.ephemeral_config ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            )
+        );
+        container.addSeparatorComponents(separador());
+
+        // =====================================================
+        // SECCIÓN 2: PREFIJO DE COMANDOS DEL BOT
+        // =====================================================
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            isEn
+                ? `### ⚡ 2. Bot Command Prefix\n` +
+                  `• **Active:** \`${userPrefix}\` — Mentioning \`@Kortex\` is always available`
+                : `### ⚡ 2. Prefijo de Comandos del Bot\n` +
+                  `• **Activo:** \`${userPrefix}\` — La mención \`@Kortex\` siempre está disponible`
         ));
 
         const prefixOptions = [
@@ -2849,24 +2888,22 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addSeparatorComponents(separador());
 
         // =====================================================
-        // SECCIÓN 2: CATEGORÍA DE INICIO EN /ROBLOX
+        // SECCIÓN 3: CATEGORÍA DE INICIO EN /ROBLOX
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 📂 2. Default Starting Tab in \`/roblox\`\n` +
-                  `• **Active:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
-                  `-# Choose which category opens when running \`/roblox\`.`
-                : `### 📂 2. Categoría de Inicio en \`/roblox\`\n` +
-                  `• **Activa:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
-                  `-# Elegí qué pestaña se abre al ejecutar el comando \`/roblox\`.`
+                ? `### 📁 3. Default Starting Tab in \`/roblox\`\n` +
+                  `• **Active:** ${catNames[prefs.default_category] || catNames.cat_economy}`
+                : `### 📁 3. Categoría de Inicio en \`/roblox\`\n` +
+                  `• **Activa:** ${catNames[prefs.default_category] || catNames.cat_economy}`
         ));
 
         const selectPrefDefaultCat = new StringSelectMenuBuilder()
             .setCustomId('select_pref_default_cat')
             .setPlaceholder(
                 isEn
-                    ? '📂 Choose your default starting category for /roblox...'
-                    : '📂 Elegí con qué categoría iniciar el comando /roblox...'
+                    ? '📁 Choose your default starting category for /roblox...'
+                    : '📁 Elegí con qué categoría iniciar el comando /roblox...'
             )
             .addOptions([
                 new StringSelectMenuOptionBuilder()
@@ -2899,24 +2936,22 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addSeparatorComponents(separador());
 
         // =====================================================
-        // SECCIÓN 3: REGIÓN DE PRECIOS PREDETERMINADA
+        // SECCIÓN 4: REGIÓN DE PRECIOS PREDETERMINADA
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 🌎 3. Default Pricing Region\n` +
-                  `• **Active:** ${tierActualLabel}\n` +
-                  `-# Regional discount applied in the Economy Calculator.`
-                : `### 🌎 3. Región de Precios Predeterminada\n` +
-                  `• **Activa:** ${tierActualLabel}\n` +
-                  `-# Descuento regional para cálculos en la Calculadora de Economía.`
+                ? `### 🌍 4. Default Pricing Region\n` +
+                  `• **Active:** ${tierActualLabel}`
+                : `### 🌍 4. Región de Precios Predeterminada\n` +
+                  `• **Activa:** ${tierActualLabel}`
         ));
 
         const selectPrefTier = new StringSelectMenuBuilder()
             .setCustomId('select_pref_tier')
             .setPlaceholder(
                 isEn
-                    ? '🌎 Choose your default pricing region...'
-                    : '🌎 Elegí tu Tier de región predeterminada...'
+                    ? '🌍 Choose your default pricing region...'
+                    : '🌍 Elegí tu Tier de región predeterminada...'
             )
             .addOptions(
                 REGIONAL_TIERS_LIST.map((tier) =>
@@ -2931,52 +2966,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefTier));
         container.addSeparatorComponents(separador(true));
-
-        // =====================================================
-        // SECCIÓN 4: IDIOMA, ALERTAS MD Y PRIVACIDAD (Botones)
-        // =====================================================
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            isEn
-                ? `### ⚙️ 4. Language, DM Alerts & Privacy\n` +
-                  `• 🗣️ **Language:** ${langActualBadge}\n` +
-                  `• 🔔 **DM Alerts:** ${alertsBadge}\n` +
-                  `• 👁️ **Visibility:** ${privacyBadge}\n` +
-                  `-# Click a button to toggle each setting directly.`
-                : `### ⚙️ 4. Idioma, Alertas y Privacidad\n` +
-                  `• 🗣️ **Idioma:** ${langActualBadge}\n` +
-                  `• 🔔 **Alertas por MD:** ${alertsBadge}\n` +
-                  `• 👁️ **Visibilidad:** ${privacyBadge}\n` +
-                  `-# Pulsá un botón para alternar el ajuste correspondiente.`
-        ));
-
-        container.addActionRowComponents(
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(isEn ? 'btn_pref_lang:es' : 'btn_pref_lang:en')
-                    .setLabel(isEn ? 'Español' : 'English')
-                    .setEmoji(isEn ? '🇪🇸' : '🇺🇸')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId('btn_pref_toggle_alerts')
-                    .setLabel(
-                        prefs.dm_alerts_enabled !== false
-                            ? (isEn ? 'Alerts: ON' : 'Alertas: ON')
-                            : (isEn ? 'Alerts: OFF' : 'Alertas: OFF')
-                    )
-                    .setEmoji(prefs.dm_alerts_enabled !== false ? '🔔' : '🔕')
-                    .setStyle(prefs.dm_alerts_enabled !== false ? ButtonStyle.Success : ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('btn_pref_toggle_ephemeral')
-                    .setLabel(
-                        prefs.ephemeral_config
-                            ? (isEn ? 'Mode: Private' : 'Modo: Privado')
-                            : (isEn ? 'Mode: Public' : 'Modo: Público')
-                    )
-                    .setEmoji(prefs.ephemeral_config ? '🔒' : '👁️')
-                    .setStyle(prefs.ephemeral_config ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            )
-        );
-
+        
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             footer(isEn ? 'Settings • /config' : 'Configuración • /config')
         ));
