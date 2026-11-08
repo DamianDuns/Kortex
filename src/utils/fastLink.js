@@ -987,6 +987,9 @@ function obtenerConfigDiscord(discordId) {
         verified_at: saved.verified_at || null,
         lang: saved.lang === 'en' ? 'en' : 'es',
         language_selected: Boolean(saved.language_selected),
+        custom_prefix: (typeof saved.custom_prefix === 'string' && saved.custom_prefix.trim().length > 0)
+            ? saved.custom_prefix.trim().slice(0, 5)
+            : '!',
         default_tier: saved.default_tier || 'TIER_100',
         default_category: saved.default_category || 'cat_economy',
         default_chart_range: saved.default_chart_range || '7d',

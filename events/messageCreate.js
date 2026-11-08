@@ -109,41 +109,38 @@ module.exports = {
 
                 logger.info(`[PREFIX] Comando '${cmd || 'hub'}' solicitado por ${message.author.tag} (${userId})`);
 
-                // 1. Comando /config (o !config, @Kortex config, !prefijo, !c)
-                if (cmd === 'config' || cmd === 'configuracion' || cmd === 'settings' || cmd === 'prefijo' || cmd === 'prefix' || cmd === 'c') {
-                    const targetCat = (cmd === 'prefijo' || cmd === 'prefix') ? 'cat_preferences' : 'cat_accounts';
-                    const panel = await construirPanelConfigDiscord(message.author, null, targetCat, message.client);
+                // 1. Comando /config
+                if (cmd === 'config') {
+                    const panel = await construirPanelConfigDiscord(message.author, null, 'cat_accounts', message.client);
                     return await responder(traducirPayloadDiscord(panel, lang));
                 }
 
-                // 2. Comando /tycoon (o !tycoon, @Kortex tycoon, !t)
-                if (cmd === 'tycoon' || cmd === 'estudio' || cmd === 'studio' || cmd === 't') {
+                // 2. Comando /tycoon
+                if (cmd === 'tycoon') {
                     const panel = await construirPanelTycoon(message.author, 'sec_studio', null);
                     return await responder(panel);
                 }
 
-                // 3. Comando /ping (o !ping, @Kortex ping, !p)
-                if (cmd === 'ping' || cmd === 'latencia' || cmd === 'ms' || cmd === 'p') {
+                // 3. Comando /ping
+                if (cmd === 'ping') {
                     const latencia = Math.max(0, Date.now() - message.createdTimestamp);
                     return await responder(construirPanelPing(message.client, latencia, lang));
                 }
 
-                // 4. Comando /help (o !help, !ayuda, @Kortex help, !h)
-                if (cmd === 'help' || cmd === 'ayuda' || cmd === 'guia' || cmd === 'h') {
+                // 4. Comando /help
+                if (cmd === 'help') {
                     return await responder(construirPanelHelp('cmd_overview', 'sub_economy', lang));
                 }
 
-                // 5. Comando /roblox o mención directa sola (@Kortex o !roblox, !rblx, !)
-                if (cmd === '' || cmd === 'roblox' || cmd === 'menu' || cmd === 'hub' || cmd === 'inicio' || cmd === 'rblx' || cmd === 'r') {
+                // 5. Comando /roblox o mención directa sola (@Kortex)
+                if (cmd === 'roblox' || (cmd === '' && empiezaConMencion)) {
                     await obtenerCuentaVinculada(userId).catch(() => null);
                     const hub = construirMenuPrincipal(userId);
                     return await responder(traducirPayloadDiscord(hub, lang));
                 }
 
-                // Si se envió un comando desconocido con prefijo o mención, abrir Action Hub principal
-                await obtenerCuentaVinculada(userId).catch(() => null);
-                const hub = construirMenuPrincipal(userId);
-                return await responder(traducirPayloadDiscord(hub, lang));
+                // Si no coincide con ninguno de los comandos oficiales, no ejecutar nada
+                return;
             });
         } catch (err) {
             logger.error(`[PREFIX] Error al procesar mensaje con prefijo de ${message.author?.tag || userId}:`, err);
