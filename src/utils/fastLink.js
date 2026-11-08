@@ -3659,13 +3659,13 @@ function construirPanelDesbloqueoRequerido({
 /**
  * Agrega un activo a `Mi Lista (máx. 5)` del Seguimiento de Precios
  */
-async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemType = 'catalog', price = 0, targetPrice = null }) {
+async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemType = 'catalog', price = 0, targetPrice = null, guildId = 'DM' }) {
     const userId = String(discordId);
     const idStr = String(idObjet);
 
     const { data: existentes, error: countErr } = await supabase
         .from('roblox_wishlist')
-        .select('id, id_objet')
+        .select('id, id_objet, item_name, last_price, target_price')
         .eq('user_id', userId);
 
     if (countErr) {
@@ -3676,8 +3676,16 @@ async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemTy
     const maxItems = Number(obtenerConfigPropietario().maxWishlistItems || MAX_WISHLIST_ITEMS);
 
     const lista = existentes || [];
-    if (lista.some(i => String(i.id_objet) === idStr)) {
-        return { ok: false, motivo: `El objeto **${itemName}** (ID \`${idStr}\`) ya está en tu **Mi Lista**.` };
+    const itemExistente = lista.find(i => String(i.id_objet) === idStr);
+    if (itemExistente) {
+        return {
+            ok: true,
+            alreadyExists: true,
+            totalActual: lista.length,
+            maxItems,
+            item: itemExistente,
+            motivo: `El objeto **${itemName || itemExistente.item_name}** ya está en tu **Mi Lista**.`
+        };
     }
 
     if (lista.length >= maxItems) {
@@ -3687,15 +3695,35 @@ async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemTy
         };
     }
 
+    let finalPrice = Number(price || 0);
+    let finalName = itemName;
+    if (finalPrice <= 0 || !finalName) {
+        try {
+            const { obtenerDetallesCompletos } = require('../../utils/roblox');
+            const det = await obtenerDetallesCompletos(idStr).catch(() => null);
+            if (det) {
+                if (!finalName || finalName.startsWith('Objeto ') || finalName.startsWith('Alternativa ')) {
+                    finalName = det.name || finalName;
+                }
+                if (det.price && Number(det.price) > 0) {
+                    finalPrice = Number(det.price);
+                } else if (det.lowestResalePrice && Number(det.lowestResalePrice) > 0) {
+                    finalPrice = Number(det.lowestResalePrice);
+                }
+            }
+        } catch (_) {}
+    }
+
     const ahoraIso = new Date().toISOString();
-    const initialHistory = [{ price: Number(price || 0), timestamp: ahoraIso }];
+    const initialHistory = [{ price: finalPrice, timestamp: ahoraIso }];
 
     const nuevoRegistro = {
         user_id: userId,
+        guild_id: String(guildId || 'DM'),
         id_objet: idStr,
-        item_name: itemName || `Objeto ${idStr}`,
+        item_name: finalName || `Objeto ${idStr}`,
         item_type: itemType,
-        last_price: Number(price || 0),
+        last_price: finalPrice,
         target_price: targetPrice !== null ? Number(targetPrice) : null,
         is_paused: false,
         price_history: initialHistory
@@ -3784,5 +3812,6 @@ module.exports = {
     construirPanelVinculacionCuenta,
     construirPanelConfigDiscord,
     construirPanelDesbloqueoRequerido,
-    agregarItemAWishlistRapido
+    agregarItemAWishlistRapido,
+    obtenerConfigPropietario
 };
