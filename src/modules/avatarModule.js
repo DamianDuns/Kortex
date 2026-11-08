@@ -1,6 +1,6 @@
-﻿// ==========================================
+// ==========================================
 // ARCHIVO: src/modules/avatarModule.js
-// CATEGORÃA 2: ðŸ‘• Taller de Avatares y Estudio 3D/2D (Herramientas 2.1 a 2.5 Calibradas)
+// CATEGORÍA 2: 👕 Taller de Avatares y Estudio 3D/2D (Herramientas 2.1 a 2.5 Calibradas)
 // ==========================================
 
 const {
@@ -46,7 +46,7 @@ const {
 } = require('../utils/chartGenerator');
 const { registerCachePurger, obtenerConfigPropietario } = require('../utils/performanceManager');
 
-const COLOR_AVATAR = 0x8B5CF6; // PÃºrpura Estudio Creativo
+const COLOR_AVATAR = 0x8B5CF6; // Púrpura Estudio Creativo
 
 // Estado en memoria por usuario para el Probador de Combinaciones (Sandbox), Texturas 2D, Clones y Color-Match
 const sandboxSessions = new Map();
@@ -54,7 +54,7 @@ const lastTextureSession = new Map();
 const lastColorMatchSession = new Map();
 const clonesCache = new Map();
 
-// Registrar limpiador e inspector transparente de cachÃ©s en RAM para el motor de rendimiento
+// Registrar limpiador e inspector transparente de cachés en RAM para el motor de rendimiento
 registerCachePurger(
     'avatarModule',
     (aggressive) => {
@@ -69,8 +69,8 @@ registerCachePurger(
         return freed;
     },
     {
-        label: 'ðŸ‘• Sesiones de Estudio 2D/3D y Clones',
-        whatItCleans: 'Plantillas PNG extraÃ­das en RAM, comparativas de clones y sesiones temporales del probador',
+        label: '👕 Sesiones de Estudio 2D/3D y Clones',
+        whatItCleans: 'Plantillas PNG extraídas en RAM, comparativas de clones y sesiones temporales del probador',
         inspectFn: () => {
             let texBytes = 0;
             for (const t of lastTextureSession.values()) {
@@ -90,7 +90,7 @@ registerCachePurger(
             return {
                 entries,
                 approxKB,
-                detail: `${sandboxSessions.size} probador(es) â€¢ ${lastTextureSession.size} textura(s) 2D â€¢ ${clonesCache.size} bÃºsqueda(s) (~${approxKB} KB)`
+                detail: `${sandboxSessions.size} probador(es) • ${lastTextureSession.size} textura(s) 2D • ${clonesCache.size} búsqueda(s) (~${approxKB} KB)`
             };
         }
     }
@@ -99,8 +99,8 @@ registerCachePurger(
 const ASSET_TYPE_NAMES = {
     2: 'Classic T-Shirt (2D)',
     8: 'Sombrero (Hat)',
-    11: 'Camisa ClÃ¡sica (Shirt 2D)',
-    12: 'PantalÃ³n ClÃ¡sico (Pants 2D)',
+    11: 'Camisa Clásica (Shirt 2D)',
+    12: 'Pantalón Clásico (Pants 2D)',
     18: 'Rostro (Face)',
     19: 'Gear (Equipamiento)',
     41: 'Accesorio de Pelo (Hair)',
@@ -112,14 +112,14 @@ const ASSET_TYPE_NAMES = {
     47: 'Accesorio de Cintura (Waist)',
     64: 'T-Shirt 3D (Layered)',
     65: 'Camisa 3D (Layered Shirt)',
-    66: 'PantalÃ³n 3D (Layered Pants)',
+    66: 'Pantalón 3D (Layered Pants)',
     67: 'Chaqueta 3D (Jacket)',
-    68: 'SuÃ©ter 3D (Sweater)',
+    68: 'Suéter 3D (Sweater)',
     69: 'Shorts 3D',
     72: 'Vestido / Falda 3D'
 };
 
-// Base de referencia verificada para garantizar resoluciÃ³n instantÃ¡nea y respaldo ante lÃ­mites de tasa (HTTP 429/403) de Roblox
+// Base de referencia verificada para garantizar resolución instantánea y respaldo ante límites de tasa (HTTP 429/403) de Roblox
 const CATALOGO_REFERENCIA_CONOCIDOS = {
     '1365767': {
         id: 1365767,
@@ -186,7 +186,7 @@ const CATALOGO_REFERENCIA_CONOCIDOS = {
     }
 };
 
-// Alternativas reales verificadas en el catÃ¡logo de Roblox (Clones UGC econÃ³micos + Oficiales Roblox)
+// Alternativas reales verificadas en el catálogo de Roblox (Clones UGC económicos + Oficiales Roblox)
 // Se combinan con los resultados en vivo del buscador y sirven de respaldo inmediato si la API de Roblox aplica rate-limit
 const ALTERNATIVAS_RESPALDO_CATALOGO = {
     valkyrie: [
@@ -220,7 +220,7 @@ const ALTERNATIVAS_RESPALDO_CATALOGO = {
 
 /**
  * Resuelve en paralelo los precios reales (incluyendo Limiteds y UGC Limiteds) y miniaturas 420x420
- * de un objeto del catÃ¡logo por su ID o nombre.
+ * de un objeto del catálogo por su ID o nombre.
  */
 async function resolverItemCatalogoConPrecioReal(idOrQuery) {
     const raw = String(idOrQuery || '').trim();
@@ -247,7 +247,7 @@ async function resolverItemCatalogoConPrecioReal(idOrQuery) {
     let imageUrl = null;
     let highResUrl = null;
 
-    // 1. Si no es un ID numÃ©rico (el usuario escribiÃ³ un nombre como "Valkyrie Helm" o "Black Hoodie"), buscar en el catÃ¡logo general
+    // 1. Si no es un ID numérico (el usuario escribió un nombre como "Valkyrie Helm" o "Black Hoodie"), buscar en el catálogo general
     if (!id) {
         const searchUrls = [
             `https://catalog.roblox.com/v1/search/items/details?Keyword=${encodeURIComponent(raw)}&SalesTypeFilter=1&Limit=10`,
@@ -323,7 +323,7 @@ async function resolverItemCatalogoConPrecioReal(idOrQuery) {
         }
     }
 
-    // 3. Si es un Limited o el precio sigue en 0, consultar el buscador pÃºblico de catÃ¡logo por el nombre exacto
+    // 3. Si es un Limited o el precio sigue en 0, consultar el buscador público de catálogo por el nombre exacto
     if (price === 0 && name) {
         try {
             const catSearch = await fetchWithRetry(
@@ -343,7 +343,7 @@ async function resolverItemCatalogoConPrecioReal(idOrQuery) {
         }
     }
 
-    // 4. Respaldo final con obtenerDetallesCompletos si aÃºn no tenemos nombre o precio
+    // 4. Respaldo final con obtenerDetallesCompletos si aún no tenemos nombre o precio
     if (!name || price === 0) {
         const det = await obtenerDetallesCompletos(String(id), 'catalog').catch(() => null);
         if (det && det.exito) {
@@ -380,7 +380,7 @@ async function resolverItemCatalogoConPrecioReal(idOrQuery) {
 }
 
 // ==========================================
-// HERRAMIENTA 2.1: ðŸ§ª Probador de Combinaciones en Vivo (Outfit Sandbox)
+// HERRAMIENTA 2.1: 🧪 Probador de Combinaciones en Vivo (Outfit Sandbox)
 // ==========================================
 async function cargarPrendasEquipadasDeUsuario(userId, maxSandbox = 5) {
     if (!userId) return [];
@@ -408,7 +408,6 @@ async function cargarPrendasEquipadasDeUsuario(userId, maxSandbox = 5) {
 
     if (candidates.length === 0) return [];
 
-    // Obtener todas las miniaturas 420x420 en una sola peticiÃ³n por lote para evitar lÃ­mites HTTP 429
     const batchIds = candidates.map(c => c.id).join(',');
     const batchThumbRes = await fetchWithRetry(
         `https://thumbnails.roblox.com/v1/assets?assetIds=${batchIds}&size=420x420&format=Png&isCircular=false`
@@ -428,8 +427,8 @@ async function cargarPrendasEquipadasDeUsuario(userId, maxSandbox = 5) {
             const batchThumb = thumbMap.get(String(a.id)) || null;
             const img = det?.highResUrl || det?.imageUrl || batchThumb || null;
             return {
-                id: Number(a.id),
-                name: det?.name || a.name || `Item ${a.id}`,
+                id: String(a.id),
+                name: det?.name || a.name || `Objeto ${a.id}`,
                 price: Number(det?.price || 0),
                 assetTypeId: typeId,
                 imageUrl: img,
@@ -438,14 +437,6 @@ async function cargarPrendasEquipadasDeUsuario(userId, maxSandbox = 5) {
             };
         })
     )).filter(Boolean);
-
-    // Priorizar prendas con precio > 0 (snipeables) primero
-    resolvedWorn.sort((a, b) => {
-        const aPaid = (a.price || 0) > 0 ? 1 : 0;
-        const bPaid = (b.price || 0) > 0 ? 1 : 0;
-        if (aPaid !== bPaid) return bPaid - aPaid;
-        return 0;
-    });
 
     return resolvedWorn.slice(0, maxSandbox);
 }
@@ -540,9 +531,9 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ§ª 2.1 Probador de Ropa en Vivo (Estudio 3D + ECharts)\n` +
-            `ðŸ‘¤ **Avatar:** \`@${state.username}\`  â€¢  ðŸ“· **Vista:** \`${state.zoomHead ? 'ðŸ” Zoom Cabeza/Cuello' : 'ðŸ§ Cuerpo Completo'}\`  â€¢  ðŸ’° **Total (${state.items.length}/${maxSandbox}):** ${formatearPrecio(totalNormal)}` +
-            (totalNormal > 0 ? ` *(Con 40% Cashback: **${formatearPrecio(totalCashback)}**)*` : '') +
+            `# 🧪 2.1 Probador de Ropa en Vivo • Estudio 3D\n` +
+            `👤 **Avatar:** \`@${state.username}\` • 📷 **Vista:** \`${state.zoomHead ? '🔍 Zoom Cabeza y Cuello' : '🧍 Cuerpo Completo'}\` • 💰 **Total:** ${state.items.length}/${maxSandbox} • ${formatearPrecio(totalNormal)}` +
+            (totalNormal > 0 ? ` • Con 40% Cashback: **${formatearPrecio(totalCashback)}**` : '') +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         ))
         .addSeparatorComponents(separador())
@@ -562,46 +553,46 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
                 ? `${formatearPrecio(it.price)}`
                 : '`Gratis / Offsale`';
             return (
-                `${isSel ? 'ðŸŽ¯ ' : ''}**${i + 1}.** ${tipoTag} **[${it.name}](https://www.roblox.com/catalog/${it.id})** (\`ID: ${it.id}\`) â€” ðŸ“ *${slotInfo.label}* â€” ${precioStr}`
+                `${isSel ? '🎯 ' : ''}**${i + 1}.** ${tipoTag} **[${it.name}](https://www.roblox.com/catalog/${it.id})** • \`ID: ${it.id}\` • *${slotInfo.label}* • ${precioStr}`
             );
         }).join('\n');
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ðŸ›ï¸ Objetos Equipados en el ManiquÃ­\n${lines}`
+            `### 🛍️ Objetos Equipados en el Maniquí\n${lines}`
         ));
 
         const selectSave = new StringSelectMenuBuilder()
             .setCustomId('select_ava_sandbox_save')
-            .setPlaceholder('ðŸŽ¯ SeleccionÃ¡ una prenda para snipear / guardar en Mi Lista (1.1)...')
+            .setPlaceholder('🎯 Seleccioná una prenda para snipear o guardar en Mi Lista...')
             .addOptions(
                 state.items.slice(0, maxSandbox).map((it, idx) => {
                     const slotInfo = resolveAnatomicalSlot(it);
                     const isSel = activeItem && String(activeItem.id) === String(it.id);
                     return new StringSelectMenuOptionBuilder()
                         .setLabel(`${idx + 1}. ${String(it.name).substring(0, 80)}`)
-                        .setDescription(`Slot: ${slotInfo.label} â€¢ Precio: ${it.price > 0 ? `${it.price} R$ (Snipeable)` : 'Gratis / Offsale'} â€¢ ID ${it.id}`.substring(0, 95))
+                        .setDescription(`Slot: ${slotInfo.label} • Precio: ${it.price > 0 ? `${it.price} R$` : 'Gratis / Offsale'} • ID ${it.id}`.substring(0, 95))
                         .setValue(String(it.id))
-                        .setEmoji(isSel ? 'ðŸŽ¯' : 'ðŸ“Œ');
+                        .setEmoji(isSel ? '🎯' : '📌');
                 })
             );
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectSave));
         container.addSeparatorComponents(separador(true));
     } else {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `-# UsÃ¡ **âž• Probar Prenda** para equipar objetos por nombre o ID, **ðŸ‘¤ Cambiar Avatar** para inspeccionar a cualquier jugador de Roblox, **ðŸ‘• Ropa del Avatar** para cotizar y snipear sus prendas, o **âš¡ Conjunto Demo**.`
+            `-# Usá **➕ Probar Prenda** para equipar objetos por nombre o ID, **👤 Cambiar Avatar** para inspeccionar a cualquier jugador de Roblox, **👕 Ropa del Avatar** para cotizar sus prendas o **⚡ Conjunto Demo**.`
         ));
         container.addSeparatorComponents(separador(true));
     }
 
     const row1 = new ActionRowBuilder().addComponents(
-        boton('btn_ava_sandbox_add_modal', 'Probar Prenda', 'âž•', ButtonStyle.Success),
-        boton('btn_ava_sandbox_avatar_modal', 'Cambiar Avatar', 'ðŸ‘¤', ButtonStyle.Primary),
-        boton('btn_ava_sandbox_load_worn', 'Ropa del Avatar', 'ðŸ‘•', ButtonStyle.Secondary),
-        boton('btn_ava_sandbox_demo', 'Conjunto Demo', 'âš¡', ButtonStyle.Secondary),
+        boton('btn_ava_sandbox_add_modal', 'Probar Prenda', '➕', ButtonStyle.Success),
+        boton('btn_ava_sandbox_avatar_modal', 'Cambiar Avatar', '👤', ButtonStyle.Primary),
+        boton('btn_ava_sandbox_load_worn', 'Ropa del Avatar', '👕', ButtonStyle.Secondary),
+        boton('btn_ava_sandbox_demo', 'Conjunto Demo', '⚡', ButtonStyle.Secondary),
         boton(
             'btn_ava_sandbox_toggle_zoom',
             state.zoomHead ? 'Ver Cuerpo' : 'Zoom Cabeza',
-            state.zoomHead ? 'ðŸ§' : 'ðŸ”',
+            state.zoomHead ? '🧍' : '🔍',
             ButtonStyle.Secondary
         )
     );
@@ -613,42 +604,40 @@ async function construirPanelSandbox(discordUserId, feedbackMsg = null) {
         const row2 = new ActionRowBuilder().addComponents(
             boton(
                 `btn_target_modal:catalog:${activeItem.id}:ROBUX`,
-                `Fijar Meta (#${activeIdx >= 0 ? activeIdx + 1 : 1})`,
-                'ðŸŽ¯',
+                `Fijar Meta #${activeIdx >= 0 ? activeIdx + 1 : 1}`,
+                '🎯',
                 ButtonStyle.Primary
             ),
-            boton('btn_nav_wishlist', 'Ver Mi Lista', 'ðŸ“‹', ButtonStyle.Success),
-            boton('btn_ava_sandbox_pop', 'Quitar Ãšltimo', 'âž–', ButtonStyle.Secondary),
-            boton('btn_ava_sandbox_clear', 'Vaciar Todo', 'ðŸ—‘ï¸', ButtonStyle.Danger),
-            boton('btn_nav_cat:cat_avatar', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+            boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Success),
+            boton('btn_ava_sandbox_pop', 'Quitar Último', '➖', ButtonStyle.Secondary),
+            boton('btn_ava_sandbox_clear', 'Vaciar Todo', '🗑️', ButtonStyle.Danger),
+            boton('btn_nav_cat:cat_avatar', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
         );
         container.addActionRowComponents(row2);
     } else {
         const row2 = new ActionRowBuilder().addComponents(
-            boton('btn_nav_wishlist', 'Ver Mi Lista', 'ðŸ“‹', ButtonStyle.Success),
-            boton('btn_nav_cat:cat_avatar', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+            boton('btn_nav_wishlist', 'Ver Mi Lista', '📋', ButtonStyle.Success),
+            boton('btn_nav_cat:cat_avatar', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
         );
         container.addActionRowComponents(row2);
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Probador de Ropa en Vivo â€¢ Motor Skia + ECharts')
+        footer('Probador de Ropa en Vivo • Motor Skia + ECharts')
     ));
 
     return {
         components: [container],
         files: [attachment],
-        attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }
-
 // ==========================================
-// HERRAMIENTA 2.2: ðŸ” Buscador de Clones y Similares (Roblox Oficial + UGC EconÃ³micos)
+// HERRAMIENTA 2.2: 🔍 Buscador de Clones y Similares (Roblox Oficial + UGC Económicos)
 // ==========================================
 
 /**
- * Extrae las palabras clave visuales reales de un Ã­tem para encontrar clones exactos del mismo estilo.
+ * Extrae las palabras clave visuales reales de un ítem para encontrar clones exactos del mismo estilo.
  */
 function extraerTerminosBusquedaClones(rawName) {
     const clean = String(rawName || '')
@@ -673,7 +662,7 @@ function extraerTerminosBusquedaClones(rawName) {
 }
 
 /**
- * Determina si dos assetTypeIds pertenecen a la misma familia anatÃ³mica
+ * Determina si dos assetTypeIds pertenecen a la misma familia anatómica
  */
 function sonTiposCompatiblesClones(origTypeId, candTypeId) {
     const o = Number(origTypeId || 8);
@@ -692,7 +681,7 @@ function sonTiposCompatiblesClones(origTypeId, candTypeId) {
 }
 
 /**
- * Busca alternativas visuales reales (Clones UGC comprables mÃ¡s baratos + Ãtems Oficiales de Roblox)
+ * Busca alternativas visuales reales (Clones UGC comprables más baratos + Ítems Oficiales de Roblox)
  * garantizando precios reales y respaldos verificados en tiempo real.
  */
 async function buscarAlternativasYSimilares(queryInput, mode = 'all') {
@@ -705,10 +694,10 @@ async function buscarAlternativasYSimilares(queryInput, mode = 'all') {
         return cached.data;
     }
 
-    // 1. Resolver el Ã­tem de referencia con su precio real de mercado (incluyendo Limiteds)
+    // 1. Resolver el ítem de referencia con su precio real de mercado (incluyendo Limiteds)
     const origItem = await resolverItemCatalogoConPrecioReal(cleanInput);
     if (!origItem) {
-        return { error: `No se encontrÃ³ ningÃºn accesorio o prenda con **"${cleanInput}"**. ProbÃ¡ con otro nombre o ID del catÃ¡logo.` };
+        return { error: `No se encontró ningún accesorio o prenda con **"${cleanInput}"**. Probá con otro nombre o ID del catálogo.` };
     }
 
     const { primaryQuery, coreWords, rootNoun } = extraerTerminosBusquedaClones(origItem.name);
@@ -716,7 +705,7 @@ async function buscarAlternativasYSimilares(queryInput, mode = 'all') {
     const esRopaClasica = [2, 11, 12].includes(origType);
     const catParam = esRopaClasica ? 'Category=3' : 'Category=11';
 
-    // 2. Consultas paralelas al CatÃ¡logo de Roblox (con variantes con y sin SalesTypeFilter para mÃ¡xima compatibilidad)
+    // 2. Consultas paralelas al Catálogo de Roblox (con variantes con y sin SalesTypeFilter para máxima compatibilidad)
     const [onSaleExactRes, openKeywordRes, officialSearchRes, recRes] = await Promise.all([
         fetchWithRetry(
             `https://catalog.roblox.com/v1/search/items/details?${catParam}&Keyword=${encodeURIComponent(primaryQuery)}&SalesTypeFilter=1&Limit=28`
@@ -802,7 +791,7 @@ async function buscarAlternativasYSimilares(queryInput, mode = 'all') {
     (officialSearchRes?.data?.data || []).forEach(it => registerCandidate(it, 'official'));
     (recRes?.data?.data || []).forEach(it => registerCandidate(it, 'rec'));
 
-    // Si la bÃºsqueda primaria dio pocos resultados comprables, hacer una bÃºsqueda adicional con la palabra raÃ­z
+    // Si la búsqueda primaria dio pocos resultados comprables, hacer una búsqueda adicional con la palabra raíz
     const buyableSoFar = [...rawCandidates.values()].filter(c => c.price > 0);
     if (buyableSoFar.length < 4 && rootNoun) {
         const rootRes = await fetchWithRetry(
@@ -811,7 +800,7 @@ async function buscarAlternativasYSimilares(queryInput, mode = 'all') {
         (rootRes?.data?.data || []).forEach(it => registerCandidate(it, 'root'));
     }
 
-    // 3. Inyectar respaldos curados verificados si la API de Roblox limitÃ³ la consulta o devolviÃ³ menos de 4 alternativas
+    // 3. Inyectar respaldos curados verificados si la API de Roblox limitó la consulta o devolvió menos de 4 alternativas
     const nameLower = origItem.name.toLowerCase();
     let familyKey = 'valkyrie';
     if (nameLower.includes('fedora')) familyKey = 'fedora';
@@ -859,7 +848,7 @@ async function buscarAlternativasYSimilares(queryInput, mode = 'all') {
 
     if (topAlternatives.length === 0) {
         return {
-            error: `No se hallaron clones en venta para **${origItem.name}**. ProbÃ¡ buscando por las palabras principales del accesorio.`
+            error: `No se hallaron clones en venta para **${origItem.name}**. Probá buscando por las palabras principales del accesorio.`
         };
     }
 
@@ -887,20 +876,20 @@ function construirPanelClonesInicial() {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ” 2.2 Buscador de Clones y Similares\n` +
-            `ComparÃ¡ cualquier Limited o accesorio caro contra **Clones UGC econÃ³micos** y **Alternativas Oficiales de Roblox** con grÃ¡fica comparativa ECharts.`
+            `# 🔍 2.2 Buscador de Clones y Similares\n` +
+            `Compará cualquier Limited o accesorio caro contra **Clones UGC económicos** y **Alternativas Oficiales de Roblox** con gráfica comparativa ECharts.`
         ))
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_clones_modal', 'Buscar Similares (Nombre o ID)', 'ðŸ”Ž', ButtonStyle.Primary),
-                boton('btn_ava_clones_demo:1365767', 'Ejemplo: Valkyrie Helm', 'âš¡', ButtonStyle.Success),
-                boton('btn_ava_clones_demo:1029025', 'Ejemplo: Classic Fedora', 'ðŸŽ©', ButtonStyle.Secondary),
-                boton('btn_nav_cat:cat_avatar', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                boton('btn_ava_clones_modal', 'Buscar Similares (Nombre o ID)', '🔎', ButtonStyle.Primary),
+                boton('btn_ava_clones_demo:1365767', 'Ejemplo: Valkyrie Helm', '⚡', ButtonStyle.Success),
+                boton('btn_ava_clones_demo:1029025', 'Ejemplo: Classic Fedora', '🎩', ButtonStyle.Secondary),
+                boton('btn_nav_cat:cat_avatar', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Buscador de Clones y Similares â€¢ Motor ECharts + Skia')
+            footer('Buscador de Clones y Similares • Motor ECharts + Skia')
         ));
 
     return {
@@ -916,13 +905,13 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
     if (res.error) {
         const errContainer = new ContainerBuilder()
             .setAccentColor(COLORES.error)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## âŒ Sin Resultados\n${res.error}`))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ❌ Sin Resultados\n${res.error}`))
             .addSeparatorComponents(separador())
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton('btn_ava_clones_modal', 'Intentar otra bÃºsqueda', 'ðŸ”Ž', ButtonStyle.Primary),
-                    boton('btn_ava_clones_demo:1365767', 'Probar Ejemplo: Valkyrie Helm', 'âš¡', ButtonStyle.Success),
-                    boton('btn_ava_clones', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                    boton('btn_ava_clones_modal', 'Intentar otra búsqueda', '🔎', ButtonStyle.Primary),
+                    boton('btn_ava_clones_demo:1365767', 'Probar Ejemplo: Valkyrie Helm', '⚡', ButtonStyle.Success),
+                    boton('btn_ava_clones', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -933,9 +922,9 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
     const attachment = new AttachmentBuilder(pngBuffer, { name: 'clones_comparison.png' });
 
     const modeLabels = {
-        all: 'ðŸŒ Todos (Clones Comprables + Oficiales)',
-        official: 'ðŸ›ï¸ Oficiales de Roblox',
-        cheap: 'ðŸ’¸ Clones UGC MÃ¡s Baratos en Venta'
+        all: '🌐 Todos (Clones Comprables + Oficiales)',
+        official: '🏛️ Oficiales de Roblox',
+        cheap: '💸 Clones UGC Más Baratos en Venta'
     };
 
     const inspectedAlt = (selectedAltId
@@ -943,23 +932,23 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
         : alternatives[0]) || null;
 
     const lines = alternatives.slice(0, 4).map((alt, idx) => {
-        const badge = alt.isOfficialRoblox ? 'ðŸ›ï¸ `[ROBLOX OFICIAL]`' : 'ðŸ·ï¸ `[CLON UGC]`';
-        let diffText = `ðŸ‘¤ Por: \`${alt.creatorName}\``;
+        const badge = alt.isOfficialRoblox ? '🏛️ `[ROBLOX OFICIAL]`' : '🏷️ `[CLON UGC]`';
+        let diffText = `👤 Por: \`${alt.creatorName}\``;
         if (origItem.price > 0 && alt.price > 0 && alt.price < origItem.price) {
             const pct = Math.max(1, Math.round(((origItem.price - alt.price) / origItem.price) * 100));
-            diffText = `ðŸ”¥ **AhorrÃ¡s ${formatearPrecio(origItem.price - alt.price)} (-${pct}%)**  â€¢  ðŸ‘¤ Por: \`${alt.creatorName}\``;
+            diffText = `🔥 **Ahorrás ${formatearPrecio(origItem.price - alt.price)} (-${pct}%)**  •  👤 Por: \`${alt.creatorName}\``;
         }
         const priceLabel = alt.price > 0 ? formatearPrecio(alt.price) : '`Fuera de venta`';
         const isSel = inspectedAlt && String(inspectedAlt.id) === String(alt.id);
         return (
-            `${isSel ? 'ðŸŸ¢ ' : ''}**#${idx + 1}** ${badge} **[${alt.name}](https://www.roblox.com/catalog/${alt.id})** (\`ID: ${alt.id}\`)\n` +
-            `> ðŸ’µ Precio: ${priceLabel}  â€¢  ${diffText}`
+            `${isSel ? '🟢 ' : ''}**#${idx + 1}** ${badge} **[${alt.name}](https://www.roblox.com/catalog/${alt.id})** (\`ID: ${alt.id}\`)\n` +
+            `> 💵 Precio: ${priceLabel}  •  ${diffText}`
         );
     }).join('\n\n');
 
     const inspectedBlock = inspectedAlt
-        ? `\n\n### ðŸŽ¯ Alternativa Activa: ${inspectedAlt.name}\n` +
-          `> ðŸ†” **Asset ID:** \`${inspectedAlt.id}\`  â€¢  ðŸ‘¤ **Creador:** \`${inspectedAlt.creatorName}\`  â€¢  ðŸ’° **Precio:** ${inspectedAlt.price > 0 ? formatearPrecio(inspectedAlt.price) : '`Offsale`'}`
+        ? `\n\n### 🎯 Alternativa Activa: ${inspectedAlt.name}\n` +
+          `> 🆔 **Asset ID:** \`${inspectedAlt.id}\`  •  👤 **Creador:** \`${inspectedAlt.creatorName}\`  •  💰 **Precio:** ${inspectedAlt.price > 0 ? formatearPrecio(inspectedAlt.price) : '`Offsale`'}`
         : '';
 
     const origPriceFormatted = origItem.price > 0
@@ -969,9 +958,9 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ” 2.2 Buscador de Clones y Similares\n` +
-            `ðŸŽ¯ **Referencia:** **[${origItem.name}](https://www.roblox.com/catalog/${origItem.id})** (\`ID: ${origItem.id}\` â€¢ ${origItem.assetTypeName})\n` +
-            `ðŸ’Ž **Precio Original:** ${origPriceFormatted}  â€¢  ðŸ—‚ï¸ **Filtro:** **${modeLabels[mode] || modeLabels.all}**` +
+            `# 🔍 2.2 Buscador de Clones y Similares\n` +
+            `🎯 **Referencia:** **[${origItem.name}](https://www.roblox.com/catalog/${origItem.id})** (\`ID: ${origItem.id}\` • ${origItem.assetTypeName})\n` +
+            `💎 **Precio Original:** ${origPriceFormatted}  •  🗂️ **Filtro:** **${modeLabels[mode] || modeLabels.all}**` +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         ))
         .addSeparatorComponents(separador())
@@ -982,19 +971,19 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
         )
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ðŸ“‹ Mejores Alternativas Encontradas\n${lines}` + inspectedBlock
+            `### 📋 Mejores Alternativas Encontradas\n${lines}` + inspectedBlock
         ));
 
     const selectAlt = new StringSelectMenuBuilder()
         .setCustomId('select_ava_clones_pick')
-        .setPlaceholder('ðŸ‘‡ CambiÃ¡ la alternativa activa para probarla o seguir su precio...')
+        .setPlaceholder('👇 Cambiá la alternativa activa para probarla o seguir su precio...')
         .addOptions(
             alternatives.slice(0, 6).map((alt, i) =>
                 new StringSelectMenuOptionBuilder()
                     .setLabel(`#${i + 1} ${String(alt.name).substring(0, 78)}`)
-                    .setDescription(`${alt.isOfficialRoblox ? '[Roblox Oficial]' : '[Clon UGC]'} ${alt.price > 0 ? `${alt.price} R$` : 'Offsale'} â€¢ ID ${alt.id}`.substring(0, 95))
+                    .setDescription(`${alt.isOfficialRoblox ? '[Roblox Oficial]' : '[Clon UGC]'} ${alt.price > 0 ? `${alt.price} R$` : 'Offsale'} • ID ${alt.id}`.substring(0, 95))
                     .setValue(`${origItem.id}:${mode}:${alt.id}`)
-                    .setEmoji(alt.isOfficialRoblox ? 'ðŸ›ï¸' : 'ðŸ’¸')
+                    .setEmoji(alt.isOfficialRoblox ? '🏛️' : '💸')
                     .setDefault(Boolean(inspectedAlt && String(alt.id) === String(inspectedAlt.id)))
             )
         );
@@ -1005,22 +994,22 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
     const safeQ = String(origItem.id);
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ava_clones_modal', 'Buscar Otro Ãtem', 'ðŸ”Ž', ButtonStyle.Primary),
-            boton(`btn_ava_clones_mode:all:${safeQ}`, 'Todos', 'ðŸŒ', mode === 'all' ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton(`btn_ava_clones_mode:cheap:${safeQ}`, 'UGC Baratos', 'ðŸ’¸', mode === 'cheap' ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton(`btn_ava_clones_mode:official:${safeQ}`, 'Oficiales Roblox', 'ðŸ›ï¸', mode === 'official' ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_clones', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+            boton('btn_ava_clones_modal', 'Buscar Otro Ítem', '🔎', ButtonStyle.Primary),
+            boton(`btn_ava_clones_mode:all:${safeQ}`, 'Todos', '🌐', mode === 'all' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton(`btn_ava_clones_mode:cheap:${safeQ}`, 'UGC Baratos', '💸', mode === 'cheap' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton(`btn_ava_clones_mode:official:${safeQ}`, 'Oficiales Roblox', '🏛️', mode === 'official' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_clones', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
         )
     );
 
     if (inspectedAlt) {
         container.addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton(`btn_ava_clones_tryon:${inspectedAlt.id}`, 'Probar en Mi Avatar (2.1)', 'ðŸ§ª', ButtonStyle.Primary),
-                boton(`btn_ava_clones_watch:${inspectedAlt.id}:${origItem.id}:${mode}`, 'Monitorear en Mi Lista', 'ðŸŽ¯', ButtonStyle.Success),
+                boton(`btn_ava_clones_tryon:${inspectedAlt.id}`, 'Probar en Mi Avatar (2.1)', '🧪', ButtonStyle.Primary),
+                boton(`btn_ava_clones_watch:${inspectedAlt.id}:${origItem.id}:${mode}`, 'Monitorear en Mi Lista', '🎯', ButtonStyle.Success),
                 new ButtonBuilder()
-                    .setLabel('Ver en CatÃ¡logo')
-                    .setEmoji('ðŸ›’')
+                    .setLabel('Ver en Catálogo')
+                    .setEmoji('🛒')
                     .setStyle(ButtonStyle.Link)
                     .setURL(`https://www.roblox.com/catalog/${inspectedAlt.id}`)
             )
@@ -1028,7 +1017,7 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        footer('Buscador de Clones y Similares â€¢ Motor ECharts + Skia')
+        footer('Buscador de Clones y Similares • Motor ECharts + Skia')
     ));
 
     return {
@@ -1040,7 +1029,7 @@ async function construirPanelClones(queryInput = '1365767', mode = 'all', feedba
 }
 
 // ==========================================
-// HERRAMIENTA 2.3: ðŸ§¬ Extractor de Texturas + Probador de Plantillas 2D en ManiquÃ­ R6
+// HERRAMIENTA 2.3: 🧬 Extractor de Texturas + Probador de Plantillas 2D en Maniquí R6
 // ==========================================
 
 /**
@@ -1099,12 +1088,12 @@ async function descargarBufferAssetDelivery(targetAssetId) {
 }
 
 /**
- * Extrae el ID numÃ©rico real de la plantilla PNG (ShirtTemplate / PantsTemplate / Graphic)
- * tanto desde archivos XML clÃ¡sicos como desde archivos binarios RBXM de Roblox.
+ * Extrae el ID numérico real de la plantilla PNG (ShirtTemplate / PantsTemplate / Graphic)
+ * tanto desde archivos XML clásicos como desde archivos binarios RBXM de Roblox.
  */
 function extraerTemplateIdDesdeBufferPrenda(buf) {
     if (!buf || buf.length < 16) return null;
-    // Usar latin1 ademÃ¡s de utf8 para no perder secuencias ASCII dentro de binarios RBXM
+    // Usar latin1 además de utf8 para no perder secuencias ASCII dentro de binarios RBXM
     const rawStr = buf.toString('latin1');
 
     const patterns = [
@@ -1129,7 +1118,7 @@ async function extraerTextura2DRoblox(queryOrId) {
     const raw = String(queryOrId || '').trim() || '144076358';
     let assetId = /^\d+$/.test(raw) ? raw : extractIdFromInput(raw);
 
-    // Si el usuario escribiÃ³ el nombre de una camisa o pantalÃ³n, buscar en el catÃ¡logo de Ropa ClÃ¡sica (Category=3)
+    // Si el usuario escribió el nombre de una camisa o pantalón, buscar en el catálogo de Ropa Clásica (Category=3)
     if (!assetId) {
         const searchUrls = [
             `https://catalog.roblox.com/v1/search/items/details?Category=3&Subcategory=56&Keyword=${encodeURIComponent(raw)}&Limit=10`,
@@ -1153,7 +1142,7 @@ async function extraerTextura2DRoblox(queryOrId) {
     }
 
     if (!assetId) {
-        return { error: `No se encontrÃ³ ninguna camisa o pantalÃ³n clÃ¡sico para **"${raw}"**.` };
+        return { error: `No se encontró ninguna camisa o pantalón clásico para **"${raw}"**.` };
     }
 
     const metaRes = await fetchWithRetry(`https://economy.roblox.com/v2/assets/${assetId}/details`).catch(() => null);
@@ -1166,13 +1155,13 @@ async function extraerTextura2DRoblox(queryOrId) {
     let realImageId = assetId;
     let rawPngBuffer = null;
 
-    // 1. Descargar el contenedor del asset (si es Camisa 11, PantalÃ³n 12 o T-Shirt 2, contiene el ID interno de la imagen PNG)
+    // 1. Descargar el contenedor del asset (si es Camisa 11, Pantalón 12 o T-Shirt 2, contiene el ID interno de la imagen PNG)
     const initialBuf = await descargarBufferAssetDelivery(assetId);
     if (initialBuf) {
         const isPng = initialBuf.length > 8 && initialBuf[0] === 0x89 && initialBuf[1] === 0x50 && initialBuf[2] === 0x4E && initialBuf[3] === 0x47;
         const isJpg = initialBuf.length > 4 && initialBuf[0] === 0xFF && initialBuf[1] === 0xD8;
         if (isPng || isJpg) {
-            // El usuario pasÃ³ directamente el ID de la imagen/textura
+            // El usuario pasó directamente el ID de la imagen/textura
             rawPngBuffer = initialBuf;
         } else {
             const extractedId = extraerTemplateIdDesdeBufferPrenda(initialBuf);
@@ -1182,7 +1171,7 @@ async function extraerTextura2DRoblox(queryOrId) {
         }
     }
 
-    // 2. Si aÃºn no tenemos el PNG en bruto y obtuvimos el realImageId de la plantilla, descargarlo de AssetDelivery
+    // 2. Si aún no tenemos el PNG en bruto y obtuvimos el realImageId de la plantilla, descargarlo de AssetDelivery
     if (!rawPngBuffer && String(realImageId) !== String(assetId)) {
         const tplBuf = await descargarBufferAssetDelivery(realImageId);
         if (tplBuf && tplBuf.length > 100) {
@@ -1194,7 +1183,7 @@ async function extraerTextura2DRoblox(queryOrId) {
         }
     }
 
-    // 3. Si aÃºn no se pudo obtener el binario directo desde AssetDelivery, solicitar la miniatura de la TEXTURA (realImageId)
+    // 3. Si aún no se pudo obtener el binario directo desde AssetDelivery, solicitar la miniatura de la TEXTURA (realImageId)
     let fallbackImageUrl = null;
     if (!rawPngBuffer) {
         const thumbRes = await fetchWithRetry(
@@ -1213,7 +1202,7 @@ async function extraerTextura2DRoblox(queryOrId) {
 
     if (!rawPngBuffer && !fallbackImageUrl) {
         return {
-            error: `No fue posible extraer la textura PNG del activo \`${assetId}\`. VerificÃ¡ que sea una Camisa, PantalÃ³n, T-Shirt o Decal vÃ¡lido de Roblox.`
+            error: `No fue posible extraer la textura PNG del activo \`${assetId}\`. Verificá que sea una Camisa, Pantalón, T-Shirt o Decal válido de Roblox.`
         };
     }
 
@@ -1234,19 +1223,19 @@ function construirPanelTexturas2DInicial() {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ§¬ 2.3 Extractor de Texturas y ManiquÃ­ 2D\n` +
-            `DescargÃ¡ la plantilla .PNG de cualquier camisa o pantalÃ³n de Roblox y probala sobre un maniquÃ­ frente y espalda.`
+            `# 🧬 2.3 Extractor de Texturas y Maniquí 2D\n` +
+            `Descargá la plantilla .PNG de cualquier camisa o pantalón de Roblox y probala sobre un maniquí frente y espalda.`
         ))
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_tex_extract_modal', 'Extraer Textura de Prenda', 'ðŸ§¬', ButtonStyle.Primary),
-                boton('btn_ava_tex_demo_mannequin', 'Probar Ejemplo en ManiquÃ­', 'ðŸ‘•', ButtonStyle.Success),
-                boton('btn_nav_cat:cat_avatar', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                boton('btn_ava_tex_extract_modal', 'Extraer Textura de Prenda', '🧬', ButtonStyle.Primary),
+                boton('btn_ava_tex_demo_mannequin', 'Probar Ejemplo en Maniquí', '👕', ButtonStyle.Success),
+                boton('btn_nav_cat:cat_avatar', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('Extractor de Texturas y ManiquÃ­ 2D')
+            footer('Extractor de Texturas y Maniquí 2D')
         ));
 
     return {
@@ -1262,13 +1251,13 @@ async function construirPanelTexturas2D(discordUserId, queryOrId = '144076358', 
     if (texData.error) {
         const errContainer = new ContainerBuilder()
             .setAccentColor(COLORES.error)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## âŒ Error al Extraer Textura\n${texData.error}`))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ❌ Error al Extraer Textura\n${texData.error}`))
             .addSeparatorComponents(separador())
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton('btn_ava_tex_extract_modal', 'Probar otro ID o Nombre', 'ðŸ§¬', ButtonStyle.Primary),
-                    boton('btn_ava_tex_demo_mannequin', 'Probar Ejemplo en ManiquÃ­', 'ðŸ‘•', ButtonStyle.Success),
-                    boton('btn_ava_textures', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                    boton('btn_ava_tex_extract_modal', 'Probar otro ID o Nombre', '🧬', ButtonStyle.Primary),
+                    boton('btn_ava_tex_demo_mannequin', 'Probar Ejemplo en Maniquí', '👕', ButtonStyle.Success),
+                    boton('btn_ava_textures', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -1287,9 +1276,9 @@ async function construirPanelTexturas2D(discordUserId, queryOrId = '144076358', 
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ§¬ 2.3 Extractor de Texturas y ManiquÃ­ 2D\n` +
-            `ðŸ·ï¸ **Prenda:** **[${texData.name}](https://www.roblox.com/catalog/${texData.assetId})**  â€¢  ðŸ‘¤ **Creador:** \`${texData.creatorName}\`\n` +
-            `ðŸ“¦ **Tipo:** \`${texData.assetTypeName}\`  â€¢  ðŸ’µ **Precio:** ${texData.price > 0 ? formatearPrecio(texData.price) : '`Gratis / Offsale`'}` +
+            `# 🧬 2.3 Extractor de Texturas y Maniquí 2D\n` +
+            `🏷️ **Prenda:** **[${texData.name}](https://www.roblox.com/catalog/${texData.assetId})**  •  👤 **Creador:** \`${texData.creatorName}\`\n` +
+            `📦 **Tipo:** \`${texData.assetTypeName}\`  •  💵 **Precio:** ${texData.price > 0 ? formatearPrecio(texData.price) : '`Gratis / Offsale`'}` +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         ))
         .addSeparatorComponents(separador());
@@ -1305,10 +1294,10 @@ async function construirPanelTexturas2D(discordUserId, queryOrId = '144076358', 
 
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ava_tex_mannequin', 'Probar en ManiquÃ­', 'ðŸ‘•', ButtonStyle.Success),
-            boton('btn_ava_tex_extract_modal', 'Extraer Otra Prenda', 'ðŸ§¬', ButtonStyle.Primary),
-            boton('btn_ava_tex_custom_modal', 'Subir URL .PNG', 'ðŸ“¤', ButtonStyle.Secondary),
-            boton('btn_ava_textures', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+            boton('btn_ava_tex_mannequin', 'Probar en Maniquí', '👕', ButtonStyle.Success),
+            boton('btn_ava_tex_extract_modal', 'Extraer Otra Prenda', '🧬', ButtonStyle.Primary),
+            boton('btn_ava_tex_custom_modal', 'Subir URL .PNG', '📤', ButtonStyle.Secondary),
+            boton('btn_ava_textures', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
         )
     );
 
@@ -1370,8 +1359,8 @@ async function construirPanelManiqui2D(discordUserId, customUrlOrId = null, cust
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ‘• 2.3 ManiquÃ­ 2D\n` +
-            `ðŸ“ **Plantilla:** **${title}**`
+            `# 👕 2.3 Maniquí 2D\n` +
+            `📐 **Plantilla:** **${title}**`
         ))
         .addSeparatorComponents(separador())
         .addMediaGalleryComponents(
@@ -1382,21 +1371,21 @@ async function construirPanelManiqui2D(discordUserId, customUrlOrId = null, cust
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_tex_mode:shirt', 'Modo Camisa', 'ðŸ‘•', activeMode === 'shirt' ? ButtonStyle.Success : ButtonStyle.Secondary),
-                boton('btn_ava_tex_mode:pants', 'Modo PantalÃ³n', 'ðŸ‘–', activeMode === 'pants' ? ButtonStyle.Success : ButtonStyle.Secondary),
-                boton('btn_ava_tex_mode:full', 'Traje Completo', 'ðŸ•´ï¸', activeMode === 'full' ? ButtonStyle.Success : ButtonStyle.Secondary),
-                boton('btn_ava_tex_extract_modal', 'Otra Prenda', 'ðŸ§¬', ButtonStyle.Primary),
-                boton('btn_ava_tex_custom_modal', 'Subir URL .PNG', 'ðŸ“¤', ButtonStyle.Secondary)
+                boton('btn_ava_tex_mode:shirt', 'Modo Camisa', '👕', activeMode === 'shirt' ? ButtonStyle.Success : ButtonStyle.Secondary),
+                boton('btn_ava_tex_mode:pants', 'Modo Pantalón', '👖', activeMode === 'pants' ? ButtonStyle.Success : ButtonStyle.Secondary),
+                boton('btn_ava_tex_mode:full', 'Traje Completo', '🕴️', activeMode === 'full' ? ButtonStyle.Success : ButtonStyle.Secondary),
+                boton('btn_ava_tex_extract_modal', 'Otra Prenda', '🧬', ButtonStyle.Primary),
+                boton('btn_ava_tex_custom_modal', 'Subir URL .PNG', '📤', ButtonStyle.Secondary)
             )
         )
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_tex_view_raw', 'Ver Plantilla .PNG', 'ðŸ–¼ï¸', ButtonStyle.Secondary),
-                boton('btn_ava_textures', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                boton('btn_ava_tex_view_raw', 'Ver Plantilla .PNG', '🖼️', ButtonStyle.Secondary),
+                boton('btn_ava_textures', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            footer('ManiquÃ­ 2D')
+            footer('Maniquí 2D')
         ));
 
     return {
@@ -1408,7 +1397,7 @@ async function construirPanelManiqui2D(discordUserId, customUrlOrId = null, cust
 }
 
 // ==========================================
-// HERRAMIENTA 2.4: ðŸ“¦ Exportador 3D (Render PNG HD + Archivo .ZIP con .OBJ/.MTL y Texturas)
+// HERRAMIENTA 2.4: 📦 Exportador 3D (Render PNG HD + Archivo .ZIP con .OBJ/.MTL y Texturas)
 // ==========================================
 function resolverCdnUrlDesdeHash(hash, statusCode = 30) {
     if (!hash) return null;
@@ -1555,7 +1544,7 @@ async function exportarModelo3DEnRam(targetInput, discordUserId) {
             targetId = prof.roblox_user_id;
             displayTitle = `Avatar de @${prof.roblox_username}`;
         } else {
-            return { error: `No se encontrÃ³ el usuario o activo **${raw}** en Roblox.` };
+            return { error: `No se encontró el usuario o activo **${raw}** en Roblox.` };
         }
     }
 
@@ -1572,7 +1561,7 @@ async function exportarModelo3DEnRam(targetInput, discordUserId) {
         fetchWithRetry(endpoint2d).catch(() => null)
     ]);
 
-    // Si Roblox estÃ¡ compilando el manifiesto 3D ("Pending"), esperar 650ms y reintentar
+    // Si Roblox está compilando el manifiesto 3D ("Pending"), esperar 650ms y reintentar
     if (res3d?.data?.state === 'Pending' && !res3d?.data?.imageUrl) {
         await new Promise(r => setTimeout(r, 650));
         res3d = await fetchWithRetry(endpoint3d, { bypassCache: true }).catch(() => res3d);
@@ -1651,7 +1640,7 @@ async function exportarModelo3DEnRam(targetInput, discordUserId) {
                 });
             }
         } catch {
-            // Continuar con extracciÃ³n directa de mallas si el manifiesto fallÃ³
+            // Continuar con extracción directa de mallas si el manifiesto falló
         }
     }
 
@@ -1740,13 +1729,13 @@ async function exportarModelo3DEnRam(targetInput, discordUserId) {
 
     const readmeTxt =
         `========================================================\n` +
-        `KORTEX 3D STUDIO EXPORTER â€” ${displayTitle}\n` +
+        `KORTEX 3D STUDIO EXPORTER — ${displayTitle}\n` +
         `========================================================\n` +
-        `â€¢ Render PNG HD: avatar_render_hd.png\n` +
-        `â€¢ GeometrÃ­a 3D: model.obj (${vertexCount} vÃ©rtices, ${faceCount} caras)\n` +
-        `â€¢ Materiales: material.mtl\n` +
-        `â€¢ Texturas extraÃ­das: ${texturesCount} archivo(s) .png\n` +
-        `â€¢ Compatible con: Blender, Blockbench, Cinema4D, Maya\n`;
+        `• Render PNG HD: avatar_render_hd.png\n` +
+        `• Geometría 3D: model.obj (${vertexCount} vértices, ${faceCount} caras)\n` +
+        `• Materiales: material.mtl\n` +
+        `• Texturas extraídas: ${texturesCount} archivo(s) .png\n` +
+        `• Compatible con: Blender, Blockbench, Cinema4D, Maya\n`;
     zip.addFile('README_KORTEX_3D.txt', Buffer.from(readmeTxt, 'utf8'));
 
     const zipBuffer = zip.toBuffer();
@@ -1771,16 +1760,16 @@ function construirPanelExportador3DInicial() {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ“¦ 2.4 Exportador de Modelos 3D\n` +
-            `DescargÃ¡ el render PNG y el archivo .ZIP con el modelo 3D y las texturas de tu avatar o de cualquier accesorio.`
+            `# 📦 2.4 Exportador de Modelos 3D\n` +
+            `Descargá el render PNG y el archivo .ZIP con el modelo 3D y las texturas de tu avatar o de cualquier accesorio.`
         ))
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_export3d_linked', 'Exportar Mi Avatar', 'ðŸ‘¤', ButtonStyle.Success),
-                boton('btn_ava_export3d_modal', 'Otro Avatar o Accesorio', 'ðŸ”Ž', ButtonStyle.Primary),
-                boton('btn_ava_export3d_demo:1365767', 'Ejemplo: Valkyrie 3D', 'âš¡', ButtonStyle.Secondary),
-                boton('btn_nav_cat:cat_avatar', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                boton('btn_ava_export3d_linked', 'Exportar Mi Avatar', '👤', ButtonStyle.Success),
+                boton('btn_ava_export3d_modal', 'Otro Avatar o Accesorio', '🔎', ButtonStyle.Primary),
+                boton('btn_ava_export3d_demo:1365767', 'Ejemplo: Valkyrie 3D', '⚡', ButtonStyle.Secondary),
+                boton('btn_nav_cat:cat_avatar', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -1800,13 +1789,13 @@ async function construirPanelExportador3D(discordUserId, targetInput = 'linked')
     if (exp.error) {
         const errContainer = new ContainerBuilder()
             .setAccentColor(COLORES.error)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## âŒ Error de ExportaciÃ³n 3D\n${exp.error}`))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ❌ Error de Exportación 3D\n${exp.error}`))
             .addSeparatorComponents(separador())
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton('btn_ava_export3d_modal', 'Intentar otro Usuario o ID', 'ðŸ“¦', ButtonStyle.Primary),
-                    boton('btn_ava_export3d_demo:1365767', 'Ejemplo: Valkyrie 3D', 'âš¡', ButtonStyle.Secondary),
-                    boton('btn_ava_export3d', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                    boton('btn_ava_export3d_modal', 'Intentar otro Usuario o ID', '📦', ButtonStyle.Primary),
+                    boton('btn_ava_export3d_demo:1365767', 'Ejemplo: Valkyrie 3D', '⚡', ButtonStyle.Secondary),
+                    boton('btn_ava_export3d', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -1825,8 +1814,8 @@ async function construirPanelExportador3D(discordUserId, targetInput = 'linked')
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸ“¦ 2.4 Exportador de Modelos 3D\n` +
-            `ðŸŽ¯ **Modelo:** **${exp.displayTitle}**  â€¢  ðŸ—œï¸ **Paquete .ZIP:** \`${exp.sizeKB} KB\``
+            `# 📦 2.4 Exportador de Modelos 3D\n` +
+            `🎯 **Modelo:** **${exp.displayTitle}**  •  🗜️ **Paquete .ZIP:** \`${exp.sizeKB} KB\``
         ))
         .addSeparatorComponents(separador())
         .addMediaGalleryComponents(
@@ -1837,9 +1826,9 @@ async function construirPanelExportador3D(discordUserId, targetInput = 'linked')
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_export3d_linked', 'Exportar Mi Avatar', 'ðŸ‘¤', ButtonStyle.Success),
-                boton('btn_ava_export3d_modal', 'Otro Avatar o Accesorio', 'ðŸ“¦', ButtonStyle.Primary),
-                boton('btn_ava_export3d', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                boton('btn_ava_export3d_linked', 'Exportar Mi Avatar', '👤', ButtonStyle.Success),
+                boton('btn_ava_export3d_modal', 'Otro Avatar o Accesorio', '📦', ButtonStyle.Primary),
+                boton('btn_ava_export3d', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -1855,27 +1844,27 @@ async function construirPanelExportador3D(discordUserId, targetInput = 'linked')
 }
 
 // ==========================================
-// HERRAMIENTA 2.5: ðŸŽ¨ Emparejador de Accesorios y CosmÃ©ticos por Color (Color-Match UGC)
+// HERRAMIENTA 2.5: 🎨 Emparejador de Accesorios y Cosméticos por Color (Color-Match UGC)
 // ==========================================
 const CATEGORIAS_COLORMATCH = {
     // Fila 1: Cabeza y Rostro
-    all:      { label: 'Todos los CosmÃ©ticos',      shortLabel: 'Todos',      emoji: 'âœ¨', subcatParam: 'Category=11',                salesFilter: 'SalesTypeFilter=1', keywordSuffix: '' },
-    hat:      { label: 'Sombreros y Cabeza',        shortLabel: 'Sombrero',   emoji: 'ðŸŽ©', subcatParam: 'Category=11&Subcategory=9',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Hat' },
-    hair:     { label: 'Pelo y Peinados',           shortLabel: 'Pelo',       emoji: 'ðŸ’‡', subcatParam: 'Category=4&Subcategory=20',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Hair' },
-    face:     { label: 'Cara, Lentes y Visores',    shortLabel: 'Cara',       emoji: 'ðŸ˜Ž', subcatParam: 'Category=11&Subcategory=21', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Glasses' },
-    neck:     { label: 'Cuello, Collares y Bufandas', shortLabel: 'Cuello',   emoji: 'ðŸ§£', subcatParam: 'Category=11&Subcategory=22', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Neck' },
+    all:      { label: 'Todos los Cosméticos',      shortLabel: 'Todos',      emoji: '✨', subcatParam: 'Category=11',                salesFilter: 'SalesTypeFilter=1', keywordSuffix: '' },
+    hat:      { label: 'Sombreros y Cabeza',        shortLabel: 'Sombrero',   emoji: '🎩', subcatParam: 'Category=11&Subcategory=9',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Hat' },
+    hair:     { label: 'Pelo y Peinados',           shortLabel: 'Pelo',       emoji: '💇', subcatParam: 'Category=4&Subcategory=20',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Hair' },
+    face:     { label: 'Cara, Lentes y Visores',    shortLabel: 'Cara',       emoji: '😎', subcatParam: 'Category=11&Subcategory=21', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Glasses' },
+    neck:     { label: 'Cuello, Collares y Bufandas', shortLabel: 'Cuello',   emoji: '🧣', subcatParam: 'Category=11&Subcategory=22', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Neck' },
     // Fila 2: Cuerpo, Espalda y Equipamiento
-    shoulder: { label: 'Hombros y Mascotas',        shortLabel: 'Hombros',    emoji: 'ðŸ¦œ', subcatParam: 'Category=11&Subcategory=23', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Shoulder' },
-    front:    { label: 'Frontal, Pecho y Chalecos', shortLabel: 'Pecho',      emoji: 'ðŸ›¡ï¸', subcatParam: 'Category=11&Subcategory=24', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Front' },
-    back:     { label: 'Espalda, Alas y Mochilas',  shortLabel: 'Espalda',    emoji: 'ðŸŽ’', subcatParam: 'Category=11&Subcategory=25', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Wings' },
-    waist:    { label: 'Cintura, Cinturones y Colas', shortLabel: 'Cintura',  emoji: 'â›“ï¸', subcatParam: 'Category=11&Subcategory=26', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Waist' },
-    gear:     { label: 'Gear, Espadas y Mano',      shortLabel: 'Gear',       emoji: 'âš”ï¸', subcatParam: 'Category=11&Subcategory=5',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Sword' },
+    shoulder: { label: 'Hombros y Mascotas',        shortLabel: 'Hombros',    emoji: '🦜', subcatParam: 'Category=11&Subcategory=23', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Shoulder' },
+    front:    { label: 'Frontal, Pecho y Chalecos', shortLabel: 'Pecho',      emoji: '🛡️', subcatParam: 'Category=11&Subcategory=24', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Front' },
+    back:     { label: 'Espalda, Alas y Mochilas',  shortLabel: 'Espalda',    emoji: '🎒', subcatParam: 'Category=11&Subcategory=25', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Wings' },
+    waist:    { label: 'Cintura, Cinturones y Colas', shortLabel: 'Cintura',  emoji: '⛓️', subcatParam: 'Category=11&Subcategory=26', salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Waist' },
+    gear:     { label: 'Gear, Espadas y Mano',      shortLabel: 'Gear',       emoji: '⚔️', subcatParam: 'Category=11&Subcategory=5',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Sword' },
     // Fila 3: Ropa 2D, Prendas 3D y Exclusivos
-    shirt:    { label: 'Camisas ClÃ¡sicas (2D)',     shortLabel: 'Camisas',    emoji: 'ðŸ‘•', subcatParam: 'Category=3&Subcategory=56',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Shirt' },
-    pants:    { label: 'Pantalones ClÃ¡sicos (2D)',  shortLabel: 'PantalÃ³n',   emoji: 'ðŸ‘–', subcatParam: 'Category=3&Subcategory=57',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Pants' },
-    jacket:   { label: 'Chaquetas y Abrigos (3D)',  shortLabel: 'Abrigos 3D', emoji: 'ðŸ§¥', subcatParam: 'Category=3&Subcategory=61',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Jacket' },
-    tshirt:   { label: 'T-Shirts y Estampados (2D)', shortLabel: 'T-Shirts',  emoji: 'ðŸ–¼ï¸', subcatParam: 'Category=3&Subcategory=55',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: '' },
-    limited:  { label: 'Limiteds y Coleccionables', shortLabel: 'Limiteds',   emoji: 'ðŸ‘‘', subcatParam: 'Category=11',                salesFilter: 'SalesTypeFilter=2', keywordSuffix: '' }
+    shirt:    { label: 'Camisas Clásicas (2D)',     shortLabel: 'Camisas',    emoji: '👕', subcatParam: 'Category=3&Subcategory=56',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Shirt' },
+    pants:    { label: 'Pantalones Clásicos (2D)',  shortLabel: 'Pantalón',   emoji: '👖', subcatParam: 'Category=3&Subcategory=57',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Pants' },
+    jacket:   { label: 'Chaquetas y Abrigos (3D)',  shortLabel: 'Abrigos 3D', emoji: '🧥', subcatParam: 'Category=3&Subcategory=61',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: 'Jacket' },
+    tshirt:   { label: 'T-Shirts y Estampados (2D)', shortLabel: 'T-Shirts',  emoji: '🖼️', subcatParam: 'Category=3&Subcategory=55',  salesFilter: 'SalesTypeFilter=1', keywordSuffix: '' },
+    limited:  { label: 'Limiteds y Coleccionables', shortLabel: 'Limiteds',   emoji: '👑', subcatParam: 'Category=11',                salesFilter: 'SalesTypeFilter=2', keywordSuffix: '' }
 };
 
 async function ejecutarColorMatch(discordUserId, inputSource = 'my_avatar', categoryFilter = 'all', activeToneIdx = 0) {
@@ -1911,10 +1900,10 @@ async function ejecutarColorMatch(discordUserId, inputSource = 'my_avatar', cate
         sourceImageUrl = thumbRes?.data?.data?.[0]?.imageUrl || linked?.avatar_url || null;
         palette = await extractDominantColorsFromImage(sourceImageUrl);
     } else {
-        // Puede ser ID numÃ©rico, URL o nombre de cualquier camisa, pantalÃ³n o accesorio
+        // Puede ser ID numérico, URL o nombre de cualquier camisa, pantalón o accesorio
         const resolvedItem = await resolverItemCatalogoConPrecioReal(raw);
         if (!resolvedItem) {
-            return { error: `No se encontrÃ³ ninguna prenda, accesorio ni cÃ³digo HEX vÃ¡lido para **"${raw}"**.` };
+            return { error: `No se encontró ninguna prenda, accesorio ni código HEX válido para **"${raw}"**.` };
         }
         baseTitle = `${resolvedItem.name} (#${resolvedItem.id})`;
         sourceImageUrl = resolvedItem.highResUrl || resolvedItem.imageUrl;
@@ -1929,7 +1918,7 @@ async function ejecutarColorMatch(discordUserId, inputSource = 'my_avatar', cate
     const searchKeyword = catInfo.keywordSuffix ? `${colorSearchTerm} ${catInfo.keywordSuffix}` : colorSearchTerm;
 
     // IMPORTANTE: El endpoint v1/search/items/details de Roblox solo acepta Limit=10, Limit=28 o Limit=30.
-    // Hacemos primero la consulta principal con Limit=28 y solo si devuelve pocos resultados hacemos un respaldo secuencial (evitando rÃ¡fagas 429).
+    // Hacemos primero la consulta principal con Limit=28 y solo si devuelve pocos resultados hacemos un respaldo secuencial (evitando ráfagas 429).
     const primarySearchUrl = `https://catalog.roblox.com/v1/search/items/details?${catInfo.subcatParam}&Keyword=${encodeURIComponent(searchKeyword)}&${catInfo.salesFilter}&Limit=28`;
     let onSaleRes = await fetchWithRetry(primarySearchUrl).catch(() => null);
 
@@ -1945,14 +1934,14 @@ async function ejecutarColorMatch(discordUserId, inputSource = 'my_avatar', cate
 
     collectFromRes(onSaleRes);
 
-    // Respaldo 1: si la subcategorÃ­a con keyword compuesta trajo menos de 4 Ã­tems, buscar en la misma subcategorÃ­a solo por el color
+    // Respaldo 1: si la subcategoría con keyword compuesta trajo menos de 4 ítems, buscar en la misma subcategoría solo por el color
     if (rawItems.length < 4 && catInfo.keywordSuffix) {
         const subcatColorOnlyUrl = `https://catalog.roblox.com/v1/search/items/details?${catInfo.subcatParam}&Keyword=${encodeURIComponent(colorSearchTerm)}&${catInfo.salesFilter}&Limit=10`;
         const fallbackSubRes = await fetchWithRetry(subcatColorOnlyUrl).catch(() => null);
         collectFromRes(fallbackSubRes);
     }
 
-    // Respaldo 2: si aÃºn hay menos de 4 Ã­tems (ej. rate-limit momentÃ¡neo o subcategorÃ­a muy especÃ­fica), buscar en accesorios generales
+    // Respaldo 2: si aún hay menos de 4 ítems (ej. rate-limit momentáneo o subcategoría muy específica), buscar en accesorios generales
     if (rawItems.length < 4) {
         const broadFallbackUrl = `https://catalog.roblox.com/v1/search/items/details?Category=11&Keyword=${encodeURIComponent(searchKeyword)}&SalesTypeFilter=1&Limit=10`;
         const broadRes = await fetchWithRetry(broadFallbackUrl).catch(() => null);
@@ -2009,16 +1998,16 @@ function construirPanelColorMatchInicial() {
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸŽ¨ 2.5 Combinador por Color\n` +
-            `ExtraÃ© los colores principales de tu avatar, de una prenda o de un cÃ³digo #HEX y buscÃ¡ accesorios que combinen.`
+            `# 🎨 2.5 Combinador por Color\n` +
+            `Extraé los colores principales de tu avatar, de una prenda o de un código #HEX y buscá accesorios que combinen.`
         ))
         .addSeparatorComponents(separador(true))
         .addActionRowComponents(
             new ActionRowBuilder().addComponents(
-                boton('btn_ava_colormatch_myavatar', 'Colores de Mi Avatar', 'ðŸ‘¤', ButtonStyle.Success),
-                boton('btn_ava_colormatch_modal', 'Ingresar Prenda o #HEX', 'ðŸŽ¨', ButtonStyle.Primary),
-                boton('btn_ava_colormatch_demo:#5865F2', 'Probar Ejemplo (#5865F2)', 'âš¡', ButtonStyle.Secondary),
-                boton('btn_nav_cat:cat_avatar', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                boton('btn_ava_colormatch_myavatar', 'Colores de Mi Avatar', '👤', ButtonStyle.Success),
+                boton('btn_ava_colormatch_modal', 'Ingresar Prenda o #HEX', '🎨', ButtonStyle.Primary),
+                boton('btn_ava_colormatch_demo:#5865F2', 'Probar Ejemplo (#5865F2)', '⚡', ButtonStyle.Secondary),
+                boton('btn_nav_cat:cat_avatar', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
             )
         )
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -2038,13 +2027,13 @@ async function construirPanelColorMatch(discordUserId, inputSource = 'my_avatar'
     if (cm.error) {
         const errContainer = new ContainerBuilder()
             .setAccentColor(COLORES.error)
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## âŒ Error en Color-Match\n${cm.error}`))
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ❌ Error en Color-Match\n${cm.error}`))
             .addSeparatorComponents(separador())
             .addActionRowComponents(
                 new ActionRowBuilder().addComponents(
-                    boton('btn_ava_colormatch_modal', 'Ingresar otra Prenda o #HEX', 'ðŸŽ¨', ButtonStyle.Primary),
-                    boton('btn_ava_colormatch_demo:#5865F2', 'Probar Ejemplo (#5865F2)', 'âš¡', ButtonStyle.Secondary),
-                    boton('btn_ava_colormatch', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+                    boton('btn_ava_colormatch_modal', 'Ingresar otra Prenda o #HEX', '🎨', ButtonStyle.Primary),
+                    boton('btn_ava_colormatch_demo:#5865F2', 'Probar Ejemplo (#5865F2)', '⚡', ButtonStyle.Secondary),
+                    boton('btn_ava_colormatch', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
                 )
             );
         return { components: [errContainer], files: [], attachments: [], flags: MessageFlags.IsComponentsV2 };
@@ -2055,23 +2044,23 @@ async function construirPanelColorMatch(discordUserId, inputSource = 'my_avatar'
     const attachment = new AttachmentBuilder(pngBuffer, { name: 'color_match_grid.png' });
 
     const paletteStr = cm.palette
-        .map((c, i) => (i === cm.activeToneIdx ? `ðŸŸ¢ **#${i + 1} \`${c.hex}\` (Activo)**` : `âšª #${i + 1} \`${c.hex}\``))
-        .join('  â€¢  ');
+        .map((c, i) => (i === cm.activeToneIdx ? `🟢 **#${i + 1} \`${c.hex}\` (Activo)**` : `⚪ #${i + 1} \`${c.hex}\``))
+        .join('  •  ');
 
     const listStr = cm.matchedItems.slice(0, 4).map((it, idx) => {
         const pStr = it.price > 0 ? `${formatearPrecio(it.price)}` : '`Offsale`';
         return (
             `**${idx + 1}.** **[${it.name}](https://www.roblox.com/catalog/${it.id})** (\`ID: ${it.id}\`)\n` +
-            `> ðŸŽ¯ **${it.matchPct}% Match** (Tono \`${it.detectedHex}\`)  â€¢  ðŸ’µ ${pStr}`
+            `> 🎯 **${it.matchPct}% Match** (Tono \`${it.detectedHex}\`)  •  💵 ${pStr}`
         );
     }).join('\n\n');
 
     const container = new ContainerBuilder()
         .setAccentColor(COLOR_AVATAR)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `# ðŸŽ¨ 2.5 Emparejador de CosmÃ©ticos por Color\n` +
-            `ðŸ‘• **Referencia:** **${cm.baseTitle}**  â€¢  ðŸ—‚ï¸ **Filtro Activo:** **${catInfo.emoji} ${catInfo.label}**\n` +
-            `ðŸŒˆ **Paleta Detectada:** ${paletteStr}` +
+            `# 🎨 2.5 Emparejador de Cosméticos por Color\n` +
+            `👕 **Referencia:** **${cm.baseTitle}**  •  🗂️ **Filtro Activo:** **${catInfo.emoji} ${catInfo.label}**\n` +
+            `🌈 **Paleta Detectada:** ${paletteStr}` +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         ))
         .addSeparatorComponents(separador())
@@ -2082,84 +2071,84 @@ async function construirPanelColorMatch(discordUserId, inputSource = 'my_avatar'
         )
         .addSeparatorComponents(separador())
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `### ðŸ›ï¸ CosmÃ©ticos Recomendados para el Tono #${cm.activeToneIdx + 1} (\`${cm.palette[cm.activeToneIdx]?.hex}\`)\n${listStr || 'âš ï¸ No se encontraron cosmÃ©ticos en venta para este filtro exacto. ProbÃ¡ cambiando el Tono (#1, #2, #3) o eligiendo otra categorÃ­a abajo.'}`
+            `### 🛍️ Cosméticos Recomendados para el Tono #${cm.activeToneIdx + 1} (\`${cm.palette[cm.activeToneIdx]?.hex}\`)\n${listStr || '⚠️ No se encontraron cosméticos en venta para este filtro exacto. Probá cambiando el Tono (#1, #2, #3) o eligiendo otra categoría abajo.'}`
         ));
 
-    // 1. Selector de Tono CromÃ¡tico (#1, #2, #3) + EnvÃ­o directo al Probador de Avatar (2.1)
+    // 1. Selector de Tono Cromático (#1, #2, #3) + Envío directo al Probador de Avatar (2.1)
     const selectToneAndAction = new StringSelectMenuBuilder()
         .setCustomId('select_ava_colormatch_tone')
-        .setPlaceholder('ðŸŽ¨ CambiÃ¡ entre los 3 tonos detectados o probÃ¡ un cosmÃ©tico en tu Avatar...')
+        .setPlaceholder('🎨 Cambiá entre los 3 tonos detectados o probá un cosmético en tu Avatar...')
         .addOptions([
             ...cm.palette.slice(0, 3).map((col, idx) =>
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(`Buscar cosmÃ©ticos con el Tono #${idx + 1}: ${col.hex}`)
+                    .setLabel(`Buscar cosméticos con el Tono #${idx + 1}: ${col.hex}`)
                     .setDescription(`Explorar ${catInfo.label.toLowerCase()} compatibles con la muestra ${col.hex}`)
                     .setValue(`tone:${idx}`)
-                    .setEmoji(idx === cm.activeToneIdx ? 'ðŸŸ¢' : 'ðŸŽ¨')
+                    .setEmoji(idx === cm.activeToneIdx ? '🟢' : '🎨')
                     .setDefault(idx === cm.activeToneIdx)
             ),
             ...cm.matchedItems.slice(0, 4).map((it, idx) =>
                 new StringSelectMenuOptionBuilder()
                     .setLabel(`Probar en mi Avatar (2.1): #${idx + 1} ${String(it.name).substring(0, 58)}`)
-                    .setDescription(`${it.matchPct}% Match CromÃ¡tico â€¢ Precio: ${it.price > 0 ? `${it.price} R$` : 'Offsale'}`)
+                    .setDescription(`${it.matchPct}% Match Cromático • Precio: ${it.price > 0 ? `${it.price} R$` : 'Offsale'}`)
                     .setValue(`tryon:${it.id}`)
-                    .setEmoji('ðŸ§ª')
+                    .setEmoji('🧪')
             )
         ]);
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(selectToneAndAction));
 
-    // 2. Bloque de Filtros de CosmÃ©ticos (15 categorÃ­as organizadas en 3 filas claras)
+    // 2. Bloque de Filtros de Cosméticos (15 categorías organizadas en 3 filas claras)
     container.addSeparatorComponents(separador(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `### ðŸ§© Filtros por Tipo de CosmÃ©tico de Roblox\n` +
-        `-# SeleccionÃ¡ quÃ© parte del avatar o prenda querÃ©s combinar con el **Tono #${cm.activeToneIdx + 1} (\`${cm.palette[cm.activeToneIdx]?.hex}\`)**:`
+        `### 🧩 Filtros por Tipo de Cosmético de Roblox\n` +
+        `-# Seleccioná qué parte del avatar o prenda querés combinar con el **Tono #${cm.activeToneIdx + 1} (\`${cm.palette[cm.activeToneIdx]?.hex}\`)**:`
     ));
 
     // Fila 1 de Filtros: Cabeza y Rostro
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ava_colormatch_cat:all',  'Todos',    'âœ¨', categoryFilter === 'all'  ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:hat',  'Sombrero', 'ðŸŽ©', categoryFilter === 'hat'  ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:hair', 'Pelo',     'ðŸ’‡', categoryFilter === 'hair' ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:face', 'Cara',     'ðŸ˜Ž', categoryFilter === 'face' ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:neck', 'Cuello',   'ðŸ§£', categoryFilter === 'neck' ? ButtonStyle.Success : ButtonStyle.Secondary)
+            boton('btn_ava_colormatch_cat:all',  'Todos',    '✨', categoryFilter === 'all'  ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:hat',  'Sombrero', '🎩', categoryFilter === 'hat'  ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:hair', 'Pelo',     '💇', categoryFilter === 'hair' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:face', 'Cara',     '😎', categoryFilter === 'face' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:neck', 'Cuello',   '🧣', categoryFilter === 'neck' ? ButtonStyle.Success : ButtonStyle.Secondary)
         )
     );
 
     // Fila 2 de Filtros: Cuerpo, Espalda y Equipamiento
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ava_colormatch_cat:shoulder', 'Hombros', 'ðŸ¦œ', categoryFilter === 'shoulder' ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:front',    'Pecho',   'ðŸ›¡ï¸', categoryFilter === 'front'    ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:back',     'Espalda', 'ðŸŽ’', categoryFilter === 'back'     ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:waist',    'Cintura', 'â›“ï¸', categoryFilter === 'waist'    ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:gear',     'Gear',    'âš”ï¸', categoryFilter === 'gear'     ? ButtonStyle.Success : ButtonStyle.Secondary)
+            boton('btn_ava_colormatch_cat:shoulder', 'Hombros', '🦜', categoryFilter === 'shoulder' ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:front',    'Pecho',   '🛡️', categoryFilter === 'front'    ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:back',     'Espalda', '🎒', categoryFilter === 'back'     ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:waist',    'Cintura', '⛓️', categoryFilter === 'waist'    ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:gear',     'Gear',    '⚔️', categoryFilter === 'gear'     ? ButtonStyle.Success : ButtonStyle.Secondary)
         )
     );
 
     // Fila 3 de Filtros: Ropa 2D, Prendas 3D y Exclusivos
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ava_colormatch_cat:shirt',   'Camisas',    'ðŸ‘•', categoryFilter === 'shirt'   ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:pants',   'PantalÃ³n',   'ðŸ‘–', categoryFilter === 'pants'   ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:jacket',  'Abrigos 3D', 'ðŸ§¥', categoryFilter === 'jacket'  ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:tshirt',  'T-Shirts',   'ðŸ–¼ï¸', categoryFilter === 'tshirt'  ? ButtonStyle.Success : ButtonStyle.Secondary),
-            boton('btn_ava_colormatch_cat:limited', 'Limiteds',   'ðŸ‘‘', categoryFilter === 'limited' ? ButtonStyle.Success : ButtonStyle.Secondary)
+            boton('btn_ava_colormatch_cat:shirt',   'Camisas',    '👕', categoryFilter === 'shirt'   ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:pants',   'Pantalón',   '👖', categoryFilter === 'pants'   ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:jacket',  'Abrigos 3D', '🧥', categoryFilter === 'jacket'  ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:tshirt',  'T-Shirts',   '🖼️', categoryFilter === 'tshirt'  ? ButtonStyle.Success : ButtonStyle.Secondary),
+            boton('btn_ava_colormatch_cat:limited', 'Limiteds',   '👑', categoryFilter === 'limited' ? ButtonStyle.Success : ButtonStyle.Secondary)
         )
     );
 
-    // 3. SeparaciÃ³n clara antes de los botones inferiores de cambio de prenda/color, avatar y retorno
+    // 3. Separación clara antes de los botones inferiores de cambio de prenda/color, avatar y retorno
     container.addSeparatorComponents(separador(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# âš™ï¸ **Controles de Prenda Base y NavegaciÃ³n:**`
+        `-# ⚙️ **Controles de Prenda Base y Navegación:**`
     ));
 
     container.addActionRowComponents(
         new ActionRowBuilder().addComponents(
-            boton('btn_ava_colormatch_modal', 'Cambiar Prenda o Color #HEX', 'ðŸŽ¨', ButtonStyle.Primary),
-            boton('btn_ava_colormatch_myavatar', 'Usar Mi Avatar', 'ðŸ‘¤', ButtonStyle.Secondary),
-            boton('btn_ava_colormatch', 'Volver AtrÃ¡s', 'â¬…ï¸', ButtonStyle.Secondary)
+            boton('btn_ava_colormatch_modal', 'Cambiar Prenda o Color #HEX', '🎨', ButtonStyle.Primary),
+            boton('btn_ava_colormatch_myavatar', 'Usar Mi Avatar', '👤', ButtonStyle.Secondary),
+            boton('btn_ava_colormatch', 'Volver Atrás', '⬅️', ButtonStyle.Secondary)
         )
     );
 
@@ -2176,7 +2165,7 @@ async function construirPanelColorMatch(discordUserId, inputSource = 'my_avatar'
 }
 
 // ==========================================
-// ENRUTADOR INTERNO DE INTERACCIONES DE AVATAR (CATEGORÃA 2)
+// ENRUTADOR INTERNO DE INTERACCIONES DE AVATAR (CATEGORÍA 2)
 // ==========================================
 async function handleAvatarInteraction(interaction) {
     const cid = interaction.customId;
@@ -2196,8 +2185,8 @@ async function handleAvatarInteraction(interaction) {
         const state = await obtenerEstadoSandbox(uid);
         state.zoomHead = !state.zoomHead;
         const msg = state.zoomHead
-            ? 'ðŸ” **Zoom Cabeza y Cuello activado:** Ideal para apreciar de cerca collares, lentes, pelo y sombreros.'
-            : 'ðŸ§ **Vista Cuerpo Completo activada:** Viendo el personaje entero con sus accesorios.';
+            ? '🔍 **Zoom Cabeza y Cuello activado:** Ideal para apreciar de cerca collares, lentes, pelo y sombreros.'
+            : '🧍 **Vista Cuerpo Completo activada:** Viendo el personaje entero con sus accesorios.';
         const panel = await construirPanelSandbox(uid, msg);
         return await interaction.editReply(panel);
     }
@@ -2206,7 +2195,7 @@ async function handleAvatarInteraction(interaction) {
         await interaction.deferUpdate();
         const state = await obtenerEstadoSandbox(uid);
         state.items = [];
-        const panel = await construirPanelSandbox(uid, 'ðŸ—‘ï¸ Se vaciÃ³ el probador de combinaciones.');
+        const panel = await construirPanelSandbox(uid, '🗑️ Se vació el probador de combinaciones.');
         return await interaction.editReply(panel);
     }
 
@@ -2215,13 +2204,12 @@ async function handleAvatarInteraction(interaction) {
         const state = await obtenerEstadoSandbox(uid);
         const removed = state.items.pop();
         const msg = removed
-            ? `âž– Se quitÃ³ **${removed.name}** del probador.`
-            : 'â„¹ï¸ No hay objetos para quitar.';
+            ? `➖ Se quitó **${removed.name}** del probador.`
+            : 'ℹ️ No hay objetos para quitar.';
         const panel = await construirPanelSandbox(uid, msg);
         return await interaction.editReply(panel);
     }
 
-    // Conjunto Demo de 1 clic para que el usuario pruebe el Sandbox al instante sin fricciÃ³n
     if (cid === 'btn_ava_sandbox_demo') {
         await interaction.deferUpdate();
         const state = await obtenerEstadoSandbox(uid);
@@ -2239,7 +2227,7 @@ async function handleAvatarInteraction(interaction) {
         state.items = validDemo;
         const panel = await construirPanelSandbox(
             uid,
-            `âš¡ **Conjunto Demo equipado:** Se aplicaron **${validDemo.length}** accesorios sobre **@${state.username}** con su cotizaciÃ³n real.`
+            `⚡ **Conjunto Demo equipado:** Se aplicaron **${validDemo.length}** accesorios sobre **@${state.username}** con su cotización real.`
         );
         return await interaction.editReply(panel);
     }
@@ -2251,7 +2239,7 @@ async function handleAvatarInteraction(interaction) {
         const resolvedWorn = await cargarPrendasEquipadasDeUsuario(state.userId, maxSandbox);
 
         if (resolvedWorn.length === 0) {
-            const panel = await construirPanelSandbox(uid, `â„¹ï¸ El avatar **@${state.username}** no tiene prendas adicionales equipadas en este momento.`);
+            const panel = await construirPanelSandbox(uid, `ℹ️ El avatar **@${state.username}** no tiene prendas adicionales equipadas en este momento.`);
             return await interaction.editReply(panel);
         }
 
@@ -2259,7 +2247,7 @@ async function handleAvatarInteraction(interaction) {
         state.selectedItemId = resolvedWorn[0]?.id || null;
         const panel = await construirPanelSandbox(
             uid,
-            `ðŸ‘• Se cargaron y cotizaron **${resolvedWorn.length}** prendas equipadas por **@${state.username}**. PodÃ©s snipearlas desde el menÃº desplegable o con **ðŸŽ¯ Fijar Meta**.`
+            `👕 Se cargaron y cotizaron **${resolvedWorn.length}** prendas equipadas por **@${state.username}**.`
         );
         return await interaction.editReply(panel);
     }
@@ -2267,13 +2255,13 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_sandbox_avatar_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_sandbox_avatar')
-            .setTitle('ðŸ‘¤ Cambiar Avatar del Probador');
+            .setTitle('👤 Cambiar Avatar del Probador');
 
         const input = new TextInputBuilder()
             .setCustomId('sandbox_avatar_input')
             .setLabel('Usuario o ID de Roblox')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Ej: Builderman, darcy_blox o ID numÃ©rico')
+            .setPlaceholder('Ej: Builderman, darcy_blox o ID numérico')
             .setRequired(true);
 
         modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -2289,7 +2277,7 @@ async function handleAvatarInteraction(interaction) {
         const targetUserQuery = rawUser.replace(/^(@|avatar\s*:\s*)/i, '').trim();
         const prof = await resolverUsuarioRoblox(targetUserQuery);
         if (!prof) {
-            const panel = await construirPanelSandbox(uid, `âš ï¸ No se encontrÃ³ ningÃºn jugador de Roblox llamado **@${targetUserQuery}**.`);
+            const panel = await construirPanelSandbox(uid, `⚠️ No se encontró ningún jugador de Roblox llamado **@${targetUserQuery}**.`);
             return await interaction.editReply(panel);
         }
 
@@ -2315,7 +2303,7 @@ async function handleAvatarInteraction(interaction) {
 
         const panel = await construirPanelSandbox(
             uid,
-            `ðŸ‘¤ **Personaje actualizado a @${prof.roblox_username}** (ID \`${prof.roblox_user_id}\`) con **${(wornItems || []).length}** prenda(s) equipada(s) lista(s) para snipear.`
+            `👤 **Personaje actualizado a @${prof.roblox_username}** • ID \`${prof.roblox_user_id}\` con **${(wornItems || []).length}** prendas equipadas.`
         );
         return await interaction.editReply(panel);
     }
@@ -2323,11 +2311,11 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_sandbox_add_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_sandbox_add')
-            .setTitle('âž• Probar Accesorio o Prenda');
+            .setTitle('➕ Probar Accesorio o Prenda');
 
         const input = new TextInputBuilder()
             .setCustomId('sandbox_item_input')
-            .setLabel('Nombre, ID o URL del Ã­tem (o @usuario)')
+            .setLabel('Nombre, ID o URL del ítem o @usuario')
             .setStyle(TextInputStyle.Short)
             .setPlaceholder('Ej: Valkyrie Helm, Black Shades, 1365767 o @Builderman')
             .setRequired(true);
@@ -2342,12 +2330,11 @@ async function handleAvatarInteraction(interaction) {
         const state = await obtenerEstadoSandbox(uid);
         const maxSandbox = Number(obtenerConfigPropietario().maxSandboxItems || 5);
 
-        // Si el usuario escribiÃ³ @usuario (o "avatar: nombre"), cambiar el personaje del visor del Sandbox
         if (raw.startsWith('@') || /^avatar\s*:/i.test(raw)) {
             const targetUserQuery = raw.replace(/^(@|avatar\s*:\s*)/i, '').trim();
             const prof = await resolverUsuarioRoblox(targetUserQuery);
             if (!prof) {
-                const panel = await construirPanelSandbox(uid, `âš ï¸ No se encontrÃ³ ningÃºn jugador de Roblox llamado **@${targetUserQuery}**.`);
+                const panel = await construirPanelSandbox(uid, `⚠️ No se encontró ningún jugador de Roblox llamado **@${targetUserQuery}**.`);
                 return await interaction.editReply(panel);
             }
             const customTryOnItems = state.items.filter(it => !it.isWorn);
@@ -2371,25 +2358,24 @@ async function handleAvatarInteraction(interaction) {
 
             const panel = await construirPanelSandbox(
                 uid,
-                `ðŸ‘¤ **Personaje del visor actualizado a @${prof.roblox_username}** (ID \`${prof.roblox_user_id}\`) con **${(wornItems || []).length}** prenda(s) equipada(s).`
+                `👤 **Personaje actualizado a @${prof.roblox_username}** • ID \`${prof.roblox_user_id}\` con **${(wornItems || []).length}** prendas equipadas.`
             );
             return await interaction.editReply(panel);
         }
 
         if (state.items.length >= maxSandbox) {
-            // Reemplazar automÃ¡ticamente la prenda puesta mÃ¡s antigua si ya hay 5 objetos para no bloquear la prueba
             const wornIdx = state.items.findIndex(it => it.isWorn);
             if (wornIdx !== -1) {
                 state.items.splice(wornIdx, 1);
             } else {
-                const panel = await construirPanelSandbox(uid, `âš ï¸ El probador admite hasta **${maxSandbox} objetos simultÃ¡neos**. UsÃ¡ **âž– Quitar Ãšltimo** o **ðŸ—‘ï¸ Vaciar Todo** para agregar otro.`);
+                const panel = await construirPanelSandbox(uid, `⚠️ El probador admite hasta **${maxSandbox} objetos simultáneos**. Usá **➖ Quitar Último** o **🗑️ Vaciar Todo**.`);
                 return await interaction.editReply(panel);
             }
         }
 
         const resolved = await resolverItemCatalogoConPrecioReal(raw);
         if (!resolved) {
-            const panel = await construirPanelSandbox(uid, `âŒ No se encontrÃ³ ningÃºn accesorio ni prenda para **"${raw}"**.`);
+            const panel = await construirPanelSandbox(uid, `❌ No se encontró ningún accesorio ni prenda para **"${raw}"**.`);
             return await interaction.editReply(panel);
         }
 
@@ -2407,14 +2393,13 @@ async function handleAvatarInteraction(interaction) {
         state.items.push(newItem);
         state.selectedItemId = newItem.id;
 
-        // Si es un accesorio de cuello o cara, activar zoom automÃ¡ticamente para que se vea con claridad
         if (slotInfo.key === 'neck' || slotInfo.key === 'face') {
             state.zoomHead = true;
         }
 
         const panel = await construirPanelSandbox(
             uid,
-            `âœ… **${newItem.name}** equipado en **${slotInfo.label}** (${newItem.price > 0 ? formatearPrecio(newItem.price) : 'Gratis / Offsale'}).`
+            `✅ **${newItem.name}** equipado en **${slotInfo.label}** • ${newItem.price > 0 ? formatearPrecio(newItem.price) : 'Gratis / Offsale'}.`
         );
         return await interaction.editReply(panel);
     }
@@ -2425,7 +2410,7 @@ async function handleAvatarInteraction(interaction) {
         const state = await obtenerEstadoSandbox(uid);
         const item = state.items.find(i => String(i.id) === String(chosenId));
         if (!item) {
-            const panel = await construirPanelSandbox(uid, 'âš ï¸ Objeto no encontrado en la sesiÃ³n actual.');
+            const panel = await construirPanelSandbox(uid, '⚠️ Objeto no encontrado en la sesión actual.');
             return await interaction.editReply(panel);
         }
 
@@ -2444,18 +2429,14 @@ async function handleAvatarInteraction(interaction) {
         }
 
         const msg = saveRes.ok
-            ? `ðŸŽ¯ **${item.name}** guardado en **Mi Lista** (${saveRes.totalActual}/${saveRes.maxItems}). TocÃ¡ **ðŸŽ¯ Fijar Meta** abajo si querÃ©s definir un precio objetivo o **ðŸ“‹ Ver Mi Lista**.`
+            ? `🎯 **${item.name}** guardado en **Mi Lista** • ${saveRes.totalActual}/${saveRes.maxItems}.`
             : (saveRes.alreadyExists
-                ? `ðŸŽ¯ **${item.name}** seleccionado (ya estÃ¡ en tu **Mi Lista** ${saveRes.totalActual}/${saveRes.maxItems}). PodÃ©s tocar **ðŸŽ¯ Fijar Meta** abajo para ajustar su precio objetivo.`
-                : `âš ï¸ ${saveRes.motivo}`);
+                ? `🎯 **${item.name}** seleccionado • Ya está en tu **Mi Lista** ${saveRes.totalActual}/${saveRes.maxItems}.`
+                : `⚠️ ${saveRes.motivo}`);
 
         const panel = await construirPanelSandbox(uid, msg);
         return await interaction.editReply(panel);
     }
-
-    // ----------------------------------------------------
-    // 2.2 BUSCADOR DE CLONES Y SIMILARES
-    // ----------------------------------------------------
     if (cid === 'btn_ava_clones') {
         await interaction.deferUpdate();
         return await interaction.editReply(construirPanelClonesInicial());
@@ -2480,7 +2461,7 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_clones_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_clones_submit')
-            .setTitle('ðŸ” Buscar Clones y Similares');
+            .setTitle('🔍 Buscar Clones y Similares');
 
         const input = new TextInputBuilder()
             .setCustomId('clones_query_input')
@@ -2507,7 +2488,7 @@ async function handleAvatarInteraction(interaction) {
         const panel = await construirPanelClones(
             origId,
             mode,
-            `ðŸ”Ž Alternativa **ID \`${altId}\`** seleccionada. UsÃ¡ los botones de abajo para probarla en tu avatar o seguir su precio.`,
+            `🔎 Alternativa **ID \`${altId}\`** seleccionada. Usá los botones de abajo para probarla en tu avatar o seguir su precio.`,
             altId
         );
         return await interaction.editReply(panel);
@@ -2525,8 +2506,8 @@ async function handleAvatarInteraction(interaction) {
             guildId: interaction.guildId || 'DM'
         });
         const msg = saveRes.ok
-            ? `ðŸŽ¯ **${det?.name || altId}** aÃ±adido a **Mi Lista** (${saveRes.totalActual}/${saveRes.maxItems}).`
-            : `âš ï¸ ${saveRes.motivo}`;
+            ? `🎯 **${det?.name || altId}** añadido a **Mi Lista** (${saveRes.totalActual}/${saveRes.maxItems}).`
+            : `⚠️ ${saveRes.motivo}`;
         const panel = await construirPanelClones(origId || '1365767', mode || 'all', msg, altId);
         return await interaction.editReply(panel);
     }
@@ -2549,12 +2530,12 @@ async function handleAvatarInteraction(interaction) {
                 isWorn: false
             });
         }
-        const panel = await construirPanelSandbox(uid, `ðŸ§ª Alternativa **${det?.name || altId}** equipada sobre tu avatar.`);
+        const panel = await construirPanelSandbox(uid, `🧪 Alternativa **${det?.name || altId}** equipada sobre tu avatar.`);
         return await interaction.editReply(panel);
     }
 
     // ----------------------------------------------------
-    // 2.3 EXTRACTOR DE TEXTURAS + MANIQUÃ 2D
+    // 2.3 EXTRACTOR DE TEXTURAS + MANIQUÍ 2D
     // ----------------------------------------------------
     if (cid === 'btn_ava_textures') {
         await interaction.deferUpdate();
@@ -2591,7 +2572,7 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_tex_extract_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_tex_extract')
-            .setTitle('ðŸ§¬ Extraer Textura 2D de Roblox');
+            .setTitle('🧬 Extraer Textura 2D de Roblox');
 
         const input = new TextInputBuilder()
             .setCustomId('tex_asset_input')
@@ -2614,13 +2595,13 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_tex_custom_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_tex_custom')
-            .setTitle('ðŸ‘• Probar Plantilla 2D en ManiquÃ­');
+            .setTitle('👕 Probar Plantilla 2D en Maniquí');
 
         const input = new TextInputBuilder()
             .setCustomId('tex_custom_url')
             .setLabel('URL directa de imagen .PNG o ID de Roblox')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('https://... (.png) o ID de camisa/pantalÃ³n')
+            .setPlaceholder('https://... (.png) o ID de camisa/pantalón')
             .setRequired(true);
 
         modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -2630,7 +2611,7 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'modal_ava_tex_custom' && interaction.isModalSubmit()) {
         const urlOrId = interaction.fields.getTextInputValue('tex_custom_url').trim();
         await interaction.deferUpdate();
-        const panel = await construirPanelManiqui2D(uid, urlOrId, 'Plantilla 2D en ManiquÃ­');
+        const panel = await construirPanelManiqui2D(uid, urlOrId, 'Plantilla 2D en Maniquí');
         return await interaction.editReply(panel);
     }
 
@@ -2658,7 +2639,7 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_export3d_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_export3d_submit')
-            .setTitle('ðŸ“¦ Exportar Modelo 3D (.PNG + .ZIP)');
+            .setTitle('📦 Exportar Modelo 3D (.PNG + .ZIP)');
 
         const input = new TextInputBuilder()
             .setCustomId('export3d_target_input')
@@ -2711,7 +2692,7 @@ async function handleAvatarInteraction(interaction) {
     if (cid === 'btn_ava_colormatch_modal') {
         const modal = new ModalBuilder()
             .setCustomId('modal_ava_colormatch_submit')
-            .setTitle('ðŸŽ¨ Emparejar por Prenda o Color #HEX');
+            .setTitle('🎨 Emparejar por Prenda o Color #HEX');
 
         const input = new TextInputBuilder()
             .setCustomId('colormatch_source_input')
@@ -2744,7 +2725,7 @@ async function handleAvatarInteraction(interaction) {
                 last?.inputSource || 'my_avatar',
                 last?.categoryFilter || 'all',
                 newToneIdx,
-                `ðŸŽ¨ Mostrando accesorios compatibles con el **Tono #${newToneIdx + 1}**.`
+                `🎨 Mostrando accesorios compatibles con el **Tono #${newToneIdx + 1}**.`
             );
             return await interaction.editReply(panel);
         }
@@ -2766,7 +2747,7 @@ async function handleAvatarInteraction(interaction) {
                     isWorn: false
                 });
             }
-            const panel = await construirPanelSandbox(uid, `ðŸŽ¨ Accesorio **${det?.name || itemId}** equipado desde Color-Match.`);
+            const panel = await construirPanelSandbox(uid, `🎨 Accesorio **${det?.name || itemId}** equipado desde Color-Match.`);
             return await interaction.editReply(panel);
         }
     }
