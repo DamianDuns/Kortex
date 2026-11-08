@@ -431,11 +431,11 @@ test('OAuth2 URL normalization and direct in-Discord account linking work withou
 
     assert.equal(
         DEFAULT_APP_URL,
-        'https://ais-pre-jzxizk67bjjflsgv3wdz4b-494677195769.us-west1.run.app'
+        'https://damianduns.github.io/Kortex'
     );
     assert.equal(
-        normalizarUrlPublica('http://ais-pre-jzxizk67bjjflsgv3wdz4b-494677195769.us-west1.run.app/'),
-        'https://ais-pre-jzxizk67bjjflsgv3wdz4b-494677195769.us-west1.run.app'
+        normalizarUrlPublica('http://damianduns.github.io/Kortex/'),
+        'https://damianduns.github.io/Kortex'
     );
 
     const publicBase = obtenerUrlBasePublica();
