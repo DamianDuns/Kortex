@@ -1908,6 +1908,45 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     drawRoundedRect(ctx, vpX + 4, vpY + 28, vpW - 8, vpH - 92, 8);
     ctx.clip();
 
+    function drawEquippedItemOnAvatar(eq) {
+        if (!eq.img || !eq.isCustomTryOn) return;
+        const slotKey = eq.slot?.key || 'hat';
+        let itemX = drawAvX;
+        let itemY = drawAvY;
+        let itemW = drawAvSize;
+        let itemH = drawAvSize;
+
+        if (slotKey === 'hat' || slotKey === 'hair') {
+            itemW = drawAvSize * 0.72;
+            itemH = drawAvSize * 0.72;
+            itemX = drawAvX + (drawAvSize - itemW) / 2;
+            itemY = isZoomed ? drawAvY + 10 : drawAvY + 8;
+        } else if (slotKey === 'face' || slotKey === 'neck') {
+            itemW = drawAvSize * 0.55;
+            itemH = drawAvSize * 0.55;
+            itemX = drawAvX + (drawAvSize - itemW) / 2;
+            itemY = isZoomed ? drawAvY + 38 : drawAvY + 28;
+        } else if (slotKey === 'front') {
+            itemW = drawAvSize * 0.65;
+            itemH = drawAvSize * 0.65;
+            itemX = drawAvX + (drawAvSize - itemW) / 2;
+            itemY = drawAvY + 48;
+        } else if (slotKey === 'waist') {
+            itemW = drawAvSize * 0.58;
+            itemH = drawAvSize * 0.58;
+            itemX = drawAvX + (drawAvSize - itemW) / 2;
+            itemY = drawAvY + 76;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = 0.94;
+        ctx.drawImage(eq.img, itemX, itemY, itemW, itemH);
+        ctx.restore();
+    }
+
+    // Renderizar capas traseras primero (alas, capas, espaldas)
+    equippedList.filter(eq => eq.slot?.key === 'back').forEach(drawEquippedItemOnAvatar);
+
     if (avatarImg) {
         ctx.drawImage(avatarImg, drawAvX, drawAvY, drawAvSize, drawAvSize);
     } else {
@@ -1916,12 +1955,16 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         ctx.fillText(isEn ? 'Loading Avatar...' : 'Cargando Avatar...', vpX + 68, vpY + 150);
     }
 
-    // Conectores Anatómicos HUD en las 4 esquinas del visor para mostrar las piezas en prueba sin tapar ni deformar el avatar 3D
+    // Renderizar capas frontales sobre el avatar
+    equippedList.filter(eq => eq.slot?.key !== 'back').forEach(drawEquippedItemOnAvatar);
+
+    // Conectores Anatómicos HUD en las 5 posiciones del visor para mostrar las piezas en prueba
     const hudNodes = [
         { boxX: vpX + 10, boxY: vpY + 36, anchorX: vpX + vpW / 2 - 8, anchorY: vpY + 86 },
         { boxX: vpX + vpW - 56, boxY: vpY + 36, anchorX: vpX + vpW / 2 + 8, anchorY: vpY + 104 },
         { boxX: vpX + 10, boxY: vpY + 194, anchorX: vpX + vpW / 2 - 12, anchorY: vpY + 152 },
-        { boxX: vpX + vpW - 56, boxY: vpY + 194, anchorX: vpX + vpW / 2 + 12, anchorY: vpY + 152 }
+        { boxX: vpX + vpW - 56, boxY: vpY + 194, anchorX: vpX + vpW / 2 + 12, anchorY: vpY + 152 },
+        { boxX: vpX + Math.round((vpW - 46) / 2), boxY: vpY + 198, anchorX: vpX + vpW / 2, anchorY: vpY + 180 }
     ];
 
     const anchorBySlotKey = {
@@ -1936,7 +1979,7 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         gear: { x: vpX + vpW / 2 - 34, y: vpY + 156 }
     };
 
-    equippedList.slice(0, 4).forEach((eq, idx) => {
+    equippedList.slice(0, 5).forEach((eq, idx) => {
         if (!eq.img) return;
         const node = hudNodes[idx];
         const targetPt = anchorBySlotKey[eq.slot.key] || { x: node.anchorX, y: node.anchorY };
