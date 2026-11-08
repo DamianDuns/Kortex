@@ -2755,6 +2755,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
 
         const tierMap = TIER_LABELS[isEn ? 'en' : 'es'] || TIER_LABELS.es;
         const tierActualLabel = tierMap[prefs.default_tier] || tierMap.TIER_100;
+        const userPrefix = prefs.custom_prefix || '!';
 
         const catNames = isEn
             ? {
@@ -2770,42 +2771,20 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                 cat_status: '📊 4. Estadísticas y Estado'
             };
 
-        const rangeNames = isEn
-            ? {
-                '24h': '⏱️ 24 Hours (Intraday)',
-                '7d': '📅 7 Days (Weekly)',
-                '30d': '🗓️ 30 Days (Monthly)',
-                'all': '🏛️ Full History (All-Time)'
-            }
-            : {
-                '24h': '⏱️ 24 Horas (Intradía)',
-                '7d': '📅 7 Días (Semanal)',
-                '30d': '🗓️ 30 Días (Mensual)',
-                'all': '🏛️ Histórico Completo'
-            };
-
-        const cameraLabel = prefs.default_camera_mode === 'headshot'
-            ? (isEn ? '🔍 Head / Face Zoom' : '🔍 Zoom Cabeza / Rostro')
-            : (isEn ? '🧍 Full Body 3D' : '🧍 Cuerpo Completo 3D');
-
-        const cashbackLabel = prefs.auto_cashback_40 !== false
-            ? (isEn ? '🟢 Pre-enabled (40% Group Method)' : '🟢 Pre-activado (Método Grupo 40%)')
-            : (isEn ? '⚪ Manual Selection' : '⚪ Selección Manual');
-
         const alertsBadge = prefs.dm_alerts_enabled !== false
-            ? (isEn ? '🟢 **Active** (Receives DM notifications)' : '🟢 **Activas** (Recibís avisos por MD)')
-            : (isEn ? '🔕 **Do Not Disturb** (DM alerts paused)' : '🔕 **No Molestar** (Avisos por MD en pausa)');
+            ? (isEn ? '🟢 **Active**' : '🟢 **Activas**')
+            : (isEn ? '🔕 **Disabled**' : '🔕 **En pausa**');
 
         const privacyBadge = prefs.ephemeral_config
-            ? (isEn ? '🔒 **Private Mode (Only visible to me)**' : '🔒 **Modo Privado (Solo visible para mí)**')
-            : (isEn ? '👁️ **Public Mode (Visible in channel)**' : '👁️ **Modo Público (Visible en el canal)**');
+            ? (isEn ? '🔒 **Private Mode**' : '🔒 **Modo Privado**')
+            : (isEn ? '👁️ **Public Mode**' : '👁️ **Modo Público**');
 
         const headerPref = new TextDisplayBuilder().setContent(
             (isEn
-                ? `# 🌐 Language & Comfort Preferences\n` +
-                  `🗣️ **Language:** ${langActualBadge}  •  🔔 **Alerts:** ${ prefs.dm_alerts_enabled !== false ? '🟢 ON' : '🔕 DND' }  •  ${prefs.ephemeral_config ? '🔒 Private' : '👁️ Public'}`
-                : `# 🌐 Idioma y Preferencias de Uso\n` +
-                  `🗣️ **Idioma:** ${langActualBadge}  •  🔔 **Alertas:** ${ prefs.dm_alerts_enabled !== false ? '🟢 Activas' : '🔕 No Molestar' }  •  ${prefs.ephemeral_config ? '🔒 Privado' : '👁️ Público'}`) +
+                ? `# 🌐 Language & Preferences\n` +
+                  `🗣️ **Language:** ${langActualBadge}  •  ⚡ **Prefix:** \`${userPrefix}\`  •  🔔 **Alerts:** ${alertsBadge}`
+                : `# 🌐 Idioma y Preferencias\n` +
+                  `🗣️ **Idioma:** ${langActualBadge}  •  ⚡ **Prefijo:** \`${userPrefix}\`  •  🔔 **Alertas:** ${alertsBadge}`) +
             (feedbackMsg ? `\n\n> ${feedbackMsg}` : '')
         );
 
@@ -2823,14 +2802,66 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addSeparatorComponents(separador(true));
 
         // =====================================================
-        // SECCIÓN 1: CATEGORÍA DE INICIO EN /ROBLOX (Exclusiva)
+        // SECCIÓN 1: PREFIJO DE COMANDOS DEL BOT
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 📂 1. Default Starting Category in \`/roblox\`\n` +
+                ? `### ⚡ 1. Bot Command Prefix\n` +
+                  `**Active Prefix:** \`${userPrefix}\` — Mentioning \`@Kortex\` always works.\n` +
+                  `-# Choose the prefix to execute bot commands directly in chat.`
+                : `### ⚡ 1. Prefijo de Comandos del Bot\n` +
+                  `**Prefijo Activo:** \`${userPrefix}\` — La mención \`@Kortex\` siempre funciona.\n` +
+                  `-# Elegí el prefijo con el que querés ejecutar los comandos del bot en el chat.`
+        ));
+
+        const prefixOptions = [
+            { label: isEn ? '! — Default Prefix' : '! — Prefijo Predeterminado', value: '!', desc: isEn ? 'Use !roblox, !tycoon, !help' : 'Usar !roblox, !tycoon, !help' },
+            { label: '? — Question Mark', value: '?', desc: isEn ? 'Use ?roblox, ?tycoon, ?help' : 'Usar ?roblox, ?tycoon, ?help' },
+            { label: '. — Period / Dot', value: '.', desc: isEn ? 'Use .roblox, .tycoon, .help' : 'Usar .roblox, .tycoon, .help' },
+            { label: 'k! — Kortex Prefix', value: 'k!', desc: isEn ? 'Use k!roblox, k!tycoon, k!help' : 'Usar k!roblox, k!tycoon, k!help' },
+            { label: '$ — Dollar Sign', value: '$', desc: isEn ? 'Use $roblox, $tycoon, $help' : 'Usar $roblox, $tycoon, $help' },
+            { label: '- — Hyphen / Dash', value: '-', desc: isEn ? 'Use -roblox, -tycoon, -help' : 'Usar -roblox, -tycoon, -help' },
+            { label: '+ — Plus Sign', value: '+', desc: isEn ? 'Use +roblox, +tycoon, +help' : 'Usar +roblox, +tycoon, +help' },
+            { label: '* — Asterisk', value: '*', desc: isEn ? 'Use *roblox, *tycoon, *help' : 'Usar *roblox, *tycoon, *help' },
+            { label: isEn ? '✏️ Custom Prefix...' : '✏️ Otro Prefijo Personalizado...', value: 'prefix_modal_custom', desc: isEn ? 'Type your own prefix (1 to 5 characters)' : 'Escribí tu propio prefijo (1 a 5 caracteres)' }
+        ];
+
+        const isStandardPrefix = ['!', '?', '.', 'k!', '$', '-', '+', '*'].includes(userPrefix);
+
+        const selectPrefPrefix = new StringSelectMenuBuilder()
+            .setCustomId('select_pref_prefix')
+            .setPlaceholder(
+                isEn
+                    ? `⚡ Prefix: ${userPrefix} — Choose a new prefix...`
+                    : `⚡ Prefijo: ${userPrefix} — Elegí un nuevo prefijo...`
+            )
+            .addOptions(
+                prefixOptions.map(opt => {
+                    const optionBuilder = new StringSelectMenuOptionBuilder()
+                        .setLabel(opt.label)
+                        .setValue(opt.value)
+                        .setDescription(opt.desc);
+                    if (isStandardPrefix && opt.value === userPrefix) {
+                        optionBuilder.setDefault(true);
+                    } else if (!isStandardPrefix && opt.value === 'prefix_modal_custom') {
+                        optionBuilder.setDefault(true).setDescription(isEn ? `Current custom prefix: ${userPrefix}` : `Prefijo activo: ${userPrefix}`);
+                    }
+                    return optionBuilder;
+                })
+            );
+
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefPrefix));
+        container.addSeparatorComponents(separador());
+
+        // =====================================================
+        // SECCIÓN 2: CATEGORÍA DE INICIO EN /ROBLOX
+        // =====================================================
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            isEn
+                ? `### 📂 2. Default Starting Category in \`/roblox\`\n` +
                   `**Active:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
                   `-# Choose which category opens first whenever you run \`/roblox\`.`
-                : `### 📂 1. Categoría de Inicio en \`/roblox\`\n` +
+                : `### 📂 2. Categoría de Inicio en \`/roblox\`\n` +
                   `**Activa:** ${catNames[prefs.default_category] || catNames.cat_economy}\n` +
                   `-# Elegí en cuál de las 4 categorías querés que abra directamente el comando \`/roblox\`.`
         ));
@@ -2873,24 +2904,24 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
         container.addSeparatorComponents(separador());
 
         // =====================================================
-        // SECCIÓN 2: REGIÓN DE PRECIOS PREDETERMINADA (Exclusiva — 4 Tiers 100% / 80% / 60% / 40%)
+        // SECCIÓN 3: REGIÓN DE PRECIOS PREDETERMINADA
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
-                ? `### 🌎 2. Default Pricing Region (Regional Tiers)\n` +
+                ? `### 🌎 3. Default Pricing Region (Regional Tiers)\n` +
                   `**Active:** ${tierActualLabel}\n` +
-                  `-# Pre-selected automatically in **1.2 Economy Calculator** and regional price analyses.`
-                : `### 🌎 2. Región de Precios Predeterminada (Tiers Regionales)\n` +
+                  `-# Pre-selected automatically in 1.2 Economy Calculator and regional price analyses.`
+                : `### 🌎 3. Región de Precios Predeterminada (Tiers Regionales)\n` +
                   `**Activa:** ${tierActualLabel}\n` +
-                  `-# Se aplica automáticamente en **1.2 Calculadora de Economía** y análisis regionales.`
+                  `-# Se aplica automáticamente en 1.2 Calculadora de Economía y análisis regionales.`
         ));
 
         const selectPrefTier = new StringSelectMenuBuilder()
             .setCustomId('select_pref_tier')
             .setPlaceholder(
                 isEn
-                    ? '🌎 Choose your default pricing region (100% / 80% / 60% / 40%)...'
-                    : '🌎 Elegí tu Tier de región predeterminada (100% / 80% / 60% / 40%)...'
+                    ? '🌎 Choose your default pricing region...'
+                    : '🌎 Elegí tu Tier de región predeterminada...'
             )
             .addOptions(
                 REGIONAL_TIERS_LIST.map((tier) =>
@@ -2904,76 +2935,10 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             );
 
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefTier));
-        container.addSeparatorComponents(separador());
-
-        // =====================================================
-        // SECCIÓN 3: AJUSTES DE HERRAMIENTAS (Gráficas, Cámara y Calculadora)
-        // =====================================================
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            isEn
-                ? `### 🛠️ 3. Tool Defaults (Charts, Sandbox & Calculator)\n` +
-                  `• **📈 Price Chart Range (1.1):** ${rangeNames[prefs.default_chart_range] || rangeNames['7d']}\n` +
-                  `• **📸 Outfit Sandbox Camera (2.1):** ${cameraLabel}\n` +
-                  `• **🧮 Economy Calculator (1.2):** ${cashbackLabel}`
-                : `### 🛠️ 3. Ajustes de Herramientas (Gráficas, Probador y Calculadora)\n` +
-                  `• **📈 Rango de Gráfica (1.1):** ${rangeNames[prefs.default_chart_range] || rangeNames['7d']}\n` +
-                  `• **📸 Cámara del Probador (2.1):** ${cameraLabel}\n` +
-                  `• **🧮 Calculadora de Economía (1.2):** ${cashbackLabel}`
-        ));
-
-        const selectPrefComfort = new StringSelectMenuBuilder()
-            .setCustomId('select_pref_comfort')
-            .setPlaceholder(
-                isEn
-                    ? '🛠️ Adjust chart timeframe, sandbox camera, or calculator...'
-                    : '🛠️ Ajustar rango de gráfica, cámara del probador o calculadora...'
-            )
-            .addOptions([
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? '1.1 Price Charts: 24 Hours (24h)' : 'Gráficas 1.1: Vista de 24 Horas (24h)')
-                    .setDescription(isEn ? 'Open price charts in 24-hour intraday view by default' : 'Abrir las gráficas de precios en vista intradía de 24 horas')
-                    .setValue('range:24h')
-                    .setEmoji('⏱️'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? '1.1 Price Charts: 7 Days (7d)' : 'Gráficas 1.1: Vista de 7 Días (7d)')
-                    .setDescription(isEn ? 'Open price charts in 7-day weekly view by default' : 'Abrir las gráficas de precios en vista semanal de 7 días')
-                    .setValue('range:7d')
-                    .setEmoji('📅'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? '1.1 Price Charts: 30 Days (30d)' : 'Gráficas 1.1: Vista de 30 Días (30d)')
-                    .setDescription(isEn ? 'Open price charts in 30-day monthly view by default' : 'Abrir las gráficas de precios en vista mensual de 30 días')
-                    .setValue('range:30d')
-                    .setEmoji('🗓️'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(isEn ? '1.1 Price Charts: Full History (All)' : 'Gráficas 1.1: Histórico Completo')
-                    .setDescription(isEn ? 'Open price charts with all recorded historical data' : 'Abrir las gráficas mostrando todo el historial registrado')
-                    .setValue('range:all')
-                    .setEmoji('🏛️'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(
-                        prefs.default_camera_mode === 'headshot'
-                            ? (isEn ? '2.1 Sandbox Camera: Switch to Full Body 3D' : 'Cámara Probador 2.1: Usar Cuerpo Completo 3D')
-                            : (isEn ? '2.1 Sandbox Camera: Switch to Head/Face Zoom' : 'Cámara Probador 2.1: Usar Zoom Cabeza / Rostro')
-                    )
-                    .setDescription(isEn ? 'Change your starting camera view in 2.1 Outfit Sandbox' : 'Cambiar el enfoque inicial de cámara al abrir el Probador 2.1')
-                    .setValue('toggle_camera')
-                    .setEmoji('📸'),
-                new StringSelectMenuOptionBuilder()
-                    .setLabel(
-                        prefs.auto_cashback_40 !== false
-                            ? (isEn ? '1.2 Calculator: Switch to Manual Selection' : 'Calculadora 1.2: Cambiar a Selección Manual')
-                            : (isEn ? '1.2 Calculator: Pre-enable 40% Group Cashback' : 'Calculadora 1.2: Pre-activar Cashback 40%')
-                    )
-                    .setDescription(isEn ? 'Keep 40% Group Method discount pre-selected in Calculator 1.2' : 'Dejar marcado automáticamente el ahorro de grupo (40%) en 1.2')
-                    .setValue('toggle_cashback')
-                    .setEmoji('🧮')
-            ]);
-
-        container.addActionRowComponents(new ActionRowBuilder().addComponents(selectPrefComfort));
         container.addSeparatorComponents(separador(true));
 
         // =====================================================
-        // SECCIÓN 4: IDIOMA, ALERTAS MD Y VISIBILIDAD (Botones 1-Clic)
+        // SECCIÓN 4: IDIOMA, ALERTAS MD Y PRIVACIDAD (Botones)
         // =====================================================
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
@@ -3005,14 +2970,14 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                     .setCustomId('btn_pref_toggle_ephemeral')
                     .setLabel(
                         prefs.ephemeral_config
-                            ? (isEn ? 'Mode: Only Me' : 'Modo: Solo Yo')
+                            ? (isEn ? 'Mode: Private' : 'Modo: Privado')
                             : (isEn ? 'Mode: Public' : 'Modo: Público')
                     )
                     .setEmoji(prefs.ephemeral_config ? '🔒' : '👁️')
                     .setStyle(prefs.ephemeral_config ? ButtonStyle.Primary : ButtonStyle.Secondary),
                 new ButtonBuilder()
                     .setCustomId('btn_pref_reset')
-                    .setLabel(isEn ? 'Reset Defaults' : 'Restaurar')
+                    .setLabel(isEn ? 'Reset' : 'Restaurar')
                     .setEmoji('🔄')
                     .setStyle(ButtonStyle.Secondary)
             )
@@ -3495,9 +3460,10 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             cat_status: '📊 Estadísticas'
         }[prefs.default_category] || '💰 Economía');
 
+    const userPrefixClean = prefs.custom_prefix || '!';
     const prefsLine = isEn
-        ? `• ⚙️ **Preferences:** 🇺🇸 English • ${tierClean} • ${catCleanName}`
-        : `• ⚙️ **Preferencias:** 🇪🇸 Español • ${tierClean} • ${catCleanName}`;
+        ? `• ⚙️ **Preferences:** 🇺🇸 English • Prefix \`${userPrefixClean}\` • ${tierClean}`
+        : `• ⚙️ **Preferencias:** 🇪🇸 Español • Prefijo \`${userPrefixClean}\` • ${tierClean}`;
 
     const textoBoveda = isEn
         ? `### 📁 3. Saved Data\n${trackerLine}\n${tycoonLine}\n${prefsLine}`
