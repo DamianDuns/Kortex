@@ -14,8 +14,10 @@ const { obtenerConfigPropietario } = require('./performanceManager');
 
 const MAX_WISHLIST_ITEMS = 5;
 const MAX_HISTORY_EVENTS = 25;
-const DEFAULT_APP_URL = 'https://ais-pre-jzxizk67bjjflsgv3wdz4b-494677195769.us-west1.run.app';
-let detectedPublicAppUrl = '';
+const GITHUB_PAGES_URL = 'https://damianduns.github.io/Kortex';
+const RAILWAY_BACKEND_URL = 'https://kortex-production-155b.up.railway.app';
+const DEFAULT_APP_URL = GITHUB_PAGES_URL;
+let detectedPublicAppUrl = GITHUB_PAGES_URL;
 
 function normalizarUrlPublica(rawUrl) {
     if (!rawUrl) return '';
@@ -37,36 +39,36 @@ function normalizarUrlPublica(rawUrl) {
 }
 
 function setDetectedPublicAppUrl(urlCandidate) {
-    const clean = normalizarUrlPublica(urlCandidate);
-    if (!clean) return;
-    if (/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean) && detectedPublicAppUrl) return;
-    detectedPublicAppUrl = clean;
+    // La web oficial pública está unificada en GitHub Pages
+    return;
 }
 
 function obtenerUrlBasePublica(overrideUrl = '') {
-    const candidates = [
-        overrideUrl,
-        process.env.PUBLIC_URL,
-        process.env.PUBLIC_GUIDE_URL,
-        process.env.DOCS_URL,
-        process.env.RAILWAY_PUBLIC_DOMAIN,
-        process.env.RAILWAY_STATIC_URL,
-        process.env.RENDER_EXTERNAL_URL,
-        detectedPublicAppUrl,
-        process.env.APP_URL,
-        DEFAULT_APP_URL
-    ];
-    for (const cand of candidates) {
-        const clean = normalizarUrlPublica(cand);
+    if (overrideUrl) {
+        const clean = normalizarUrlPublica(overrideUrl);
         if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) {
             return clean;
         }
     }
-    for (const cand of candidates) {
-        const clean = normalizarUrlPublica(cand);
-        if (clean) return clean;
+    if (process.env.PUBLIC_URL) {
+        const clean = normalizarUrlPublica(process.env.PUBLIC_URL);
+        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) {
+            return clean;
+        }
     }
-    return DEFAULT_APP_URL;
+    return GITHUB_PAGES_URL;
+}
+
+function obtenerUrlBackendApi() {
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+        const d = process.env.RAILWAY_PUBLIC_DOMAIN.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+        return `https://${d}`;
+    }
+    if (process.env.APP_URL) {
+        const clean = normalizarUrlPublica(process.env.APP_URL);
+        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) return clean;
+    }
+    return RAILWAY_BACKEND_URL;
 }
 
 const LOCAL_STORE_DIR = path.join(__dirname, '../../data');
@@ -2510,8 +2512,9 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
     const pendingRoblox = obtenerVerificacionPendienteRoblox(uid);
     const hist = obtenerHistorialCuenta(uid).slice(0, 3);
     const baseAppUrl = obtenerUrlBasePublica();
+    const backendApiUrl = obtenerUrlBackendApi();
 
-    const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
+    const directRobloxOAuthUrl = `${backendApiUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
     const tieneCuenta = Boolean(cuenta && cuenta.roblox_user_id);
 
@@ -3268,8 +3271,9 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     const webDiscordChallenge = generarCodigoVinculacionDiscord(uid, discordUser);
     const resumen = await obtenerHistorialYEstadoCuenta(uid).catch(() => null);
     const baseAppUrl = obtenerUrlBasePublica();
-    const directDiscordOAuthUrl = `${baseAppUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
-    const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
+    const backendApiUrl = obtenerUrlBackendApi();
+    const directDiscordOAuthUrl = `${backendApiUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
+    const directRobloxOAuthUrl = `${backendApiUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
     const tieneDiscord = Boolean(cfg && cfg.oauth_verified);
     const tieneRoblox = Boolean(cuentaRoblox && cuentaRoblox.roblox_user_id);
@@ -3560,9 +3564,10 @@ function construirPanelDesbloqueoRequerido({
 
     const uid = String(userId || '');
     const baseAppUrl = obtenerUrlBasePublica();
+    const backendApiUrl = obtenerUrlBackendApi();
 
     if (tipo === 'roblox') {
-        const directRobloxOAuthUrl = `${baseAppUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
+        const directRobloxOAuthUrl = `${backendApiUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
         const container = new ContainerBuilder()
             .setAccentColor(0xF0B232)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -3604,7 +3609,7 @@ function construirPanelDesbloqueoRequerido({
         };
     }
 
-    const directDiscordOAuthUrl = `${baseAppUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
+    const directDiscordOAuthUrl = `${backendApiUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
     const container = new ContainerBuilder()
         .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -3748,9 +3753,12 @@ async function agregarItemAWishlistRapido(discordId, { idObjet, itemName, itemTy
 module.exports = {
     MAX_WISHLIST_ITEMS,
     DEFAULT_APP_URL,
+    GITHUB_PAGES_URL,
+    RAILWAY_BACKEND_URL,
     normalizarUrlPublica,
     setDetectedPublicAppUrl,
     obtenerUrlBasePublica,
+    obtenerUrlBackendApi,
     activarSesionDiscordDirecta,
     fastLinkCache,
     discordConfigCache,
