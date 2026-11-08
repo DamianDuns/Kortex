@@ -15,7 +15,6 @@ const { obtenerConfigPropietario } = require('./performanceManager');
 const MAX_WISHLIST_ITEMS = 5;
 const MAX_HISTORY_EVENTS = 25;
 const GITHUB_PAGES_URL = 'https://damianduns.github.io/Kortex';
-const RAILWAY_BACKEND_URL = 'https://kortex-production-155b.up.railway.app';
 const DEFAULT_APP_URL = GITHUB_PAGES_URL;
 let detectedPublicAppUrl = GITHUB_PAGES_URL;
 
@@ -60,15 +59,7 @@ function obtenerUrlBasePublica(overrideUrl = '') {
 }
 
 function obtenerUrlBackendApi() {
-    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-        const d = process.env.RAILWAY_PUBLIC_DOMAIN.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-        return `https://${d}`;
-    }
-    if (process.env.APP_URL) {
-        const clean = normalizarUrlPublica(process.env.APP_URL);
-        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(clean)) return clean;
-    }
-    return RAILWAY_BACKEND_URL;
+    return GITHUB_PAGES_URL;
 }
 
 const LOCAL_STORE_DIR = path.join(__dirname, '../../data');
@@ -3271,9 +3262,6 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     const webDiscordChallenge = generarCodigoVinculacionDiscord(uid, discordUser);
     const resumen = await obtenerHistorialYEstadoCuenta(uid).catch(() => null);
     const baseAppUrl = obtenerUrlBasePublica();
-    const backendApiUrl = obtenerUrlBackendApi();
-    const directDiscordOAuthUrl = `${backendApiUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
-    const directRobloxOAuthUrl = `${backendApiUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
 
     const tieneDiscord = Boolean(cfg && cfg.oauth_verified);
     const tieneRoblox = Boolean(cuentaRoblox && cuentaRoblox.roblox_user_id);
@@ -3564,10 +3552,8 @@ function construirPanelDesbloqueoRequerido({
 
     const uid = String(userId || '');
     const baseAppUrl = obtenerUrlBasePublica();
-    const backendApiUrl = obtenerUrlBackendApi();
 
     if (tipo === 'roblox') {
-        const directRobloxOAuthUrl = `${backendApiUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
         const container = new ContainerBuilder()
             .setAccentColor(0xF0B232)
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -3583,10 +3569,10 @@ function construirPanelDesbloqueoRequerido({
                     ))
                     .setButtonAccessory(
                         new ButtonBuilder()
-                            .setLabel('Portal Web / OAuth')
+                            .setLabel('Portal Web')
                             .setEmoji('🌐')
                             .setStyle(ButtonStyle.Link)
-                            .setURL(directRobloxOAuthUrl)
+                            .setURL(baseAppUrl)
                     )
             )
             .addSeparatorComponents(separador(true))
@@ -3609,7 +3595,6 @@ function construirPanelDesbloqueoRequerido({
         };
     }
 
-    const directDiscordOAuthUrl = `${backendApiUrl}/api/auth/discord/redirect?discord_id=${encodeURIComponent(uid)}`;
     const container = new ContainerBuilder()
         .setAccentColor(0x5865F2)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -3625,10 +3610,10 @@ function construirPanelDesbloqueoRequerido({
                 ))
                 .setButtonAccessory(
                     new ButtonBuilder()
-                        .setLabel('Portal Web / OAuth')
+                        .setLabel('Portal Web')
                         .setEmoji('🔗')
                         .setStyle(ButtonStyle.Link)
-                        .setURL(directDiscordOAuthUrl)
+                        .setURL(baseAppUrl)
                 )
         )
         .addSeparatorComponents(separador(true))

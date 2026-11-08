@@ -2545,33 +2545,24 @@
 
     <script>
         // =========================================================================
-        // [CONFIGURACIÓN PÚBLICA — GITHUB PAGES & BACKEND RAILWAY]
+        // [CONFIGURACIÓN PÚBLICA — WEB OFICIAL EN GITHUB PAGES]
         // =========================================================================
-        const KORTEX_BACKEND_URL = 'https://kortex-production-155b.up.railway.app';
+        const KORTEX_BACKEND_URL = '';
 
         function resolveApiBase() {
-            if (window.location.hostname.endsWith('github.io')) {
-                return 'https://kortex-production-155b.up.railway.app';
-            }
-            if (KORTEX_BACKEND_URL && KORTEX_BACKEND_URL.trim() !== '') {
-                return KORTEX_BACKEND_URL.trim().replace(/\/+$/, '');
-            }
-            if (window.KORTEX_API_BASE) {
-                return String(window.KORTEX_API_BASE).replace(/\/+$/, '');
-            }
-            return 'https://kortex-production-155b.up.railway.app';
+            return '';
         }
 
-        const API_BASE = resolveApiBase();
+        const API_BASE = '';
 
         function apiUrl(path) {
-            return `${API_BASE}${path}`;
+            return '';
         }
 
         function syncCanvasImagesWithApiBase() {
             document.querySelectorAll('img[data-endpoint]').forEach(img => {
-                const ep = img.getAttribute('data-endpoint');
-                if (ep) img.src = apiUrl(ep);
+                const ep = img.getAttribute('data-endpoint') || 'KORTEX';
+                handleCanvasFallback(img, ep.replace('/api/canvas/', '').replace('.png', '').toUpperCase());
             });
         }
 
