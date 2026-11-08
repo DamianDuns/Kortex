@@ -1909,6 +1909,9 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
     ctx.clip();
 
     function drawEquippedItemOnAvatar(eq) {
+        // Se desactiva el pegado de miniaturas 2D sobre el render 3D porque deforma el avatar
+        return;
+        // eslint-disable-next-line no-unreachable
         if (!eq.img || !eq.isCustomTryOn) return;
         const slotKey = eq.slot?.key || 'hat';
         let itemX = drawAvX;
@@ -1986,23 +1989,6 @@ async function generateOutfitSandboxCard(avatarInfo, addedItems, totalNormal, to
         const boxCenterX = node.boxX + 23;
         const boxCenterY = node.boxY + 23;
         const strokeCol = eq.isCustomTryOn ? '#4ADE80' : '#818CF8';
-
-        // Línea conectora hacia el punto anatómico del avatar
-        ctx.save();
-        ctx.strokeStyle = eq.isCustomTryOn ? 'rgba(74, 222, 128, 0.55)' : 'rgba(129, 140, 248, 0.50)';
-        ctx.lineWidth = 1.3;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(boxCenterX, boxCenterY);
-        ctx.lineTo(targetPt.x, targetPt.y);
-        ctx.stroke();
-        ctx.restore();
-
-        // Punto luminoso sobre la articulación/zona anatómica
-        ctx.beginPath();
-        ctx.arc(targetPt.x, targetPt.y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = strokeCol;
-        ctx.fill();
 
         // Mini-tarjeta HUD de 46x46 px en la esquina
         ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
