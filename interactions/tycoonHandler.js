@@ -38,13 +38,95 @@ const {
     unlockUgcCreatorLicense,
     publishCustomUgcItem,
     buyCommunityUgcItem,
-    openAscensionChest,
     claimLimitedUDrop,
     getActiveTrades,
     createTradeOffer,
     resolveTradeOffer,
     buyAndActivatePotion
 } = require('../services/tycoonEngine');
+const keyEngine = require('../services/tycoonKeyEngine');
+const loot = require('../services/tycoonLoot');
+
+const FRAGMENTS_PER_KEY = loot.KEY_FRAGMENTS_PER_MASTER_KEY;
+
+/**
+ * Nombres localizados de los factores de riesgo del Multiplicador del Tycoon.
+ */
+function riskTierName(tierId, isEn) {
+    const names = {
+        safe: isEn ? 'Safe Cashout' : 'Cobro Seguro',
+        overcharge: isEn ? 'Overcharge' : 'Sobrecargar',
+        jackpot: isEn ? 'Tycoon Jackpot' : 'Jackpot Tycoon'
+    };
+    return names[tierId] || tierId;
+}
+
+/**
+ * Construye el mensaje final de apertura de cofre: Tix, Vóxeles y multiplicador aplicado.
+ */
+function buildChestResultMessage(res, isEn) {
+    const { chest, risk, base, consumable, permanentBonusGained, limitedPrize } = res;
+    const tier = loot.RISK_TIERS[risk.tierId];
+    const chestName = isEn ? chest.name_en : chest.name_es;
+    const verdict = risk.tierId === 'safe'
+        ? ''
+        : (risk.won
+            ? (isEn ? ' ✅ In your favor!' : ' ✅ ¡Salió a tu favor!')
+            : (isEn ? ' ⚠️ It went against you' : ' ⚠️ Salió en contra'));
+
+    const lines = [
+        isEn
+            ? `🎁 **Chest opened: ${chest.emoji} ${chestName}!** (\`🗝️ x${res.keysSpent}\`)`
+            : `🎁 **¡Cofre abierto: ${chest.emoji} ${chestName}!** (\`🗝️ x${res.keysSpent}\`)`,
+        isEn
+            ? `• Risk factor: ${tier.emoji} **${riskTierName(risk.tierId, true)}** → multiplier **x${risk.multiplier}**${verdict}`
+            : `• Factor elegido: ${tier.emoji} **${riskTierName(risk.tierId, false)}** → multiplicador **x${risk.multiplier}**${verdict}`,
+        isEn
+            ? `• 🎟️ **Tix:** \`+${risk.tix.toLocaleString()}\` • 💠 **Voxels:** \`+${risk.voxeles.toLocaleString()}\` (base \`${base.tix.toLocaleString()} / ${base.voxeles.toLocaleString()}\`)`
+            : `• 🎟️ **Tix:** \`+${risk.tix.toLocaleString()}\` • 💠 **Vóxeles:** \`+${risk.voxeles.toLocaleString()}\` (base \`${base.tix.toLocaleString()} / ${base.voxeles.toLocaleString()}\`)`
+    ];
+
+    if (consumable) {
+        const isTonic = consumable.kind === 'prospector_tonic';
+        const cName = isTonic
+            ? (isEn ? loot.PROSPECTOR_TONIC.name_en : loot.PROSPECTOR_TONIC.name_es)
+            : (isEn ? 'Speed Potion' : 'Poción de Velocidad');
+        lines.push(
+            isEn
+                ? `• 🧪 **Consumable:** ${cName} for \`${consumable.minutes} min\`${consumable.substituted ? ' *(replaced your Speed Potion since a Mega Elixir is active)*' : ''}`
+                : `• 🧪 **Consumible:** ${cName} por \`${consumable.minutes} min\`${consumable.substituted ? ' *(reemplazó la Poción de Velocidad porque tenés un Elixir Mega activo)*' : ''}`
+        );
+    }
+    if (permanentBonusGained > 0) {
+        lines.push(
+            isEn
+                ? `• 📈 **Permanent bonus:** \`+${permanentBonusGained}% Tix/min\` (total \`+${res.state.profile.permanent_tix_bonus_pct}%\`)`
+                : `• 📈 **Bono permanente:** \`+${permanentBonusGained}% Tix/min\` (total \`+${res.state.profile.permanent_tix_bonus_pct}%\`)`
+        );
+    } else if (base.permanentBonusPct > 0) {
+        lines.push(
+            isEn
+                ? `• 📈 **Permanent bonus:** cap of \`+${loot.PERMANENT_BONUS_CAP_PCT}%\` already reached`
+                : `• 📈 **Bono permanente:** ya alcanzaste el tope de \`+${loot.PERMANENT_BONUS_CAP_PCT}%\``
+        );
+    }
+    if (limitedPrize) {
+        const iName = isEn ? (limitedPrize.item.name_en || limitedPrize.item.name) : limitedPrize.item.name;
+        const tag = limitedPrize.serialNumber ? ` #${String(limitedPrize.serialNumber).padStart(2, '0')}` : '';
+        lines.push(
+            isEn
+                ? `• 👑 **Jackpot prize!** ${limitedPrize.item.icon_emoji} **${iName}**${tag}`
+                : `• 👑 **¡Premio mayor!** ${limitedPrize.item.icon_emoji} **${iName}**${tag}`
+        );
+    }
+    return lines.join('\n');
+}
+
+function staleSessionMessage(isEn) {
+    return isEn
+        ? '⚠️ That session is no longer active. Nothing was consumed.'
+        : '⚠️ Esa sesión ya no está activa. No se consumió nada.';
+}
 
 /**
  * Construye una barra de progreso visual limpia en bloques Unicode.
@@ -142,12 +224,27 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         });
     }
 
+    // Evento "Calibración del Upgrader Láser": 5% al cargar o actualizar la Categoría 1
+    let laserAlert = null;
+    if (sectionKey === 'sec_studio') {
+        const laserRoll = await keyEngine.rollLaserEvent(userId).catch(() => null);
+        if (laserRoll?.justTriggered) {
+            laserAlert = isEn
+                ? '⚠️ **The Particle Laser Upgrader went out of calibration!** It produces `-50%` until you press **Calibrate Laser**.'
+                : '⚠️ **¡El Upgrader Láser de Partículas se descalibró!** Rinde `-50%` hasta que pulses **Calibrar Láser**.';
+        }
+    }
+
     const [state, linkedRoblox] = await Promise.all([
         getOrCreatePlayerState(userId, member),
         obtenerCuentaVinculada(userId).catch(() => null)
     ]);
 
     const { profile, inventory, equippedItem, metrics, weeklyQuests, dailyStreak, catalogMap } = state;
+    const chestSession = profile.active_sessions?.chest || null;
+    const forgeSession = profile.active_sessions?.forge || null;
+    const keyFragments = Number(profile.key_fragments || 0);
+    const masterKeys = Number(profile.master_keys || 0);
     const displayUsername = linkedRoblox?.roblox_username || user.username || 'Player';
     const discordAvatarUrl = typeof user.displayAvatarURL === 'function'
         ? user.displayAvatarURL({ extension: 'png', size: 256 })
@@ -185,8 +282,9 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         `# 🏭 Kortex Tycoon — @${displayUsername}`,
         `**${isEn ? sectionTitlesEn[sectionKey] : sectionTitlesEs[sectionKey]}**`
     ];
-    if (feedbackMsg) {
-        headerLines.push(`\n> ${feedbackMsg}`);
+    const combinedFeedback = [feedbackMsg, laserAlert].filter(Boolean).join('\n');
+    if (combinedFeedback) {
+        headerLines.push('\n' + combinedFeedback.split('\n').map(line => `> ${line}`).join('\n'));
     }
 
     const headerText = new TextDisplayBuilder().setContent(headerLines.join('\n'));
@@ -222,15 +320,29 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         const collectorPct = Math.min(100, Math.round((collectorNow / collectorCap) * 100));
         const collectorBar = buildVisualBar(collectorNow, collectorCap, 10);
 
+        const dropPctCritical = Math.round(
+            loot.fragmentDropChance(loot.DROP_RATES.criticalVent, metrics.prospectorActive) * 100
+        );
+        const collectorIsFull = collectorNow >= collectorCap;
+        const keysAndEventsBlock = isEn
+            ? `\n• 🧩 **Key Fragments:** \`${keyFragments}/${FRAGMENTS_PER_KEY}\` • 🗝️ **Master Keys:** \`${masterKeys}\`` +
+              (collectorIsFull ? `\n• ⚡ **Collector at max pressure!** Collect now: \`${dropPctCritical}%\` chance to shake loose 1 🧩 Key Fragment.` : '') +
+              (metrics.prospectorActive ? `\n• 🧪 **Prospector Tonic active** (\`${metrics.prospectorRemainingMin}m\`): fragment drop chance x2.` : '')
+            : `\n• 🧩 **Fragmentos de Llave:** \`${keyFragments}/${FRAGMENTS_PER_KEY}\` • 🗝️ **Llaves Maestras:** \`${masterKeys}\`` +
+              (collectorIsFull ? `\n• ⚡ **¡Colector a máxima presión!** Recolectá ahora: \`${dropPctCritical}%\` de desprender 1 🧩 Fragmento de Llave.` : '') +
+              (metrics.prospectorActive ? `\n• 🧪 **Tónico del Prospector activo** (\`${metrics.prospectorRemainingMin}m\`): probabilidad de fragmentos x2.` : '');
+
         const vaultAndProdBlock = isEn
             ? `### 🟢 Collector Vault & Live Production\n` +
               `• ⚡ **Production Speed:** \`+${metrics.effectiveTixPerMin} Tix/min\` • **Multiplier:** \`x${metrics.multiplier}\`\n` +
               `• 🟢 **Stored in Collector:** \`${collectorNow.toLocaleString()} / ${collectorCap.toLocaleString()} Tix\` (\`${collectorPct}%\`)\n` +
-              `• 📊 **Vault Capacity:** \`[${collectorBar}]\` • 🎟️ **Wallet:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\``
+              `• 📊 **Vault Capacity:** \`[${collectorBar}]\` • 🎟️ **Wallet:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`` +
+              keysAndEventsBlock
             : `### 🟢 Bóveda Colectora y Producción en Vivo\n` +
               `• ⚡ **Ritmo de Producción:** \`+${metrics.effectiveTixPerMin} Tix/min\` • **Multiplicador:** \`x${metrics.multiplier}\`\n` +
               `• 🟢 **Acumulado en Colector:** \`${collectorNow.toLocaleString()} / ${collectorCap.toLocaleString()} Tix\` (\`${collectorPct}%\`)\n` +
-              `• 📊 **Nivel de Llenado:** \`[${collectorBar}]\` • 🎟️ **Billetera:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\``;
+              `• 📊 **Nivel de Llenado:** \`[${collectorBar}]\` • 🎟️ **Billetera:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`` +
+              keysAndEventsBlock;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(vaultAndProdBlock));
         container.addSeparatorComponents(separador());
@@ -240,6 +352,12 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             const isNext = nextPad && nextPad.id === pad.id;
             const pName = isEn ? pad.name_en : pad.name_es;
             if (isBuilt) {
+                if (pad.id === 'pad_laser' && metrics.laserMiscalibrated) {
+                    const penalty = loot.LASER_EVENT.productionPenaltyPct;
+                    return isEn
+                        ? `⚠️ **Stage ${pad.stage}:** ${pad.emoji} **${pName}** — \`Out of calibration (-${penalty}% output)\``
+                        : `⚠️ **Nivel ${pad.stage}:** ${pad.emoji} **${pName}** — \`Descalibrado (-${penalty}% de rendimiento)\``;
+                }
                 return isEn
                     ? `🟢 **Stage ${pad.stage}:** ${pad.emoji} **${pName}** — \`Active (+${pad.tixPerMin} Tix/min)\``
                     : `🟢 **Nivel ${pad.stage}:** ${pad.emoji} **${pName}** — \`Operativa (+${pad.tixPerMin} Tix/min)\``;
@@ -328,6 +446,18 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         container.addActionRowComponents(
             new ActionRowBuilder().addComponents(btnCollect, btnBuyPad, btnDaily, btnRebirth, btnRefresh)
         );
+
+        if (metrics.laserMiscalibrated) {
+            container.addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_calibrate_laser')
+                        .setLabel(isEn ? 'Calibrate Laser' : 'Calibrar Láser')
+                        .setEmoji('🔧')
+                        .setStyle(ButtonStyle.Danger)
+                )
+            );
+        }
     }
 
     // =========================================================================
@@ -352,7 +482,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
               `**💰 Wallet & Resources:**\n` +
               `• 🎟️ **Tix Balance:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`\n` +
               `• 💠 **Voxels:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Voxels\`\n` +
-              `• 🗝️ **Key Fragments:** \`${Number(profile.ascension_tokens || 0)} Fragment(s)\`\n\n` +
+              `• 🧩 **Key Fragments:** \`${keyFragments}/${FRAGMENTS_PER_KEY}\` \`[${buildVisualBar(Math.min(keyFragments, FRAGMENTS_PER_KEY), FRAGMENTS_PER_KEY, FRAGMENTS_PER_KEY)}]\`\n` +
+              `• 🗝️ **Master Keys:** \`${masterKeys}\`\n\n` +
               `**⚙️ Studio Performance & Progression:**\n` +
               `• 🏗️ **Studio Stage:** \`Stage ${profile.studio_stage || 1}/6\` (\`[${buildVisualBar(profile.studio_stage || 1, 6, 6)}]\`)\n` +
               `• ✨ **Rebirths Completed:** \`x${profile.rebirth_count || 0}\` (\`+${rebirthBonusPct}% permanent bonus\`)\n` +
@@ -362,7 +493,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
               `**💰 Billetera y Recursos:**\n` +
               `• 🎟️ **Saldo de Tix:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`\n` +
               `• 💠 **Vóxeles:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Vóxeles\`\n` +
-              `• 🗝️ **Fragmentos de Llave:** \`${Number(profile.ascension_tokens || 0)} Fragmento(s)\`\n\n` +
+              `• 🧩 **Fragmentos de Llave:** \`${keyFragments}/${FRAGMENTS_PER_KEY}\` \`[${buildVisualBar(Math.min(keyFragments, FRAGMENTS_PER_KEY), FRAGMENTS_PER_KEY, FRAGMENTS_PER_KEY)}]\`\n` +
+              `• 🗝️ **Llaves Maestras:** \`${masterKeys}\`\n\n` +
               `**⚙️ Rendimiento y Progreso del Estudio:**\n` +
               `• 🏗️ **Nivel del Estudio:** \`Nivel ${profile.studio_stage || 1}/6\` (\`[${buildVisualBar(profile.studio_stage || 1, 6, 6)}]\`)\n` +
               `• ✨ **Ascensiones (Rebirths):** \`x${profile.rebirth_count || 0}\` (\`+${rebirthBonusPct}% bono permanente\`)\n` +
@@ -370,6 +502,66 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
               `• 💎 **Estado de Cuenta:** ${vipStatusText}`;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statsBlock));
+        container.addSeparatorComponents(separador());
+
+        // --- Forja de Llave Maestra (con evento "Presión Crítica") ---
+        const permBonusLine = Number(profile.permanent_tix_bonus_pct || 0) > 0
+            ? (isEn
+                ? `\n• 📈 **Permanent bonus (Voxel Chests):** \`+${profile.permanent_tix_bonus_pct}% Tix/min\` (cap \`+${loot.PERMANENT_BONUS_CAP_PCT}%\`)`
+                : `\n• 📈 **Bono permanente (Cofres Vóxel):** \`+${profile.permanent_tix_bonus_pct}% Tix/min\` (tope \`+${loot.PERMANENT_BONUS_CAP_PCT}%\`)`)
+            : '';
+
+        if (forgeSession) {
+            const pressureBlock = isEn
+                ? `### 🔥 Critical Pressure in the Forge!\n` +
+                  `The press is at its limit with your ${FRAGMENTS_PER_KEY} fragments inside. Choose how to finish:\n` +
+                  `• ❄️ **Safe Cooling:** \`100%\` → 1 🗝️ Master Key\n` +
+                  `• 🔥 **Overload Press:** \`50%\` → 2 🗝️ Master Keys • if it fails, you get 1 🧩 Fragment back\n` +
+                  `-# If you don't choose within 10 minutes, Safe Cooling is applied automatically.`
+                : `### 🔥 ¡Presión Crítica en la Forja!\n` +
+                  `La prensa está al límite con tus ${FRAGMENTS_PER_KEY} fragmentos adentro. Elegí cómo terminar:\n` +
+                  `• ❄️ **Enfriamiento Seguro:** \`100%\` → 1 🗝️ Llave Maestra\n` +
+                  `• 🔥 **Sobrecargar Prensa:** \`50%\` → 2 🗝️ Llaves Maestras • si falla, te devuelve 1 🧩 Fragmento\n` +
+                  `-# Si no elegís en 10 minutos se aplica Enfriamiento Seguro automáticamente.`;
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(pressureBlock + permBonusLine));
+            container.addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`tycoon_forge_pressure:${forgeSession.sid}:safe`)
+                        .setLabel(isEn ? 'Safe Cooling (100% 1 Key)' : 'Enfriamiento Seguro (100% 1 Llave)')
+                        .setEmoji('❄️')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(`tycoon_forge_pressure:${forgeSession.sid}:overload`)
+                        .setLabel(isEn ? 'Overload Press (50%: 2 Keys / 1 Fragment)' : 'Sobrecargar Prensa (50%: 2 Llaves / 1 Fragmento)')
+                        .setEmoji('🔥')
+                        .setStyle(ButtonStyle.Danger)
+                )
+            );
+        } else {
+            const forgeBlock = isEn
+                ? `### 🔨 Master Key Forge\n` +
+                  `• Combine \`${FRAGMENTS_PER_KEY} 🧩 Key Fragments\` into \`1 🗝️ Master Key\`: the only way to open Chests in Category 3.\n` +
+                  `• Fragments drop when collecting with a full Collector, when building stations and when calibrating the Laser.`
+                : `### 🔨 Forja de Llave Maestra\n` +
+                  `• Combiná \`${FRAGMENTS_PER_KEY} 🧩 Fragmentos de Llave\` para forjar \`1 🗝️ Llave Maestra\`: la única forma de abrir Cofres en la Categoría 3.\n` +
+                  `• Los fragmentos caen al recolectar con el Colector lleno, al construir estaciones y al calibrar el Láser.`;
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(forgeBlock + permBonusLine));
+            container.addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_forge')
+                        .setLabel(
+                            isEn
+                                ? `Forge Master Key (${keyFragments}/${FRAGMENTS_PER_KEY})`
+                                : `Forjar Llave Maestra (${keyFragments}/${FRAGMENTS_PER_KEY})`
+                        )
+                        .setEmoji('🔨')
+                        .setStyle(ButtonStyle.Success)
+                        .setDisabled(keyFragments < FRAGMENTS_PER_KEY)
+                )
+            );
+        }
         container.addSeparatorComponents(separador());
 
         const uniqueOwnedItems = [];
@@ -535,11 +727,11 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const shopBlock = isEn
             ? `### 🛍️ Unified Item & Limited Shop\n` +
-              `• **Your Balance:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Voxels\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Key Fragment(s)\`\n\n` +
+              `• **Your Balance:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Voxels\` • 🧩 \`${keyFragments}/${FRAGMENTS_PER_KEY}\` • 🗝️ \`${masterKeys} Master Key(s)\`\n\n` +
               `**🎟️ Classic Gear & Serialized Limited U (Tix):**\n${tixCatalogLines}\n\n` +
               `**💠 Voxel Artifacts:**\n${crystalCatalogLines}`
             : `### 🛍️ Catálogo de la Tienda Unificada\n` +
-              `• **Tu Saldo:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Vóxeles\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Fragmento(s) de Llave\`\n\n` +
+              `• **Tu Saldo:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Vóxeles\` • 🧩 \`${keyFragments}/${FRAGMENTS_PER_KEY}\` • 🗝️ \`${masterKeys} Llave(s) Maestra(s)\`\n\n` +
               `**🎟️ Ítems Clásicos y Limited U Numerados (Tix):**\n${tixCatalogLines}\n\n` +
               `**💠 Artefactos de Vóxeles:**\n${crystalCatalogLines}`;
 
@@ -565,12 +757,50 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                 ? '> *No active P2P trade offers right now. Use the buttons below to post or send a trade!*'
                 : '> *No hay ofertas de intercambio P2P activas en este momento. ¡Usá los botones de abajo para publicar o enviar un trade!*');
 
+        const chestCatalogLines = Object.values(loot.CHESTS).map(c => {
+            const cName = isEn ? c.name_en : c.name_es;
+            const cLoot = isEn ? c.loot_en : c.loot_es;
+            const keyWord = isEn
+                ? `${c.keysRequired} Master Key${c.keysRequired > 1 ? 's' : ''}`
+                : `${c.keysRequired} Llave${c.keysRequired > 1 ? 's' : ''} Maestra${c.keysRequired > 1 ? 's' : ''}`;
+            return `• ${c.emoji} **${cName}** (\`🗝️ ${keyWord}\`) — ${cLoot}`;
+        }).join('\n');
+
+        let activeChestStatusBlock = '';
+        if (chestSession) {
+            const activeChest = loot.CHESTS[chestSession.chestId] || loot.CHESTS.standard;
+            const activeChestName = isEn ? activeChest.name_en : activeChest.name_es;
+            const lockBar = buildVisualBar(chestSession.locksTurned, chestSession.locksTotal, chestSession.locksTotal);
+            if (chestSession.step === 'locks') {
+                const nextLockNum = Number(chestSession.locksTurned) + 1;
+                activeChestStatusBlock = isEn
+                    ? `\n\n### 🔐 Active Unbox: ${activeChest.emoji} ${activeChestName}\n` +
+                      `• **Locks Turned:** \`${chestSession.locksTurned}/${chestSession.locksTotal}\` \`[${lockBar}]\`\n` +
+                      `• Press **🗝️ Turn Lock ${nextLockNum}/${chestSession.locksTotal}** below to unlock the chest mechanism.`
+                    : `\n\n### 🔐 Apertura en Curso: ${activeChest.emoji} ${activeChestName}\n` +
+                      `• **Cerraduras Giradas:** \`${chestSession.locksTurned}/${chestSession.locksTotal}\` \`[${lockBar}]\`\n` +
+                      `• Pulsá **🗝️ Girar Cerradura ${nextLockNum}/${chestSession.locksTotal}** abajo para destrabar el mecanismo.`;
+            } else {
+                activeChestStatusBlock = isEn
+                    ? `\n\n### ⚡ The Tycoon Multiplier — ${activeChest.emoji} ${activeChestName}\n` +
+                      `• **All ${chestSession.locksTotal} locks are open!** Choose your risk factor before revealing the loot:\n` +
+                      `  ◦ 🔒 **Safe Cashout (x1.0):** \`100%\` guaranteed base loot.\n` +
+                      `  ◦ ⚡ **Overcharge (x1.5 / x0.8):** \`70%\` chance to multiply loot **x1.5**; \`30%\` chance of **x0.8**.\n` +
+                      `  ◦ 🔥 **Tycoon Jackpot (x2.5 / x0.5):** \`35%\` chance to bust the vault with **x2.5**; \`65%\` penalty **x0.5**.`
+                    : `\n\n### ⚡ El Multiplicador del Tycoon — ${activeChest.emoji} ${activeChestName}\n` +
+                      `• **¡Las ${chestSession.locksTotal} cerraduras están abiertas!** Elegí tu factor de riesgo antes de revelar el botín:\n` +
+                      `  ◦ 🔒 **Cobro Seguro (x1.0):** Botín base \`100%\` garantizado.\n` +
+                      `  ◦ ⚡ **Sobrecargar (x1.5 / x0.8):** \`70%\` de multiplicar el botín **x1.5**; \`30%\` de recibir **x0.8**.\n` +
+                      `  ◦ 🔥 **Jackpot Tycoon (x2.5 / x0.5):** \`35%\` de reventar el cofre con **x2.5**; \`65%\` de penalización **x0.5**.`;
+            }
+        }
+
         const chestAndTradesBlock = isEn
-            ? `### 🗝️ Ascension Chests & P2P Trading\n` +
-              `• **Ascension Chest:** Costs \`1 Key Fragment\` or \`3,500 Tix\` — Grants **1 Guaranteed Limited Item** (\`+16%\` to \`+30% Tix/min\`; duplicates award \`+1,200 Tix\`).\n\n` +
+            ? `### 🗝️ Lock Chests (Master Keys Only) & P2P Trading\n` +
+              `${chestCatalogLines}${activeChestStatusBlock}\n\n` +
               `**🤝 Active P2P Trade Board (\`${activeTrades.length}\`):**\n${tradesLines}`
-            : `### 🗝️ Cofres de Ascensión e Intercambios P2P\n` +
-              `• **Cofre de Ascensión:** Cuesta \`1 Fragmento de Llave\` o \`3,500 Tix\` — Otorga **1 Objeto Limited Garantizado** (\`+16%\` a \`+30% Tix/min\`; duplicados dan \`+1,200 Tix\`).\n\n` +
+            : `### 🗝️ Cofres por Cerraduras (Solo con Llaves Maestras) e Intercambios P2P\n` +
+              `${chestCatalogLines}${activeChestStatusBlock}\n\n` +
               `**🤝 Tablero de Intercambios P2P Activos (\`${activeTrades.length}\`):**\n${tradesLines}`;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(chestAndTradesBlock));
@@ -725,36 +955,89 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         container.addSeparatorComponents(separador());
 
-        const chestLabel = Number(profile.ascension_tokens || 0) > 0
-            ? (isEn ? `Open Chest (1 Fragment)` : `Abrir Cofre (1 Fragmento)`)
-            : (isEn ? `Open Chest (3,500 Tix)` : `Abrir Cofre (3,500 Tix)`);
-
-        container.addActionRowComponents(
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('tycoon_open_chest')
-                    .setLabel(chestLabel)
-                    .setEmoji('🗝️')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId('tycoon_open_trade_public_modal')
-                    .setLabel(isEn ? 'Post Public Trade' : 'Publicar en Tablero')
-                    .setEmoji('🌐')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(myLimiteds.length === 0),
-                new ButtonBuilder()
-                    .setCustomId('tycoon_open_trade_direct_modal')
-                    .setLabel(isEn ? 'Send Direct Trade' : 'Enviar Trade Directo')
-                    .setEmoji('🤝')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(myLimiteds.length === 0),
-                new ButtonBuilder()
-                    .setCustomId('tycoon_refresh:sec_vault')
-                    .setLabel(isEn ? 'Refresh' : 'Actualizar')
-                    .setEmoji('🔄')
-                    .setStyle(ButtonStyle.Secondary)
-            )
-        );
+        if (chestSession) {
+            if (chestSession.step === 'locks') {
+                const nextLock = Number(chestSession.locksTurned) + 1;
+                container.addActionRowComponents(
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`tycoon_chest_lock:${chestSession.sid}:${nextLock}`)
+                            .setLabel(
+                                isEn
+                                    ? `Turn Lock ${nextLock}/${chestSession.locksTotal}`
+                                    : `Girar Cerradura ${nextLock}/${chestSession.locksTotal}`
+                            )
+                            .setEmoji('🗝️')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId(`tycoon_chest_cancel:${chestSession.sid}`)
+                            .setLabel(isEn ? 'Cancel (Keep Keys)' : 'Cancelar (Conservar Llaves)')
+                            .setEmoji('❌')
+                            .setStyle(ButtonStyle.Secondary)
+                    )
+                );
+            } else {
+                container.addActionRowComponents(
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`tycoon_chest_risk:${chestSession.sid}:safe`)
+                            .setLabel(isEn ? 'Safe Cashout (x1.0)' : 'Cobro Seguro (x1.0)')
+                            .setEmoji('🔒')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId(`tycoon_chest_risk:${chestSession.sid}:overcharge`)
+                            .setLabel(isEn ? 'Overcharge (x1.5 / x0.8)' : 'Sobrecargar (x1.5 / x0.8)')
+                            .setEmoji('⚡')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId(`tycoon_chest_risk:${chestSession.sid}:jackpot`)
+                            .setLabel(isEn ? 'Tycoon Jackpot (x2.5 / x0.5)' : 'Jackpot Tycoon (x2.5 / x0.5)')
+                            .setEmoji('🔥')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId(`tycoon_chest_cancel:${chestSession.sid}`)
+                            .setLabel(isEn ? 'Cancel' : 'Cancelar')
+                            .setEmoji('❌')
+                            .setStyle(ButtonStyle.Secondary)
+                    )
+                );
+            }
+        } else {
+            container.addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_chest_start:standard')
+                        .setLabel(isEn ? 'Standard Chest (1 🗝️)' : 'Cofre Estándar (1 🗝️)')
+                        .setEmoji('📦')
+                        .setStyle(ButtonStyle.Success)
+                        .setDisabled(masterKeys < 1),
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_chest_start:reinforced')
+                        .setLabel(isEn ? 'Reinforced Chest (2 🗝️)' : 'Cofre Reforzado (2 🗝️)')
+                        .setEmoji('🛡️')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(masterKeys < 2),
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_chest_start:voxel')
+                        .setLabel(isEn ? 'Voxel Chest (3 🗝️)' : 'Cofre Vóxel (3 🗝️)')
+                        .setEmoji('💠')
+                        .setStyle(ButtonStyle.Danger)
+                        .setDisabled(masterKeys < 3),
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_open_trade_public_modal')
+                        .setLabel(isEn ? 'Post Public Trade' : 'Publicar en Tablero')
+                        .setEmoji('🌐')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(myLimiteds.length === 0),
+                    new ButtonBuilder()
+                        .setCustomId('tycoon_open_trade_direct_modal')
+                        .setLabel(isEn ? 'Send Direct Trade' : 'Enviar Trade Directo')
+                        .setEmoji('🤝')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(myLimiteds.length === 0)
+                )
+            );
+        }
     }
 
     // =========================================================================
@@ -769,7 +1052,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             quests: [],
             claimableCount: 0,
             allBonusClaimed: false,
-            bonusCrystals: 30
+            bonusCrystals: 30,
+            bonusMasterKeys: 1
         };
 
         const questsLines = (wq.quests || []).map(q => {
@@ -784,8 +1068,12 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         }).join('\n');
 
         const bonusLine = wq.allBonusClaimed
-            ? (isEn ? `✅ **Weekly Full Completion Bonus (+${wq.bonusCrystals} 💠):** Claimed!` : `✅ **Bono por Completar las 4 Misiones (+${wq.bonusCrystals} 💠):** ¡Reclamado!`)
-            : (isEn ? `🌟 **Full Completion Bonus:** Complete all 4 quests for an extra **+${wq.bonusCrystals} Voxels (💠)**.` : `🌟 **Bono Semanal Extra:** Completá las 4 misiones para recibir **+${wq.bonusCrystals} Vóxeles (💠)** adicionales.`);
+            ? (isEn
+                ? `✅ **Weekly Full Completion Bonus (+${wq.bonusCrystals} 💠 & +1 🗝️ Master Key):** Claimed!`
+                : `✅ **Bono por Completar las 4 Misiones (+${wq.bonusCrystals} 💠 y +1 🗝️ Llave Maestra):** ¡Reclamado!`)
+            : (isEn
+                ? `🌟 **Full Completion Bonus:** Complete all 4 quests for **+${wq.bonusCrystals} Voxels (💠)** and **+1 🗝️ Guaranteed Master Key**.`
+                : `🌟 **Bono Semanal Extra:** Completá las 4 misiones para recibir **+${wq.bonusCrystals} Vóxeles (💠)** y **+1 🗝️ Llave Maestra garantizada**.`);
 
         const questsBlock = isEn
             ? `### 🎯 Weekly Quests (\`${wq.resetDays}d ${wq.resetHours}h\` until reset)\n${questsLines}\n\n• ${bonusLine}`
@@ -798,7 +1086,13 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             ? (isEn
                 ? `🟢 **Active:** ${metrics.potionInfo?.emoji || '🧪'} **${metrics.potionInfo?.name_en}** (\`+${metrics.potionBonusPct}%\` for \`${metrics.potionRemainingMin}m\` left)`
                 : `🟢 **Activa:** ${metrics.potionInfo?.emoji || '🧪'} **${metrics.potionInfo?.name_es}** (\`+${metrics.potionBonusPct}%\` durante \`${metrics.potionRemainingMin}m\` restantes)`)
-            : (isEn ? '⚪ **No active potion right now**' : '⚪ **Sin poción activa en este momento**');
+            : (isEn ? '⚪ **No active production potion right now**' : '⚪ **Sin poción de producción activa en este momento**');
+
+        const prospectorStatus = metrics.prospectorActive
+            ? (isEn
+                ? `🟢 **Active:** 🧪 **Prospector Tonic** (\`x2 Fragment Drop\` for \`${metrics.prospectorRemainingMin}m\` left)`
+                : `🟢 **Activo:** 🧪 **Tónico del Prospector** (\`x2 Drop de Fragmentos\` por \`${metrics.prospectorRemainingMin}m\` restantes)`)
+            : (isEn ? '⚪ **Inactive** (`Base drop rate`)' : '⚪ **Inactivo** (`Probabilidad base`)');
 
         const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
         const rankingLines = leaderboard.length > 0
@@ -812,12 +1106,16 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const labAndRankingBlock = isEn
             ? `### 🧪 Potion Laboratory & Top Studios\n` +
-              `• **Active Elixir:** ${potionStatus}\n` +
-              `• 🧪 **Speed Potion:** \`+50% Tix/min\` for 30 min (\`450 Tix\`) • ⚗️ **Mega Elixir:** \`+100% Tix/min\` for 30 min (\`850 Tix\`)\n\n` +
+              `• **Production Elixir:** ${potionStatus}\n` +
+              `• **Prospector Tonic:** ${prospectorStatus}\n` +
+              `• 🧪 **Speed Potion:** \`+50% Tix/min\` for 30m (\`450 Tix\`) • ⚗️ **Mega Elixir:** \`+100% Tix/min\` for 30m (\`850 Tix\`)\n` +
+              `• 🧪 **Prospector Tonic:** Doubles Key Fragment drop rate when collecting or building for 30m (\`600 Tix\`)\n\n` +
               `**🏆 Top 5 Tycoon Studios:**\n${rankingLines}`
             : `### 🧪 Laboratorio de Pociones y Ranking Top\n` +
-              `• **Estado de Laboratorio:** ${potionStatus}\n` +
-              `• 🧪 **Poción de Velocidad:** \`+50% Tix/min\` por 30 min (\`450 Tix\`) • ⚗️ **Elixir Mega:** \`+100% Tix/min\` por 30 min (\`850 Tix\`)\n\n` +
+              `• **Elixir de Producción:** ${potionStatus}\n` +
+              `• **Tónico del Prospector:** ${prospectorStatus}\n` +
+              `• 🧪 **Poción de Velocidad:** \`+50% Tix/min\` por 30m (\`450 Tix\`) • ⚗️ **Elixir Mega:** \`+100% Tix/min\` por 30m (\`850 Tix\`)\n` +
+              `• 🧪 **Tónico del Prospector:** Duplica la probabilidad de drop de Fragmentos de Llave al recolectar o construir por 30m (\`600 Tix\`)\n\n` +
               `**🏆 Top 5 Estudios de /tycoon:**\n${rankingLines}`;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(labAndRankingBlock));
@@ -845,6 +1143,11 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                     .setLabel(isEn ? 'Mega Elixir (850 Tix)' : 'Elixir Mega (850 Tix)')
                     .setEmoji('⚗️')
                     .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('tycoon_buy_potion_prospector')
+                    .setLabel(isEn ? 'Prospector Tonic (600 Tix)' : 'Tónico Prospector (600 Tix)')
+                    .setEmoji('🧪')
+                    .setStyle(ButtonStyle.Success),
                 new ButtonBuilder()
                     .setCustomId('tycoon_refresh:sec_perks')
                     .setLabel(isEn ? 'Refresh' : 'Actualizar')
@@ -1052,13 +1355,22 @@ async function handleTycoonInteraction(interaction) {
     // CATEGORÍA 1: Estudio y Producción
     if (cid === 'tycoon_collect_pad') {
         const res = await collectPadTix(userId);
-        const msg = res.ok
-            ? (isEn
+        let msg;
+        if (res.ok) {
+            const baseMsg = isEn
                 ? `🟢 **Collected \`+${res.collected.toLocaleString()} Tix\`** from your Collector Vault! Wallet: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`
-                : `🟢 **¡Recolectaste \`+${res.collected.toLocaleString()} Tix\`** de tu Bóveda Colectora! Billetera: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`)
-            : (isEn
+                : `🟢 **¡Recolectaste \`+${res.collected.toLocaleString()} Tix\`** de tu Bóveda Colectora! Billetera: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`;
+            const critLine = res.bonusFragment
+                ? (isEn
+                    ? `\n⚡ **Collector at max pressure! The discharge released your Tix and shook loose 1 🧩 Key Fragment**`
+                    : `\n⚡ **¡Colector a máxima presión! La descarga liberó los Tix y desprendió 1 🧩 Fragmento de Llave**`)
+                : '';
+            msg = baseMsg + critLine;
+        } else {
+            msg = isEn
                 ? `ℹ️ Your Collector Vault is at \`0 Tix\` right now. Wait a moment while your stations produce more Tix!`
-                : `ℹ️ Tu Bóveda Colectora está en \`0 Tix\` ahora mismo. ¡Esperá unos instantes mientras tus estaciones producen más Tix!`);
+                : `ℹ️ Tu Bóveda Colectora está en \`0 Tix\` ahora mismo. ¡Esperá unos instantes mientras tus estaciones producen más Tix!`;
+        }
         const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
         return await interaction.editReply(panel);
     }
@@ -1081,9 +1393,15 @@ async function handleTycoonInteraction(interaction) {
         let msg;
         if (res.ok) {
             const pName = isEn ? res.pad.name_en : res.pad.name_es;
-            msg = isEn
+            const baseMsg = isEn
                 ? `🎉 **Station Built:** ${res.pad.emoji} **${pName}**! Your Studio reached **Stage ${res.state.profile.studio_stage}/6** (\`+${res.pad.tixPerMin} Tix/min\`).`
                 : `🎉 **¡Estación Construida:** ${res.pad.emoji} **${pName}**! Tu Estudio subió a **Nivel ${res.state.profile.studio_stage}/6** (\`+${res.pad.tixPerMin} Tix/min\`).`;
+            const foundLine = res.bonusFragment
+                ? (isEn
+                    ? `\n🧱 **Foundation Find!** Unearthed **+1 🧩 Key Fragment** while building the station!`
+                    : `\n🧱 **¡Hallazgo en Cimientos!** Al excavar la estación encontraste **+1 🧩 Fragmento de Llave**!`)
+                : '';
+            msg = baseMsg + foundLine;
         } else if (res.reason === 'insufficient_tix') {
             const pName = isEn ? res.pad.name_en : res.pad.name_es;
             msg = isEn
@@ -1098,16 +1416,83 @@ async function handleTycoonInteraction(interaction) {
         return await interaction.editReply(panel);
     }
 
+    if (cid === 'tycoon_calibrate_laser') {
+        const res = await keyEngine.calibrateLaser(userId);
+        let msg;
+        if (res.ok) {
+            const fragNote = res.bonusFragment
+                ? (isEn ? ` and **+1 🧩 Key Fragment**!` : ` y **+1 🧩 Fragmento de Llave**!`)
+                : '!';
+            msg = isEn
+                ? `🔧 **Laser Upgrader Recalibrated!** Full speed restored and you earned **+${res.rewardTix.toLocaleString()} Tix (\`🎟️\`)**${fragNote}`
+                : `🔧 **¡Upgrader Láser Calibrado!** Rendimiento al 100% restaurado y ganaste **+${res.rewardTix.toLocaleString()} Tix (\`🎟️\`)**${fragNote}`;
+        } else {
+            msg = isEn
+                ? `✅ The Particle Laser Upgrader is already calibrated.`
+                : `✅ El Upgrader Láser de Partículas ya se encuentra calibrado.`;
+        }
+        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
+        return await interaction.editReply(panel);
+    }
+
     if (cid === 'tycoon_rebirth') {
         const res = await performRebirth(userId);
         const msg = res.ok
             ? (isEn
-                ? `✨ **REBIRTH #${res.newRebirthCount} COMPLETED!** You gained a permanent **+35% production multiplier**, **+1,500 Collector Cap**, and **+1 Ascension Key Fragment (\`🗝️\`)**!`
-                : `✨ **¡REBIRTH #${res.newRebirthCount} COMPLETADO!** Ganaste **+35% de multiplicador permanente**, **+1,500 de capacidad en Colector** y **+1 Fragmento de Llave de Ascensión (\`🗝️\`)**.`)
+                ? `✨ **REBIRTH #${res.newRebirthCount} COMPLETED!** You gained a permanent **+35% production multiplier**, **+1,500 Collector Cap**, and **+1 🧩 Key Fragment**!`
+                : `✨ **¡REBIRTH #${res.newRebirthCount} COMPLETADO!** Ganaste **+35% de multiplicador permanente**, **+1,500 de capacidad en Colector** y **+1 🧩 Fragmento de Llave**.`)
             : (isEn
                 ? `⚠️ Build all 6 Studio Stations (Stage 6) before performing a Rebirth.`
                 : `⚠️ Necesitás construir las 6 Estaciones del Estudio (Nivel 6) antes de hacer Rebirth.`);
         const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
+        return await interaction.editReply(panel);
+    }
+
+    // CATEGORÍA 2: Forja de Llave Maestra y Presión Crítica
+    if (cid === 'tycoon_forge') {
+        const res = await keyEngine.forgeMasterKey(userId);
+        let msg;
+        if (res.ok && res.pending) {
+            msg = isEn
+                ? `🔥 **Critical Pressure in the Forge!** Choose **❄️ Safe Cooling (100% 1 Key)** or **🔥 Overload Press (50% 2 Keys / 1 Fragment)** below!`
+                : `🔥 **¡Presión Crítica en la Forja!** Elegí abajo entre **❄️ Enfriamiento Seguro (100% 1 Llave)** o **🔥 Sobrecargar Prensa (50% 2 Llaves / 1 Fragmento)**!`;
+        } else if (res.ok) {
+            msg = isEn
+                ? `🔨 **Master Key Forged!** Combined \`${FRAGMENTS_PER_KEY} 🧩 Fragments\` into **+1 🗝️ Master Key** (Total: \`${res.state.profile.master_keys}\`).`
+                : `🔨 **¡Llave Maestra Forjada!** Combinaste \`${FRAGMENTS_PER_KEY} 🧩 Fragmentos\` en **+1 🗝️ Llave Maestra** (Total: \`${res.state.profile.master_keys}\`).`;
+        } else if (res.reason === 'pressure_pending') {
+            msg = isEn
+                ? `⚠️ Resolve the active Critical Pressure decision in the forge first.`
+                : `⚠️ Primero resolvé la decisión de Presión Crítica activa en la forja.`;
+        } else {
+            msg = isEn
+                ? `⚠️ You need \`${FRAGMENTS_PER_KEY} 🧩 Key Fragments\` to forge a Master Key (you have \`${res.have || 0}/${FRAGMENTS_PER_KEY}\`).`
+                : `⚠️ Necesitás \`${FRAGMENTS_PER_KEY} 🧩 Fragmentos de Llave\` para forjar una Llave Maestra (tenés \`${res.have || 0}/${FRAGMENTS_PER_KEY}\`).`;
+        }
+        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg, member);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid.startsWith('tycoon_forge_pressure:')) {
+        const [, sid, choice] = cid.split(':');
+        const res = await keyEngine.resolveForgePressureChoice(userId, sid, choice);
+        let msg;
+        if (!res.ok) {
+            msg = staleSessionMessage(isEn);
+        } else if (res.outcome.choice === 'safe') {
+            msg = isEn
+                ? `❄️ **Safe Cooling Complete!** You forged **+1 🗝️ Master Key** (\`Total: ${res.state.profile.master_keys}\`).`
+                : `❄️ **¡Enfriamiento Seguro Completado!** Forjaste **+1 🗝️ Llave Maestra** (\`Total: ${res.state.profile.master_keys}\`).`;
+        } else if (res.outcome.won) {
+            msg = isEn
+                ? `🔥 **PRESS OVERLOAD SUCCESS!** The press held and forged **+2 🗝️ Master Keys** (\`Total: ${res.state.profile.master_keys}\`)!`
+                : `🔥 **¡SOBRECARGA EXITOSA!** La prensa resistió y forjó **+2 🗝️ Llaves Maestras** (\`Total: ${res.state.profile.master_keys}\`)!`;
+        } else {
+            msg = isEn
+                ? `💥 **Press Overloaded!** The mold cracked, but you recovered **+1 🧩 Key Fragment** of consolation.`
+                : `💥 **¡La Prensa se Sobrecargó!** El molde cedió, pero recuperaste **+1 🧩 Fragmento de Llave** de consolación.`;
+        }
+        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1266,28 +1651,64 @@ async function handleTycoonInteraction(interaction) {
         return await interaction.editReply(panel);
     }
 
-    if (cid === 'tycoon_open_chest') {
-        const res = await openAscensionChest(userId);
+    if (cid.startsWith('tycoon_chest_start:')) {
+        const chestId = cid.split(':')[1] || 'standard';
+        const res = await keyEngine.startChestSession(userId, chestId);
         let msg;
         if (res.ok) {
-            const wName = isEn ? (res.wonItem.name_en || res.wonItem.name) : res.wonItem.name;
-            const serialTxt = res.serialNumber
-                ? ` **[#${String(res.serialNumber).padStart(2, '0')}/${res.wonItem.max_supply}]**`
-                : '';
+            const cName = isEn ? res.chest.name_en : res.chest.name_es;
             msg = isEn
-                ? `🎉 **ASCENSION CHEST UNBOXED!** You won ${res.wonItem.icon_emoji} **${wName}**${serialTxt} (\`+${res.wonItem.boost_pct}% Tix/min\`)!`
-                : `🎉 **¡COFRE DE ASCENSIÓN ABIERTO!** Ganaste ${res.wonItem.icon_emoji} **${wName}**${serialTxt} (\`+${res.wonItem.boost_pct}% Tix/min\`)!`;
-        } else if (res.reason === 'requires_stage_3') {
+                ? `🔐 **Selected ${res.chest.emoji} ${cName}!** Turn all **${res.chest.keysRequired} lock(s)** below to reach the Tycoon Multiplier.`
+                : `🔐 **¡Seleccionaste ${res.chest.emoji} ${cName}!** Girá las **${res.chest.keysRequired} cerradura(s)** abajo para llegar al Multiplicador del Tycoon.`;
+        } else if (res.reason === 'not_enough_keys') {
             msg = isEn
-                ? `🔒 Reach **Studio Stage 3** (or use a Key Fragment) to open Ascension Chests.`
-                : `🔒 Alcanzá el **Nivel 3 del Estudio** (o usá un Fragmento de Llave) para abrir Cofres de Ascensión.`;
-        } else if (res.reason === 'insufficient_tix') {
-            msg = isEn
-                ? `⚠️ Opening an Ascension Chest without a Key Fragment costs \`3,500 Tix\` (you have \`${res.balance.toLocaleString()} Tix\`).`
-                : `⚠️ Abrir un Cofre de Ascensión sin un Fragmento de Llave cuesta \`3,500 Tix\` (tenés \`${res.balance.toLocaleString()} Tix\`).`;
+                ? `⚠️ You need \`${res.need} 🗝️ Master Key(s)\` to open that chest (you have \`${res.have}\`). Forge Master Keys in Category 2!`
+                : `⚠️ Necesitás \`${res.need} 🗝️ Llave(s) Maestra(s)\` para abrir ese cofre (tenés \`${res.have}\`). ¡Forjá Llaves Maestras en la Categoría 2!`;
         } else {
-            msg = isEn ? `⚠️ Could not open Ascension Chest.` : `⚠️ No se pudo abrir el Cofre de Ascensión.`;
+            msg = isEn
+                ? `ℹ️ Finish or cancel your current chest session first.`
+                : `ℹ️ Terminá o cancelá primero tu apertura de cofre actual.`;
         }
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid.startsWith('tycoon_chest_lock:')) {
+        const [, sid, idxRaw] = cid.split(':');
+        const res = await keyEngine.turnChestLock(userId, sid, Number(idxRaw));
+        let msg;
+        if (!res.ok) {
+            msg = staleSessionMessage(isEn);
+        } else if (res.readyForRisk) {
+            msg = isEn
+                ? `🔓 **All locks opened!** Now choose your risk factor: **🔒 Safe Cashout (x1.0)**, **⚡ Overcharge (x1.5 / x0.8)**, or **🔥 Tycoon Jackpot (x2.5 / x0.5)**.`
+                : `🔓 **¡Todas las cerraduras abiertas!** Ahora elegí tu factor de riesgo: **🔒 Cobro Seguro (x1.0)**, **⚡ Sobrecargar (x1.5 / x0.8)** o **🔥 Jackpot Tycoon (x2.5 / x0.5)**.`;
+        } else {
+            const sess = res.state.profile.active_sessions?.chest;
+            msg = isEn
+                ? `🗝️ **Lock ${sess?.locksTurned}/${sess?.locksTotal} turned!** Turn the next lock to continue.`
+                : `🗝️ **¡Cerradura ${sess?.locksTurned}/${sess?.locksTotal} girada!** Girá la siguiente cerradura para continuar.`;
+        }
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid.startsWith('tycoon_chest_risk:')) {
+        const [, sid, tierId] = cid.split(':');
+        const res = await keyEngine.revealChest(userId, sid, tierId);
+        const msg = res.ok ? buildChestResultMessage(res, isEn) : staleSessionMessage(isEn);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid.startsWith('tycoon_chest_cancel:')) {
+        const [, sid] = cid.split(':');
+        const res = await keyEngine.cancelChestSession(userId, sid);
+        const msg = res.ok
+            ? (isEn
+                ? `ℹ️ **Chest session cancelled.** Your Master Keys were not spent.`
+                : `ℹ️ **Apertura cancelada.** Tus Llaves Maestras se conservaron intactas.`)
+            : staleSessionMessage(isEn);
         const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
     }
@@ -1386,7 +1807,9 @@ async function handleTycoonInteraction(interaction) {
         if (res.ok) {
             const qNames = res.claimedQuests.map(q => `${q.emoji} **${isEn ? q.title_en : q.title_es}**`).join(', ');
             const bonusNote = res.grantedAllBonus
-                ? (isEn ? ` + **+${res.bonusCrystals} 💠 Weekly Completion Bonus**` : ` + **+${res.bonusCrystals} 💠 Bono Semanal Completo**`)
+                ? (isEn
+                    ? ` + **+${res.bonusCrystals} 💠 & +${res.bonusMasterKeys || 1} 🗝️ Master Key (Weekly Completion Bonus)**`
+                    : ` + **+${res.bonusCrystals} 💠 y +${res.bonusMasterKeys || 1} 🗝️ Llave Maestra (Bono Semanal Completo)**`)
                 : '';
             msg = isEn
                 ? `🎁 **Weekly Quests Claimed (${qNames})!** You received **+${res.totalCrystalsEarned} Voxels (\`💠\`)**${bonusNote} and **+${res.totalTixEarned.toLocaleString()} Tix (\`🎟️\`)**!`
@@ -1400,15 +1823,23 @@ async function handleTycoonInteraction(interaction) {
         return await interaction.editReply(panel);
     }
 
-    if (cid === 'tycoon_buy_potion_speed' || cid === 'tycoon_buy_potion_mega') {
-        const potionId = cid === 'tycoon_buy_potion_mega' ? 'mega_elixir' : 'speed_potion';
+    if (cid === 'tycoon_buy_potion_speed' || cid === 'tycoon_buy_potion_mega' || cid === 'tycoon_buy_potion_prospector') {
+        const potionId = cid === 'tycoon_buy_potion_mega'
+            ? 'mega_elixir'
+            : (cid === 'tycoon_buy_potion_prospector' ? 'prospector_tonic' : 'speed_potion');
         const res = await buyAndActivatePotion(userId, potionId);
         let msg;
         if (res.ok) {
             const pName = isEn ? res.potion.name_en : res.potion.name_es;
-            msg = isEn
-                ? `🧪 **Potion Activated:** ${res.potion.emoji} **${pName}**! Production: **+${res.state.metrics.effectiveTixPerMin} Tix/min** (\`${res.state.metrics.potionRemainingMin}m\` left).`
-                : `🧪 **¡Poción Activada:** ${res.potion.emoji} **${pName}**! Producción: **+${res.state.metrics.effectiveTixPerMin} Tix/min** (\`${res.state.metrics.potionRemainingMin}m\` activos).`;
+            if (potionId === 'prospector_tonic') {
+                msg = isEn
+                    ? `🧪 **Tonic Activated:** ${res.potion.emoji} **${pName}**! Key Fragment drop rate doubled (**x2**) for \`${res.state.metrics.prospectorRemainingMin}m\`.`
+                    : `🧪 **¡Tónico Activado:** ${res.potion.emoji} **${pName}**! Probabilidad de drop de Fragmentos de Llave duplicada (**x2**) durante \`${res.state.metrics.prospectorRemainingMin}m\`.`;
+            } else {
+                msg = isEn
+                    ? `🧪 **Potion Activated:** ${res.potion.emoji} **${pName}**! Production: **+${res.state.metrics.effectiveTixPerMin} Tix/min** (\`${res.state.metrics.potionRemainingMin}m\` left).`
+                    : `🧪 **¡Poción Activada:** ${res.potion.emoji} **${pName}**! Producción: **+${res.state.metrics.effectiveTixPerMin} Tix/min** (\`${res.state.metrics.potionRemainingMin}m\` activos).`;
+            }
         } else {
             msg = isEn
                 ? `⚠️ You need \`${res.cost.toLocaleString()} Tix\` to buy that potion.`

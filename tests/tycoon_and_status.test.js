@@ -781,3 +781,155 @@ test('Price Check-in clearly highlights completed target meta and savings below 
     assert.ok(cfgJson.includes('META COMPLETADA'));
     assert.ok(cfgJson.includes('btn_action_checkin:777:config'));
 });
+
+test('Kortex Tycoon Economy v2: Key Fragments, Master Keys, Forge Critical Pressure, 3 Lock Chests, Risk Multipliers, Laser Calibration & Prospector Tonic work end-to-end', async () => {
+    const { withUserLock } = require('../services/tycoonLock');
+    const {
+        KEY_FRAGMENTS_PER_MASTER_KEY,
+        DROP_RATES,
+        rollFragmentDrop,
+        resolveForgePressure,
+        rollChestBaseLoot,
+        applyRiskTier
+    } = require('../services/tycoonLoot');
+    const {
+        forgeMasterKey,
+        resolveForgePressureChoice,
+        startChestSession,
+        turnChestLock,
+        revealChest,
+        calibrateLaser
+    } = require('../services/tycoonKeyEngine');
+    const {
+        collectPadTix,
+        buyAndActivatePotion
+    } = require('../services/tycoonEngine');
+
+    // 1. Reentrant per-user mutex serializes concurrent operations without deadlocking nested calls
+    const order = [];
+    const uidLock = 'lock_test_user';
+    await Promise.all([
+        withUserLock(uidLock, async () => {
+            order.push('start-1');
+            await new Promise(r => setTimeout(r, 30));
+            await withUserLock(uidLock, async () => {
+                order.push('nested-1');
+            });
+            order.push('end-1');
+        }),
+        withUserLock(uidLock, async () => {
+            order.push('start-2');
+            order.push('end-2');
+        })
+    ]);
+    assert.deepEqual(order, ['start-1', 'nested-1', 'end-1', 'start-2', 'end-2']);
+
+    // 2. Pure RNG loot unit checks
+    assert.equal(KEY_FRAGMENTS_PER_MASTER_KEY, 4);
+    assert.equal(rollFragmentDrop(DROP_RATES.criticalVent, false, () => 0.14), true);
+    assert.equal(rollFragmentDrop(DROP_RATES.criticalVent, false, () => 0.16), false);
+    assert.equal(rollFragmentDrop(DROP_RATES.criticalVent, true, () => 0.28), true);
+
+    assert.equal(rollFragmentDrop(DROP_RATES.foundation, false, () => 0.24), true);
+    assert.equal(rollFragmentDrop(DROP_RATES.foundation, false, () => 0.26), false);
+    assert.equal(rollFragmentDrop(DROP_RATES.foundation, true, () => 0.49), true);
+
+    assert.deepEqual(resolveForgePressure('safe'), { choice: 'safe', won: true, masterKeys: 1, fragmentsRefunded: 0 });
+    assert.deepEqual(resolveForgePressure('overload', () => 0.40), { choice: 'overload', won: true, masterKeys: 2, fragmentsRefunded: 0 });
+    assert.deepEqual(resolveForgePressure('overload', () => 0.60), { choice: 'overload', won: false, masterKeys: 0, fragmentsRefunded: 1 });
+
+    const baseVoxel = rollChestBaseLoot('voxel', () => 0.10);
+    assert.ok(baseVoxel.voxeles >= 45);
+    assert.equal(baseVoxel.permanentBonusPct, 2);
+
+    assert.equal(applyRiskTier(baseVoxel, 'safe').multiplier, 1);
+    assert.equal(applyRiskTier(baseVoxel, 'overcharge', () => 0.50).multiplier, 1.5);
+    assert.equal(applyRiskTier(baseVoxel, 'overcharge', () => 0.85).multiplier, 0.8);
+    assert.equal(applyRiskTier(baseVoxel, 'jackpot', () => 0.20).multiplier, 2.5);
+    assert.equal(applyRiskTier(baseVoxel, 'jackpot', () => 0.50).multiplier, 0.5);
+
+    // 3. End-to-End Player Flow: Prospector Tonic, Forge, Chest Unbox, Laser Calibration & 4/4 Weekly Quests
+    const testUser = `test_kortex_v2_${Date.now()}`;
+    await getOrCreatePlayerState(testUser);
+
+    await supabase.from('tycoon_profiles').update({
+        tix_balance: 5000,
+        crystal_balance: 10,
+        collector_tix: 3500,
+        collector_cap: 3500,
+        studio_stage: 4,
+        unlocked_pads: ['pad_dropper1', 'pad_walls', 'pad_dropper2', 'pad_laser'],
+        key_fragments: 8,
+        master_keys: 0,
+        laser_state: { miscalibrated: true, triggered_at: Date.now() - 1000, next_roll_at: Date.now() + 60000 }
+    }).eq('user_id', testUser);
+
+    // Buy Prospector Tonic (600 Tix)
+    const tonicRes = await buyAndActivatePotion(testUser, 'prospector_tonic');
+    assert.equal(tonicRes.ok, true);
+    assert.equal(tonicRes.potion.cost, 600);
+    assert.equal(tonicRes.state.metrics.prospectorActive, true);
+
+    // Collect at 100% capacity with deterministic RNG forcing drop
+    const collectRes = await collectPadTix(testUser, () => 0.05);
+    assert.equal(collectRes.ok, true);
+    assert.equal(collectRes.wasFull, true);
+    assert.equal(collectRes.bonusFragment, true);
+
+    // Calibrate Stage 4 Laser with deterministic RNG forcing fragment drop
+    const calRes = await calibrateLaser(testUser, () => 0.05);
+    assert.equal(calRes.ok, true);
+    assert.equal(calRes.bonusFragment, true);
+    assert.ok(calRes.rewardTix >= 300);
+
+    // Forge Master Key with deterministic RNG triggering Critical Pressure, then Overload success (+2 Master Keys)
+    const forgeStep1 = await forgeMasterKey(testUser, () => 0.10);
+    assert.equal(forgeStep1.ok, true);
+    assert.equal(forgeStep1.pending, true);
+    assert.ok(forgeStep1.sid);
+
+    const forgeStep2 = await resolveForgePressureChoice(testUser, forgeStep1.sid, 'overload', () => 0.20);
+    assert.equal(forgeStep2.ok, true);
+    assert.equal(forgeStep2.outcome.masterKeys, 2);
+    assert.equal(forgeStep2.state.profile.master_keys, 2);
+
+    // Open Reinforced Chest (requires 2 Master Keys, 2 locks)
+    const chestStart = await startChestSession(testUser, 'reinforced');
+    assert.equal(chestStart.ok, true);
+    const chestSid = chestStart.state.profile.active_sessions.chest.sid;
+    assert.equal(chestStart.state.profile.active_sessions.chest.locksTotal, 2);
+
+    const lock1 = await turnChestLock(testUser, chestSid, 1);
+    assert.equal(lock1.ok, true);
+    assert.equal(lock1.readyForRisk, false);
+
+    const lock2 = await turnChestLock(testUser, chestSid, 2);
+    assert.equal(lock2.ok, true);
+    assert.equal(lock2.readyForRisk, true);
+
+    const unboxRes = await revealChest(testUser, chestSid, 'overcharge', () => 0.20);
+    assert.equal(unboxRes.ok, true);
+    assert.equal(unboxRes.risk.multiplier, 1.5);
+    assert.ok(unboxRes.risk.tix >= 4800);
+    assert.equal(unboxRes.state.profile.master_keys, 0);
+
+    // Complete all 4/4 weekly quests and verify +30 Vóxeles and +1 Master Key bonus
+    const fullQuestsState = {
+        weekKey: unboxRes.state.weeklyQuests.weekKey,
+        progress: {
+            q_collect_tix: 5000,
+            q_build_pads: 5,
+            q_use_potions: 5,
+            q_rebirth_or_bot: 5
+        },
+        claimed: {},
+        allBonusClaimed: false
+    };
+    await supabase.from('tycoon_profiles').update({ weekly_quests_state: fullQuestsState }).eq('user_id', testUser);
+    const weeklyFullRes = await claimWeeklyQuestReward(testUser, 'all');
+    assert.equal(weeklyFullRes.ok, true);
+    assert.equal(weeklyFullRes.grantedAllBonus, true);
+    assert.equal(weeklyFullRes.bonusMasterKeys, 1);
+    assert.ok(weeklyFullRes.totalCrystalsEarned >= 30);
+    assert.equal(weeklyFullRes.state.profile.master_keys, 1);
+});

@@ -7,6 +7,8 @@
 
 const supabase = require('../db');
 const { obtenerConfigPropietario, guardarConfigPropietario } = require('../src/utils/performanceManager');
+const { withUserLock, locked } = require('./tycoonLock');
+const loot = require('./tycoonLoot');
 
 function isUserAuthorizedVip(userId, member = null) {
     const uid = String(userId || '').trim();
@@ -127,7 +129,9 @@ const POTIONS_CATALOG = {
         name_en: 'Mega Production Elixir (+100%)',
         desc_es: 'Duplica (+100%) la velocidad base de Tix/min por 30 minutos.',
         desc_en: 'Doubles (+100%) base Tix/min speed for 30 minutes.'
-    }
+    },
+    // Tónico del Prospector: no acelera la producción, duplica el drop de Fragmentos de Llave
+    prospector_tonic: loot.PROSPECTOR_TONIC
 };
 
 // Misiones Semanales (Weekly Quests) que se reinician cada semana ISO y otorgan Vóxeles (💠) gratuitos
@@ -179,6 +183,7 @@ const WEEKLY_QUESTS_POOL = [
 ];
 
 const WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS = 30;
+const WEEKLY_ALL_COMPLETED_BONUS_MASTER_KEYS = 1;
 
 function getCurrentWeekKey(nowMs = Date.now()) {
     const d = new Date(nowMs);
@@ -296,7 +301,8 @@ function buildWeeklyQuestsSummary(profile, nowMs = Date.now()) {
         allCompleted,
         allClaimed,
         allBonusClaimed: Boolean(stateObj.allBonusClaimed),
-        bonusCrystals: WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS
+        bonusCrystals: WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS,
+        bonusMasterKeys: WEEKLY_ALL_COMPLETED_BONUS_MASTER_KEYS
     };
 }
 
@@ -389,10 +395,18 @@ function computeProductionMetrics(profile, equippedCatalogItem = null, nowMs = D
             baseTixPerMin += pad.tixPerMin;
         }
     }
+
+    // Evento "Calibración del Upgrader Láser": mientras está descalibrado rinde menos
+    const laserPad = STUDIO_PADS.find(p => p.id === 'pad_laser');
+    const laserMiscalibrated = Boolean(profile.laser_state?.miscalibrated) && padSet.has('pad_laser');
+    if (laserMiscalibrated && laserPad) {
+        baseTixPerMin -= Math.round(laserPad.tixPerMin * (loot.LASER_EVENT.productionPenaltyPct / 100));
+    }
     if (baseTixPerMin <= 0) baseTixPerMin = 15;
 
     const rebirthCount = Number(profile.rebirth_count || 0);
     const rebirthBonusPct = rebirthCount * 35; // +35% por cada Rebirth
+    const permanentBonusPct = Number(profile.permanent_tix_bonus_pct || 0); // Cofre Vóxel
     const equippedBonusPct = equippedCatalogItem ? Number(equippedCatalogItem.boost_pct || 0) : 0;
 
     let potionActive = false;
@@ -414,7 +428,10 @@ function computeProductionMetrics(profile, equippedCatalogItem = null, nowMs = D
     const nitroBonusPct = profile.vip_nitro_boost ? 50 : 0;
     const ytBonusPct = profile.vip_yt_sub ? 35 : 0;
 
-    const totalBonusPct = rebirthBonusPct + equippedBonusPct + potionBonusPct + nitroBonusPct + ytBonusPct;
+    const prospectorActive = loot.isProspectorActive(profile, nowMs);
+    const prospectorRemainingMin = loot.prospectorRemainingMin(profile, nowMs);
+
+    const totalBonusPct = rebirthBonusPct + equippedBonusPct + potionBonusPct + nitroBonusPct + ytBonusPct + permanentBonusPct;
     const multiplier = Number((1 + totalBonusPct / 100).toFixed(2));
     const effectiveTixPerMin = Math.max(1, Math.round(baseTixPerMin * multiplier));
     const collectorCap = calculateCollectorCap(unlockedPads, rebirthCount);
@@ -436,6 +453,10 @@ function computeProductionMetrics(profile, equippedCatalogItem = null, nowMs = D
         potionInfo,
         nitroBonusPct,
         ytBonusPct,
+        permanentBonusPct,
+        prospectorActive,
+        prospectorRemainingMin,
+        laserMiscalibrated,
         collectorCap,
         nextPad,
         allPadsUnlocked
@@ -444,8 +465,9 @@ function computeProductionMetrics(profile, equippedCatalogItem = null, nowMs = D
 
 /**
  * Obtiene o crea el perfil de /tycoon de un jugador y sincroniza su Collector Pad por timestamps.
+ * Cuerpo interno: siempre se invoca a través de `getOrCreatePlayerState` (bajo el lock del usuario).
  */
-async function getOrCreatePlayerState(userId, member = null) {
+async function loadPlayerState(userId, member = null) {
     const uid = String(userId);
     const now = new Date();
     const nowMs = now.getTime();
@@ -480,6 +502,12 @@ async function getOrCreatePlayerState(userId, member = null) {
                 studio_stage: 1,
                 rebirth_count: 0,
                 ascension_tokens: 0,
+                key_fragments: 0,
+                master_keys: 0,
+                permanent_tix_bonus_pct: 0,
+                prospector_expires_at: null,
+                laser_state: {},
+                active_sessions: {},
                 ugc_license_unlocked: false,
                 equipped_item_id: null,
                 potion_type: null,
@@ -500,7 +528,8 @@ async function getOrCreatePlayerState(userId, member = null) {
     }
 
     const { mutated: questsMutated } = syncWeeklyQuestsState(profile, nowMs);
-
+    const keyStateMutated = loot.normalizeKeyState(profile);
+    const sessionsSettled = loot.settleExpiredSessions(profile, nowMs);
     // Sincronizar estado VIP estrictamente con la configuración del Administrador en /config
     const authorizedVip = isUserAuthorizedVip(uid, member);
     let vipMutated = false;
@@ -525,7 +554,7 @@ async function getOrCreatePlayerState(userId, member = null) {
     const generatedTix = Math.floor(elapsedMinutes * metrics.effectiveTixPerMin);
 
     let currentCollector = Number(profile.collector_tix || 0);
-    let dirty = questsMutated || vipMutated;
+    let dirty = questsMutated || vipMutated || keyStateMutated || sessionsSettled;
 
     if (generatedTix > 0) {
         currentCollector = Math.min(metrics.collectorCap, currentCollector + generatedTix);
@@ -566,10 +595,23 @@ async function getOrCreatePlayerState(userId, member = null) {
 }
 
 /**
+ * Punto de entrada público: toda lectura/escritura del perfil de un usuario se serializa
+ * bajo su lock (reentrante), evitando duplicaciones por clics simultáneos o lecturas obsoletas.
+ */
+function getOrCreatePlayerState(userId, member = null) {
+    return withUserLock(userId, () => loadPlayerState(userId, member));
+}
+
+/**
  * Puente Silencioso: Recompensa al usuario con Tix pasivos cuando usa el bot naturalmente (cooldown 5 min).
  * Nunca interrumpe ni modifica los paneles de /roblox.
  */
 async function rewardSilentActivity(userId) {
+    if (!userId) return null;
+    return withUserLock(userId, () => rewardSilentActivityLocked(userId));
+}
+
+async function rewardSilentActivityLocked(userId) {
     try {
         if (!userId) return null;
         const uid = String(userId);
@@ -613,6 +655,12 @@ async function rewardSilentActivity(userId) {
                 studio_stage: 1,
                 rebirth_count: 0,
                 ascension_tokens: 0,
+                key_fragments: 0,
+                master_keys: 0,
+                permanent_tix_bonus_pct: 0,
+                prospector_expires_at: null,
+                laser_state: {},
+                active_sessions: {},
                 ugc_license_unlocked: false,
                 equipped_item_id: null,
                 potion_type: null,
@@ -651,10 +699,11 @@ async function rewardSilentActivity(userId) {
 
 /**
  * Recolecta todos los Tix acumulados en el Collector Pad verde.
+ * Evento "Bono de Vaciado Crítico": si el colector está al 100%, 15% de soltar +1 Fragmento de Llave.
  */
-async function collectPadTix(userId) {
+async function collectPadTix(userId, rng = Math.random) {
     const state = await getOrCreatePlayerState(userId);
-    const { profile } = state;
+    const { profile, metrics } = state;
     const available = Number(profile.collector_tix || 0);
 
     if (available <= 0) {
@@ -666,9 +715,17 @@ async function collectPadTix(userId) {
         };
     }
 
+    const wasFull = available >= Number(metrics.collectorCap || profile.collector_cap || 0);
+    const bonusFragment = wasFull
+        ? loot.rollFragmentDrop(loot.DROP_RATES.criticalVent, metrics.prospectorActive, rng)
+        : false;
+
     profile.tix_balance = Number(profile.tix_balance || 0) + available;
     profile.collector_tix = 0;
     profile.last_collected_at = new Date().toISOString();
+    if (bonusFragment) {
+        profile.key_fragments = Number(profile.key_fragments || 0) + 1;
+    }
     incrementQuestProgress(profile, 'q_collect_tix', available);
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
@@ -677,14 +734,17 @@ async function collectPadTix(userId) {
     return {
         ok: true,
         collected: available,
+        wasFull,
+        bonusFragment,
         state: updatedState
     };
 }
 
 /**
  * Compra el siguiente Pad de construcción del Estudio Tycoon.
+ * Evento "Hallazgo en Cimientos": 25% de otorgar +1 Fragmento de Llave al subir de nivel.
  */
-async function buyNextStudioPad(userId, targetPadId = null) {
+async function buyNextStudioPad(userId, targetPadId = null, rng = Math.random) {
     const state = await getOrCreatePlayerState(userId);
     const { profile, metrics } = state;
     const unlockedSet = new Set(metrics.unlockedPads);
@@ -723,6 +783,11 @@ async function buyNextStudioPad(userId, targetPadId = null) {
     profile.unlocked_pads = newUnlocked;
     profile.studio_stage = maxStage;
     profile.collector_cap = calculateCollectorCap(newUnlocked, profile.rebirth_count);
+
+    const bonusFragment = loot.rollFragmentDrop(loot.DROP_RATES.foundation, metrics.prospectorActive, rng);
+    if (bonusFragment) {
+        profile.key_fragments = Number(profile.key_fragments || 0) + 1;
+    }
     incrementQuestProgress(profile, 'q_build_pads', 1);
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
@@ -731,12 +796,14 @@ async function buyNextStudioPad(userId, targetPadId = null) {
     return {
         ok: true,
         pad: padToBuy,
+        bonusFragment,
         state: updatedState
     };
 }
 
 /**
  * Ejecuta el Rebirth (Ascensión) cuando el jugador completó los 6 Pads del Estudio.
+ * Otorga +1 Fragmento de Llave garantizado.
  */
 async function performRebirth(userId) {
     const state = await getOrCreatePlayerState(userId);
@@ -757,7 +824,8 @@ async function performRebirth(userId) {
     profile.unlocked_pads = ['pad_dropper1'];
     profile.studio_stage = 1;
     profile.rebirth_count = Number(profile.rebirth_count || 0) + 1;
-    profile.ascension_tokens = Number(profile.ascension_tokens || 0) + 1;
+    profile.key_fragments = Number(profile.key_fragments || 0) + 1;
+    profile.laser_state = {}; // Las estaciones se reinician: el Láser vuelve a calibrarse solo
     profile.collector_cap = calculateCollectorCap(['pad_dropper1'], profile.rebirth_count);
     profile.last_collected_at = new Date().toISOString();
     incrementQuestProgress(profile, 'q_rebirth_or_bot', 5);
@@ -771,7 +839,7 @@ async function performRebirth(userId) {
     return {
         ok: true,
         newRebirthCount: profile.rebirth_count,
-        ascensionTokens: profile.ascension_tokens,
+        keyFragments: profile.key_fragments,
         state: updatedState
     };
 }
@@ -920,12 +988,13 @@ async function claimWeeklyQuestReward(userId, targetQuestId = null) {
         };
     }
 
-    // Verificar si ya reclamó las 4 misiones de la semana para otorgar el bono extra de +30 Vóxeles
+    // Verificar si ya reclamó las 4 misiones de la semana: +30 Vóxeles y +1 Llave Maestra garantizada
     const allFourClaimed = WEEKLY_QUESTS_POOL.every(q => Boolean(stateObj.claimed[q.id]));
     let grantedAllBonus = false;
     if (allFourClaimed && !stateObj.allBonusClaimed) {
         stateObj.allBonusClaimed = true;
         totalCrystalsEarned += WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS;
+        profile.master_keys = Number(profile.master_keys || 0) + WEEKLY_ALL_COMPLETED_BONUS_MASTER_KEYS;
         grantedAllBonus = true;
     }
 
@@ -943,6 +1012,7 @@ async function claimWeeklyQuestReward(userId, targetQuestId = null) {
         totalTixEarned,
         grantedAllBonus,
         bonusCrystals: grantedAllBonus ? WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS : 0,
+        bonusMasterKeys: grantedAllBonus ? WEEKLY_ALL_COMPLETED_BONUS_MASTER_KEYS : 0,
         state: updatedState
     };
 }
@@ -1232,82 +1302,6 @@ async function deleteUgcItemByOwner(itemId) {
     ]);
 
     return { ok: true, deletedItem: target };
-}
-
-/**
- * Abre un Cofre de Ascensión (con 1 Token de Rebirth o 3,500 Tix) para obtener un Limited o Limited U.
- */
-async function openAscensionChest(userId) {
-    const state = await getOrCreatePlayerState(userId);
-    const { profile, catalogMap } = state;
-
-    const chestCostTix = 3500;
-    const tokens = Number(profile.ascension_tokens || 0);
-    const balance = Number(profile.tix_balance || 0);
-    const usedToken = tokens > 0;
-
-    if (!usedToken) {
-        if (Number(profile.studio_stage || 1) < 3 && Number(profile.rebirth_count || 0) < 1) {
-            return { ok: false, reason: 'requires_stage_3', state };
-        }
-        if (balance < chestCostTix) {
-            return { ok: false, reason: 'insufficient_tix', cost: chestCostTix, balance, state };
-        }
-    }
-
-    const allItems = [...catalogMap.values()];
-    const limitedPool = allItems.filter(it => it.category === 'LIMITED');
-    const limitedUPool = allItems.filter(
-        it => it.category === 'LIMITED_U' && Number(it.minted_count || 0) < Number(it.max_supply || 15)
-    );
-
-    // 25% probabilidad de sacar un Limited U si aún queda stock global; 75% Limited clásico
-    const rollLimitedU = limitedUPool.length > 0 && Math.random() < 0.25;
-    const pool = rollLimitedU ? limitedUPool : limitedPool;
-    const wonItem = pool[Math.floor(Math.random() * pool.length)] || limitedPool[0];
-
-    if (!wonItem) {
-        return { ok: false, reason: 'empty_pool', state };
-    }
-
-    if (usedToken) {
-        profile.ascension_tokens = tokens - 1;
-    } else {
-        profile.tix_balance = balance - chestCostTix;
-    }
-    incrementQuestProgress(profile, 'q_use_potions', 1);
-
-    let serialNumber = null;
-    const newMintCount = Number(wonItem.minted_count || 0) + 1;
-    if (wonItem.category === 'LIMITED_U') {
-        serialNumber = newMintCount;
-    }
-    wonItem.minted_count = newMintCount;
-
-    const newInstance = {
-        instance_id: `inv_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        user_id: String(userId),
-        item_id: wonItem.item_id,
-        serial_number: serialNumber,
-        acquired_at: new Date().toISOString()
-    };
-
-    await Promise.all([
-        supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' }),
-        supabase.from('tycoon_items_catalog').upsert(wonItem, { onConflict: 'item_id' }),
-        supabase.from('tycoon_user_inventory').insert(newInstance)
-    ]);
-
-    const updatedState = await getOrCreatePlayerState(userId);
-    return {
-        ok: true,
-        usedToken,
-        costPaid: usedToken ? 0 : chestCostTix,
-        wonItem,
-        serialNumber,
-        instance: newInstance,
-        state: updatedState
-    };
 }
 
 /**
@@ -1640,13 +1634,20 @@ async function buyAndActivatePotion(userId, potionId = 'speed_potion') {
     }
 
     const nowMs = Date.now();
-    const currentExpMs = profile.potion_expires_at ? new Date(profile.potion_expires_at).getTime() : 0;
+    const isProspector = potion.kind === 'prospector';
+    const currentExpRaw = isProspector ? profile.prospector_expires_at : profile.potion_expires_at;
+    const currentExpMs = currentExpRaw ? new Date(currentExpRaw).getTime() : 0;
     const baseMs = Number.isFinite(currentExpMs) && currentExpMs > nowMs ? currentExpMs : nowMs;
     const newExpiresIso = new Date(baseMs + potion.durationMinutes * 60000).toISOString();
 
     profile.tix_balance = balance - potion.cost;
-    profile.potion_type = potion.id;
-    profile.potion_expires_at = newExpiresIso;
+    if (isProspector) {
+        // El Tónico del Prospector es un efecto independiente: convive con Velocidad/Mega
+        profile.prospector_expires_at = newExpiresIso;
+    } else {
+        profile.potion_type = potion.id;
+        profile.potion_expires_at = newExpiresIso;
+    }
     incrementQuestProgress(profile, 'q_use_potions', 1);
 
     await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
@@ -1874,36 +1875,38 @@ module.exports = {
     POTIONS_CATALOG,
     WEEKLY_QUESTS_POOL,
     WEEKLY_ALL_COMPLETED_BONUS_CRYSTALS,
+    WEEKLY_ALL_COMPLETED_BONUS_MASTER_KEYS,
     UGC_ALLOWED_EMOJIS,
     getCurrentWeekKey,
     syncWeeklyQuestsState,
     incrementQuestProgress,
     buildWeeklyQuestsSummary,
     buildDailyStreakSummary,
-    claimDailyStreak,
     getTycoonLeaderboard,
     getCatalogItems,
     getUserInventory,
     getOrCreatePlayerState,
     rewardSilentActivity,
-    collectPadTix,
-    buyNextStudioPad,
-    performRebirth,
-    buyNormalShopItem,
-    buyCrystalShopItem,
-    claimWeeklyQuestReward,
-    equipUserItem,
-    unlockUgcCreatorLicense,
     publishCustomUgcItem,
     buyCommunityUgcItem,
     deleteUgcItemByOwner,
-    openAscensionChest,
-    claimLimitedUDrop,
     getActiveTrades,
     createTradeOffer,
     resolveTradeOffer,
-    buyAndActivatePotion,
     syncCommunityPerks,
     manageVipByAdmin,
-    isUserAuthorizedVip
+    isUserAuthorizedVip,
+
+    // Operaciones que modifican el perfil de UN jugador: se serializan bajo su lock (anti-duplicación)
+    claimDailyStreak: locked(claimDailyStreak),
+    collectPadTix: locked(collectPadTix),
+    buyNextStudioPad: locked(buyNextStudioPad),
+    performRebirth: locked(performRebirth),
+    buyNormalShopItem: locked(buyNormalShopItem),
+    buyCrystalShopItem: locked(buyCrystalShopItem),
+    claimWeeklyQuestReward: locked(claimWeeklyQuestReward),
+    equipUserItem: locked(equipUserItem),
+    unlockUgcCreatorLicense: locked(unlockUgcCreatorLicense),
+    claimLimitedUDrop: locked(claimLimitedUDrop),
+    buyAndActivatePotion: locked(buyAndActivatePotion)
 };
