@@ -428,38 +428,53 @@ async function getOrCreatePlayerState(userId) {
     const now = new Date();
     const nowMs = now.getTime();
 
-    let { data: profile } = await supabase
+    let { data: profile, error: dbError } = await supabase
         .from('tycoon_profiles')
         .select('*')
         .eq('user_id', uid)
         .maybeSingle();
 
+    if (!profile && dbError) {
+        console.warn(`[TYCOON] Error en consulta remota de perfil para ${uid}:`, dbError.message || dbError);
+        const memProfile = (supabase.memoryTables?.tycoon_profiles || []).find(p => String(p.user_id) === uid);
+        if (memProfile) {
+            profile = memProfile;
+        } else {
+            throw new Error('Base de datos temporalmente no disponible. Tu progreso del Tycoon está a salvo, reintenta en un momento.');
+        }
+    }
+
     if (!profile) {
-        const initialProfile = {
-            user_id: uid,
-            tix_balance: 150,
-            crystal_balance: 15,
-            collector_tix: 25,
-            collector_cap: 500,
-            studio_stage: 1,
-            rebirth_count: 0,
-            ascension_tokens: 0,
-            ugc_license_unlocked: false,
-            equipped_item_id: null,
-            potion_type: null,
-            potion_expires_at: null,
-            vip_nitro_boost: false,
-            vip_yt_sub: false,
-            last_yt_potion_at: null,
-            last_collected_at: now.toISOString(),
-            last_silent_reward_at: null,
-            unlocked_pads: ['pad_dropper1'],
-            weekly_quests_state: null,
-            created_at: now.toISOString()
-        };
-        syncWeeklyQuestsState(initialProfile, nowMs);
-        await supabase.from('tycoon_profiles').upsert(initialProfile, { onConflict: 'user_id' });
-        profile = initialProfile;
+        const memProfile = (supabase.memoryTables?.tycoon_profiles || []).find(p => String(p.user_id) === uid);
+        if (memProfile) {
+            profile = memProfile;
+        } else {
+            const initialProfile = {
+                user_id: uid,
+                tix_balance: 150,
+                crystal_balance: 15,
+                collector_tix: 25,
+                collector_cap: 500,
+                studio_stage: 1,
+                rebirth_count: 0,
+                ascension_tokens: 0,
+                ugc_license_unlocked: false,
+                equipped_item_id: null,
+                potion_type: null,
+                potion_expires_at: null,
+                vip_nitro_boost: false,
+                vip_yt_sub: false,
+                last_yt_potion_at: null,
+                last_collected_at: now.toISOString(),
+                last_silent_reward_at: null,
+                unlocked_pads: ['pad_dropper1'],
+                weekly_quests_state: null,
+                created_at: now.toISOString()
+            };
+            syncWeeklyQuestsState(initialProfile, nowMs);
+            await supabase.from('tycoon_profiles').upsert(initialProfile, { onConflict: 'user_id' });
+            profile = initialProfile;
+        }
     }
 
     const { mutated: questsMutated } = syncWeeklyQuestsState(profile, nowMs);
@@ -534,16 +549,30 @@ async function rewardSilentActivity(userId) {
         }
         silentRewardCooldownMap.set(uid, nowMs);
 
-        const { data: existing } = await supabase
+        const { data: existing, error: dbError } = await supabase
             .from('tycoon_profiles')
             .select('*')
             .eq('user_id', uid)
             .maybeSingle();
 
+        if (dbError) {
+            return null;
+        }
+
         const bonusTix = 30;
         const nowIso = new Date(nowMs).toISOString();
 
         if (!existing) {
+            const memExisting = (supabase.memoryTables?.tycoon_profiles || []).find(p => String(p.user_id) === uid);
+            if (memExisting) {
+                memExisting.tix_balance = Number(memExisting.tix_balance || 0) + bonusTix;
+                memExisting.last_silent_reward_at = nowIso;
+                syncWeeklyQuestsState(memExisting, nowMs);
+                incrementQuestProgress(memExisting, 'q_rebirth_or_bot', 1, nowMs);
+                await supabase.from('tycoon_profiles').upsert(memExisting, { onConflict: 'user_id' });
+                return { rewarded: bonusTix };
+            }
+
             const starter = {
                 user_id: uid,
                 tix_balance: 150 + bonusTix,

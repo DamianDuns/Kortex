@@ -264,6 +264,52 @@ async function sincronizarPersistenciaDesdeSupabase() {
                     console.log(`[FAST-LINK] ✅ ${loadedHist} historial(es) de cuentas hidratado(s) desde Supabase.`);
                 }
             }
+
+            // 4. Perfiles e Inventarios de Tycoon
+            const { data: remoteProfiles, error: errProfiles } = await client.from('tycoon_profiles').select('*');
+            if (!errProfiles && Array.isArray(remoteProfiles)) {
+                if (!Array.isArray(supabase.memoryTables?.tycoon_profiles)) {
+                    supabase.memoryTables.tycoon_profiles = [];
+                }
+                for (const p of remoteProfiles) {
+                    if (p && p.user_id) {
+                        const idx = supabase.memoryTables.tycoon_profiles.findIndex(r => String(r.user_id) === String(p.user_id));
+                        if (idx >= 0) {
+                            supabase.memoryTables.tycoon_profiles[idx] = { ...supabase.memoryTables.tycoon_profiles[idx], ...p };
+                        } else {
+                            supabase.memoryTables.tycoon_profiles.push(p);
+                        }
+                    }
+                }
+                if (remoteProfiles.length > 0) {
+                    console.log(`[FAST-LINK] ✅ ${remoteProfiles.length} perfil(es) de Tycoon hidratado(s) desde Supabase.`);
+                }
+            }
+
+            const { data: remoteInv, error: errInv } = await client.from('tycoon_user_inventory').select('*');
+            if (!errInv && Array.isArray(remoteInv)) {
+                if (!Array.isArray(supabase.memoryTables?.tycoon_user_inventory)) {
+                    supabase.memoryTables.tycoon_user_inventory = [];
+                }
+                for (const item of remoteInv) {
+                    if (item && item.instance_id) {
+                        const idx = supabase.memoryTables.tycoon_user_inventory.findIndex(r => String(r.instance_id) === String(item.instance_id));
+                        if (idx >= 0) {
+                            supabase.memoryTables.tycoon_user_inventory[idx] = { ...supabase.memoryTables.tycoon_user_inventory[idx], ...item };
+                        } else {
+                            supabase.memoryTables.tycoon_user_inventory.push(item);
+                        }
+                    }
+                }
+                if (remoteInv.length > 0) {
+                    console.log(`[FAST-LINK] ✅ ${remoteInv.length} item(s) de inventario Tycoon hidratado(s) desde Supabase.`);
+                }
+            }
+
+            // 5. Guardar snapshot en disco para redundancia
+            if (typeof supabase.guardarSnapshotEnDisco === 'function') {
+                supabase.guardarSnapshotEnDisco();
+            }
         } catch (err) {
             console.warn('[FAST-LINK] Error durante la sincronización inicial con Supabase:', err.message);
         }
@@ -2859,8 +2905,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             { label: '- — Hyphen or Dash', value: '-', desc: isEn ? 'Use -roblox, -tycoon, -help' : 'Usar -roblox, -tycoon, -help' },
             { label: '+ — Plus Sign', value: '+', desc: isEn ? 'Use +roblox, +tycoon, +help' : 'Usar +roblox, +tycoon, +help' },
             { label: '* — Asterisk', value: '*', desc: isEn ? 'Use *roblox, *tycoon, *help' : 'Usar *roblox, *tycoon, *help' },
-            { label: isEn ? '✏️ Custom Prefix...' : '✏️ Otro Prefijo Personalizado...', value: 'prefix_modal_custom', desc: isEn ? 'Type your own prefix: 1 to 5 characters' : 'Escribí tu propio prefijo: 1 a 5 caracteres' },
-            { label: isEn ? '🔄 Reset to Default Preferences' : '🔄 Restaurar Preferencias por Defecto', value: 'prefix_reset_defaults', desc: isEn ? 'Reset prefix, category, tier, alerts and privacy' : 'Restablecer prefijo, categoría, tier, alertas y privacidad' }
+            { label: isEn ? '✏️ Custom Prefix...' : '✏️ Otro Prefijo Personalizado...', value: 'prefix_modal_custom', desc: isEn ? 'Type your own prefix: 1 to 5 characters' : 'Escribí tu propio prefijo: 1 a 5 caracteres' }
         ];
 
         const isStandardPrefix = ['!', '?', '.', 'k!', '$', '-', '+', '*'].includes(userPrefix);

@@ -564,7 +564,7 @@ test('/config User Comfort Preferences, 4 Regional Pricing Tiers (100/80/60/40%)
     assert.ok(prefJson.includes('select_pref_comfort'));
     assert.ok(prefJson.includes('btn_pref_toggle_alerts'));
     assert.ok(prefJson.includes('btn_pref_toggle_ephemeral'));
-    assert.ok(prefJson.includes('btn_pref_reset'));
+    assert.ok(prefJson.includes('select_pref_prefix'));
 
     // Reset test user's preferences to defaults
     const resetPrefs = restaurarPreferenciasUsuarioPorDefecto(testUid);

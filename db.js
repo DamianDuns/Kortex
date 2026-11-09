@@ -657,6 +657,45 @@ function createInMemoryQueryBuilder(tableName) {
     return builder;
 }
 
+function syncRowIntoMemoryTable(tableName, item) {
+    if (!item || typeof item !== 'object') return;
+    if (!Array.isArray(memoryTables[tableName])) {
+        memoryTables[tableName] = [];
+    }
+    const table = memoryTables[tableName];
+    const keys = item.discord_id && item.code_id
+        ? ['discord_id', 'code_id']
+        : item.item_id && item.buyer_id
+            ? ['item_id', 'buyer_id']
+            : item.instance_id
+                ? ['instance_id']
+                : item.trade_id
+                    ? ['trade_id']
+                    : item.purchase_id
+                        ? ['purchase_id']
+                        : item.user_id && tableName === 'tycoon_profiles'
+                            ? ['user_id']
+                            : item.item_id
+                                ? ['item_id']
+                                : item.guild_id
+                                    ? ['guild_id']
+                                    : item.discord_id
+                                        ? ['discord_id']
+                                        : item.subcategory_key
+                                            ? ['subcategory_key']
+                                            : item.id !== undefined
+                                                ? ['id']
+                                                : null;
+    if (keys && keys.length > 0) {
+        const idx = table.findIndex(r => keys.every(k => r[k] !== undefined && String(r[k]) === String(item[k])));
+        if (idx >= 0) {
+            table[idx] = { ...table[idx], ...item };
+            return;
+        }
+    }
+    table.push(item);
+}
+
 /**
  * Crea un query builder híbrido que sincroniza tanto en Supabase remoto (si está activo)
  * como en la persistencia local en disco/memoria. Si Supabase remoto devuelve error
@@ -679,7 +718,19 @@ function createResilientHybridBuilder(tableName, realClient) {
             const remoteRes = await remoteQuery;
             if (remoteRes.error) {
                 console.warn(`[DB-HYBRID] Error en Supabase remoto para tabla '${tableName}':`, remoteRes.error.message || remoteRes.error);
-                return localResult;
+                return {
+                    ...localResult,
+                    error: remoteRes.error
+                };
+            }
+            // Sincronizar datos frescos hacia la memoria interna
+            if (remoteRes.data) {
+                const rowsToSync = Array.isArray(remoteRes.data) ? remoteRes.data : [remoteRes.data];
+                for (const r of rowsToSync) {
+                    if (r && typeof r === 'object') {
+                        syncRowIntoMemoryTable(tableName, r);
+                    }
+                }
             }
             // Si es lectura y remoto trajo datos vacíos pero en disco local ya teníamos sesión/datos, conservar los datos locales
             if (Array.isArray(remoteRes.data) && remoteRes.data.length === 0 && Array.isArray(localResult.data) && localResult.data.length > 0) {
@@ -691,7 +742,10 @@ function createResilientHybridBuilder(tableName, realClient) {
             };
         } catch (err) {
             console.warn(`[DB-HYBRID] Excepción al ejecutar query en Supabase ('${tableName}'):`, err.message);
-            return localResult;
+            return {
+                ...localResult,
+                error: err
+            };
         }
     };
 
