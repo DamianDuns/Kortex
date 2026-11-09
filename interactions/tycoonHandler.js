@@ -103,8 +103,8 @@ function createCategoryMenu(activeSection = 'sec_studio', isEn = false) {
                 .setLabel(isEn ? '3. Unified Shop, Chests & P2P Trades' : '3. Tienda, Cofres e Intercambios')
                 .setDescription(
                     isEn
-                        ? 'Buy Classic Items, Limiteds & Crystal Artifacts, Unbox Chests & Trade P2P'
-                        : 'Tienda Unificada (Clásicos, Limiteds y Cristales), Cofres e Intercambios P2P'
+                        ? 'Buy Classic Items, Limiteds & Voxel Artifacts, Unbox Chests & Trade P2P'
+                        : 'Tienda Unificada (Clásicos, Limiteds y Vóxeles), Cofres e Intercambios P2P'
                 )
                 .setValue('sec_vault')
                 .setEmoji('🛒')
@@ -113,8 +113,8 @@ function createCategoryMenu(activeSection = 'sec_studio', isEn = false) {
                 .setLabel(isEn ? '4. Weekly Quests, Lab & Leaderboard' : '4. Misiones, Laboratorio y Ranking')
                 .setDescription(
                     isEn
-                        ? 'Earn Kortex Crystals in Weekly Quests, Lab Potions & Top Studios'
-                        : 'Ganá Cristales Kortex en Misiones Semanales, Pociones y Ranking Top'
+                        ? 'Earn Voxels in Weekly Quests, Lab Potions & Top Studios'
+                        : 'Ganá Vóxeles en Misiones Semanales, Pociones y Ranking Top'
                 )
                 .setValue('sec_perks')
                 .setEmoji('🏆')
@@ -265,8 +265,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const rebirthStatus = metrics.allPadsUnlocked
             ? (isEn
-                ? `✨ **Rebirth Ready:** All 6 stations are active! Ascend now for **+35% permanent speed** & **+1 Chest Key**.`
-                : `✨ **Rebirth Disponible:** ¡Completaste las 6 estaciones! Ascendé para ganar **+35% permanente** y **+1 Llave de Cofre**.`)
+                ? `✨ **Rebirth Ready:** All 6 stations are active! Ascend now for **+35% permanent speed** & **+1 Key Fragment**.`
+                : `✨ **Rebirth Disponible:** ¡Completaste las 6 estaciones! Ascendé para ganar **+35% permanente** y **+1 Fragmento de Llave**.`)
             : (isEn
                 ? `✨ **Rebirth Progress:** \`${builtCount}/6\` stations built (Current Rebirths: \`x${profile.rebirth_count || 0}\`)`
                 : `✨ **Progreso hacia Rebirth:** \`${builtCount}/6\` estaciones construidas (Rebirths actuales: \`x${profile.rebirth_count || 0}\`)`);
@@ -314,7 +314,7 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const btnRebirth = new ButtonBuilder()
             .setCustomId('tycoon_rebirth')
-            .setLabel(isEn ? 'Rebirth (+35% & Key)' : 'Rebirth (+35% y Llave)')
+            .setLabel(isEn ? 'Rebirth (+35% & Fragment)' : 'Rebirth (+35% y Fragmento)')
             .setEmoji('✨')
             .setStyle(ButtonStyle.Danger)
             .setDisabled(!metrics.allPadsUnlocked);
@@ -351,8 +351,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             ? `### 📊 General Tycoon Statistics\n` +
               `**💰 Wallet & Resources:**\n` +
               `• 🎟️ **Tix Balance:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`\n` +
-              `• 💠 **Kortex Crystals:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Crystals\`\n` +
-              `• 🗝️ **Ascension Chest Keys:** \`${Number(profile.ascension_tokens || 0)} Key(s)\`\n\n` +
+              `• 💠 **Voxels:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Voxels\`\n` +
+              `• 🗝️ **Key Fragments:** \`${Number(profile.ascension_tokens || 0)} Fragment(s)\`\n\n` +
               `**⚙️ Studio Performance & Progression:**\n` +
               `• 🏗️ **Studio Stage:** \`Stage ${profile.studio_stage || 1}/6\` (\`[${buildVisualBar(profile.studio_stage || 1, 6, 6)}]\`)\n` +
               `• ✨ **Rebirths Completed:** \`x${profile.rebirth_count || 0}\` (\`+${rebirthBonusPct}% permanent bonus\`)\n` +
@@ -361,8 +361,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             : `### 📊 Estadísticas Generales del Tycoon\n` +
               `**💰 Billetera y Recursos:**\n` +
               `• 🎟️ **Saldo de Tix:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`\n` +
-              `• 💠 **Cristales Kortex:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Cristales\`\n` +
-              `• 🗝️ **Llaves de Cofre de Ascensión:** \`${Number(profile.ascension_tokens || 0)} Llave(s)\`\n\n` +
+              `• 💠 **Vóxeles:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Vóxeles\`\n` +
+              `• 🗝️ **Fragmentos de Llave:** \`${Number(profile.ascension_tokens || 0)} Fragmento(s)\`\n\n` +
               `**⚙️ Rendimiento y Progreso del Estudio:**\n` +
               `• 🏗️ **Nivel del Estudio:** \`Nivel ${profile.studio_stage || 1}/6\` (\`[${buildVisualBar(profile.studio_stage || 1, 6, 6)}]\`)\n` +
               `• ✨ **Ascensiones (Rebirths):** \`x${profile.rebirth_count || 0}\` (\`+${rebirthBonusPct}% bono permanente\`)\n` +
@@ -535,13 +535,13 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const shopBlock = isEn
             ? `### 🛍️ Unified Item & Limited Shop\n` +
-              `• **Your Balance:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Crystals\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Key(s)\`\n\n` +
+              `• **Your Balance:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Voxels\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Key Fragment(s)\`\n\n` +
               `**🎟️ Classic Gear & Serialized Limited U (Tix):**\n${tixCatalogLines}\n\n` +
-              `**💠 Kortex Crystal Artifacts:**\n${crystalCatalogLines}`
+              `**💠 Voxel Artifacts:**\n${crystalCatalogLines}`
             : `### 🛍️ Catálogo de la Tienda Unificada\n` +
-              `• **Tu Saldo:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Cristales\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Llave(s)\`\n\n` +
+              `• **Tu Saldo:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Vóxeles\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Fragmento(s) de Llave\`\n\n` +
               `**🎟️ Ítems Clásicos y Limited U Numerados (Tix):**\n${tixCatalogLines}\n\n` +
-              `**💠 Artefactos de Cristales Kortex:**\n${crystalCatalogLines}`;
+              `**💠 Artefactos de Vóxeles:**\n${crystalCatalogLines}`;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(shopBlock));
         container.addSeparatorComponents(separador());
@@ -567,10 +567,10 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const chestAndTradesBlock = isEn
             ? `### 🗝️ Ascension Chests & P2P Trading\n` +
-              `• **Ascension Chest:** Costs \`1 Rebirth Key\` or \`3,500 Tix\` — Grants **1 Guaranteed Limited Item** (\`+16%\` to \`+30% Tix/min\`; duplicates award \`+1,200 Tix\`).\n\n` +
+              `• **Ascension Chest:** Costs \`1 Key Fragment\` or \`3,500 Tix\` — Grants **1 Guaranteed Limited Item** (\`+16%\` to \`+30% Tix/min\`; duplicates award \`+1,200 Tix\`).\n\n` +
               `**🤝 Active P2P Trade Board (\`${activeTrades.length}\`):**\n${tradesLines}`
             : `### 🗝️ Cofres de Ascensión e Intercambios P2P\n` +
-              `• **Cofre de Ascensión:** Cuesta \`1 Llave de Rebirth\` o \`3,500 Tix\` — Otorga **1 Objeto Limited Garantizado** (\`+16%\` a \`+30% Tix/min\`; duplicados dan \`+1,200 Tix\`).\n\n` +
+              `• **Cofre de Ascensión:** Cuesta \`1 Fragmento de Llave\` o \`3,500 Tix\` — Otorga **1 Objeto Limited Garantizado** (\`+16%\` a \`+30% Tix/min\`; duplicados dan \`+1,200 Tix\`).\n\n` +
               `**🤝 Tablero de Intercambios P2P Activos (\`${activeTrades.length}\`):**\n${tradesLines}`;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(chestAndTradesBlock));
@@ -642,21 +642,21 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             container.addActionRowComponents(new ActionRowBuilder().addComponents(selectBuyNormal));
         }
 
-        // 2. Selector de Tienda de Artefactos de Cristales Kortex (💠)
+        // 2. Selector de Tienda de Artefactos de Vóxeles (💠)
         const buyableCrystals = crystalShopItems.filter(it => !ownedIds.has(String(it.item_id)));
         if (buyableCrystals.length > 0) {
             const selectBuyCrystal = new StringSelectMenuBuilder()
                 .setCustomId('tycoon_buy_crystal_select')
                 .setPlaceholder(
                     isEn
-                        ? '💠 Crystal Shop: Unlock Artifacts (+18% to +34% Tix/min)...'
-                        : '💠 Tienda de Cristales: Desbloquear Artefactos (+18% a +34% Tix/min)...'
+                        ? '💠 Voxel Shop: Unlock Artifacts (+18% to +34% Tix/min)...'
+                        : '💠 Tienda de Vóxeles: Desbloquear Artefactos (+18% a +34% Tix/min)...'
                 )
                 .addOptions(
                     buyableCrystals.map(it => {
                         const iName = isEn ? (it.name_en || it.name) : it.name;
                         return new StringSelectMenuOptionBuilder()
-                            .setLabel(`${iName} — ${Number(it.base_price).toLocaleString()} ${isEn ? 'Crystals' : 'Cristales'}`)
+                            .setLabel(`${iName} — ${Number(it.base_price).toLocaleString()} ${isEn ? 'Voxels' : 'Vóxeles'}`)
                             .setDescription(
                                 isEn
                                     ? `+${it.boost_pct}% Tix/min • Earned via Weekly Quests in Category 4`
@@ -726,7 +726,7 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         container.addSeparatorComponents(separador());
 
         const chestLabel = Number(profile.ascension_tokens || 0) > 0
-            ? (isEn ? `Open Chest (1 Key)` : `Abrir Cofre (1 Llave)`)
+            ? (isEn ? `Open Chest (1 Fragment)` : `Abrir Cofre (1 Fragmento)`)
             : (isEn ? `Open Chest (3,500 Tix)` : `Abrir Cofre (3,500 Tix)`);
 
         container.addActionRowComponents(
@@ -785,7 +785,7 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
 
         const bonusLine = wq.allBonusClaimed
             ? (isEn ? `✅ **Weekly Full Completion Bonus (+${wq.bonusCrystals} 💠):** Claimed!` : `✅ **Bono por Completar las 4 Misiones (+${wq.bonusCrystals} 💠):** ¡Reclamado!`)
-            : (isEn ? `🌟 **Full Completion Bonus:** Complete all 4 quests for an extra **+${wq.bonusCrystals} Kortex Crystals (💠)**.` : `🌟 **Bono Semanal Extra:** Completá las 4 misiones para recibir **+${wq.bonusCrystals} Cristales Kortex (💠)** adicionales.`);
+            : (isEn ? `🌟 **Full Completion Bonus:** Complete all 4 quests for an extra **+${wq.bonusCrystals} Voxels (💠)**.` : `🌟 **Bono Semanal Extra:** Completá las 4 misiones para recibir **+${wq.bonusCrystals} Vóxeles (💠)** adicionales.`);
 
         const questsBlock = isEn
             ? `### 🎯 Weekly Quests (\`${wq.resetDays}d ${wq.resetHours}h\` until reset)\n${questsLines}\n\n• ${bonusLine}`
@@ -1067,8 +1067,8 @@ async function handleTycoonInteraction(interaction) {
         const res = await claimDailyStreak(userId);
         const msg = res.ok
             ? (isEn
-                ? `🔥 **Daily Streak Day ${res.streakDay}/7 Claimed!** You received **+${res.rewardTix.toLocaleString()} Tix (\`🎟️\`)** and **+${res.rewardCrystals} Kortex Crystals (\`💠\`)**!`
-                : `🔥 **¡Racha Diaria Día ${res.streakDay}/7 Reclamada!** Recibiste **+${res.rewardTix.toLocaleString()} Tix (\`🎟️\`)** y **+${res.rewardCrystals} Cristales Kortex (\`💠\`)**!`)
+                ? `🔥 **Daily Streak Day ${res.streakDay}/7 Claimed!** You received **+${res.rewardTix.toLocaleString()} Tix (\`🎟️\`)** and **+${res.rewardCrystals} Voxels (\`💠\`)**!`
+                : `🔥 **¡Racha Diaria Día ${res.streakDay}/7 Reclamada!** Recibiste **+${res.rewardTix.toLocaleString()} Tix (\`🎟️\`)** y **+${res.rewardCrystals} Vóxeles (\`💠\`)**!`)
             : (isEn
                 ? `⏳ Your next Daily Streak reward will be ready in \`${res.hoursLeft}h ${res.minsLeft}m\`.`
                 : `⏳ Tu próxima recompensa de Racha Diaria estará lista en \`${res.hoursLeft}h ${res.minsLeft}m\`.`);
@@ -1102,8 +1102,8 @@ async function handleTycoonInteraction(interaction) {
         const res = await performRebirth(userId);
         const msg = res.ok
             ? (isEn
-                ? `✨ **REBIRTH #${res.newRebirthCount} COMPLETED!** You gained a permanent **+35% production multiplier**, **+1,500 Collector Cap**, and **+1 Ascension Chest Key (\`🗝️\`)**!`
-                : `✨ **¡REBIRTH #${res.newRebirthCount} COMPLETADO!** Ganaste **+35% de multiplicador permanente**, **+1,500 de capacidad en Colector** y **+1 Llave de Cofre de Ascensión (\`🗝️\`)**.`)
+                ? `✨ **REBIRTH #${res.newRebirthCount} COMPLETED!** You gained a permanent **+35% production multiplier**, **+1,500 Collector Cap**, and **+1 Ascension Key Fragment (\`🗝️\`)**!`
+                : `✨ **¡REBIRTH #${res.newRebirthCount} COMPLETADO!** Ganaste **+35% de multiplicador permanente**, **+1,500 de capacidad en Colector** y **+1 Fragmento de Llave de Ascensión (\`🗝️\`)**.`)
             : (isEn
                 ? `⚠️ Build all 6 Studio Stations (Stage 6) before performing a Rebirth.`
                 : `⚠️ Necesitás construir las 6 Estaciones del Estudio (Nivel 6) antes de hacer Rebirth.`);
@@ -1172,14 +1172,14 @@ async function handleTycoonInteraction(interaction) {
         if (res.ok) {
             const iName = isEn ? (res.item.name_en || res.item.name) : res.item.name;
             msg = isEn
-                ? `💠 **CRYSTAL ARTIFACT UNLOCKED:** ${res.item.icon_emoji} **${iName}** (\`+${res.item.boost_pct}% Tix/min\`) for \`${res.cost} Crystals\`!`
-                : `💠 **¡ARTEFACTO DE CRISTAL DESBLOQUEADO:** ${res.item.icon_emoji} **${iName}** (\`+${res.item.boost_pct}% Tix/min\`) por \`${res.cost} Cristales\`!`;
+                ? `💠 **VOXEL ARTIFACT UNLOCKED:** ${res.item.icon_emoji} **${iName}** (\`+${res.item.boost_pct}% Tix/min\`) for \`${res.cost} Voxels\`!`
+                : `💠 **¡ARTEFACTO DE VÓXELES DESBLOQUEADO:** ${res.item.icon_emoji} **${iName}** (\`+${res.item.boost_pct}% Tix/min\`) por \`${res.cost} Vóxeles\`!`;
         } else if (res.reason === 'insufficient_crystals') {
             msg = isEn
-                ? `⚠️ You need \`${res.cost} Kortex Crystals (💠)\` to unlock **${res.item?.name_en || res.item?.name}** (you have \`${res.crystalBalance} Crystals\`). Complete **Weekly Quests** in Category 4!`
-                : `⚠️ Necesitás \`${res.cost} Cristales Kortex (💠)\` para desbloquear **${res.item?.name}** (tenés \`${res.crystalBalance} Cristales\`). ¡Completá **Misiones Semanales** en la Categoría 4!`;
+                ? `⚠️ You need \`${res.cost} Voxels (💠)\` to unlock **${res.item?.name_en || res.item?.name}** (you have \`${res.crystalBalance} Voxels\`). Complete **Weekly Quests** in Category 4!`
+                : `⚠️ Necesitás \`${res.cost} Vóxeles (💠)\` para desbloquear **${res.item?.name}** (tenés \`${res.crystalBalance} Vóxeles\`). ¡Completá **Misiones Semanales** en la Categoría 4!`;
         } else {
-            msg = isEn ? `ℹ️ You already own this Crystal artifact.` : `ℹ️ Ya tenés este artefacto de Cristal en tu inventario.`;
+            msg = isEn ? `ℹ️ You already own this Voxel artifact.` : `ℹ️ Ya tenés este artefacto de Vóxeles en tu inventario.`;
         }
         const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
@@ -1279,12 +1279,12 @@ async function handleTycoonInteraction(interaction) {
                 : `🎉 **¡COFRE DE ASCENSIÓN ABIERTO!** Ganaste ${res.wonItem.icon_emoji} **${wName}**${serialTxt} (\`+${res.wonItem.boost_pct}% Tix/min\`)!`;
         } else if (res.reason === 'requires_stage_3') {
             msg = isEn
-                ? `🔒 Reach **Studio Stage 3** (or use a Rebirth Key) to open Ascension Chests.`
-                : `🔒 Alcanzá el **Nivel 3 del Estudio** (o usá una Llave de Rebirth) para abrir Cofres de Ascensión.`;
+                ? `🔒 Reach **Studio Stage 3** (or use a Key Fragment) to open Ascension Chests.`
+                : `🔒 Alcanzá el **Nivel 3 del Estudio** (o usá un Fragmento de Llave) para abrir Cofres de Ascensión.`;
         } else if (res.reason === 'insufficient_tix') {
             msg = isEn
-                ? `⚠️ Opening an Ascension Chest without a Key costs \`3,500 Tix\` (you have \`${res.balance.toLocaleString()} Tix\`).`
-                : `⚠️ Abrir un Cofre de Ascensión sin Llave cuesta \`3,500 Tix\` (tenés \`${res.balance.toLocaleString()} Tix\`).`;
+                ? `⚠️ Opening an Ascension Chest without a Key Fragment costs \`3,500 Tix\` (you have \`${res.balance.toLocaleString()} Tix\`).`
+                : `⚠️ Abrir un Cofre de Ascensión sin un Fragmento de Llave cuesta \`3,500 Tix\` (tenés \`${res.balance.toLocaleString()} Tix\`).`;
         } else {
             msg = isEn ? `⚠️ Could not open Ascension Chest.` : `⚠️ No se pudo abrir el Cofre de Ascensión.`;
         }
@@ -1389,8 +1389,8 @@ async function handleTycoonInteraction(interaction) {
                 ? (isEn ? ` + **+${res.bonusCrystals} 💠 Weekly Completion Bonus**` : ` + **+${res.bonusCrystals} 💠 Bono Semanal Completo**`)
                 : '';
             msg = isEn
-                ? `🎁 **Weekly Quests Claimed (${qNames})!** You received **+${res.totalCrystalsEarned} Kortex Crystals (\`💠\`)**${bonusNote} and **+${res.totalTixEarned.toLocaleString()} Tix (\`🎟️\`)**!`
-                : `🎁 **¡Misiones Semanales Reclamadas (${qNames})!** Recibiste **+${res.totalCrystalsEarned} Cristales Kortex (\`💠\`)**${bonusNote} y **+${res.totalTixEarned.toLocaleString()} Tix (\`🎟️\`)**!`;
+                ? `🎁 **Weekly Quests Claimed (${qNames})!** You received **+${res.totalCrystalsEarned} Voxels (\`💠\`)**${bonusNote} and **+${res.totalTixEarned.toLocaleString()} Tix (\`🎟️\`)**!`
+                : `🎁 **¡Misiones Semanales Reclamadas (${qNames})!** Recibiste **+${res.totalCrystalsEarned} Vóxeles (\`💠\`)**${bonusNote} y **+${res.totalTixEarned.toLocaleString()} Tix (\`🎟️\`)**!`;
         } else {
             msg = isEn
                 ? `ℹ️ You don't have any completed quests ready to claim yet.`

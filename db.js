@@ -158,15 +158,15 @@ const DEFAULT_TYCOON_CATALOG = [
         description_en: 'Exclusive cosmetic item for Discord Server Boosters (+15% Tix/min when equipped).',
         created_at: new Date().toISOString()
     },
-    // TIENDA PREMIUM DE CRISTALES KORTEX (Se consiguen gratis completando Misiones Semanales)
+    // TIENDA PREMIUM DE VÓXELES (Se consiguen gratis completando Misiones Semanales)
     {
         item_id: 'crys_darkheart_katana',
-        name: 'Katana Darkheart de Cristal',
-        name_en: 'Crystal Darkheart Katana',
+        name: 'Katana Darkheart de Vóxeles',
+        name_en: 'Voxel Darkheart Katana',
         category: 'NORMAL',
         currency_type: 'CRYSTAL',
         creator_id: 'SYSTEM',
-        creator_name: 'Kortex Crystal Vault',
+        creator_name: 'Kortex Voxel Vault',
         base_price: 35,
         current_rap: 0,
         boost_pct: 18,
@@ -175,8 +175,8 @@ const DEFAULT_TYCOON_CATALOG = [
         sales_count: 0,
         icon_emoji: '🗡️',
         color_hex: '#EC4899',
-        description_es: 'Reliquia forjada con Cristales Kortex de Misiones Semanales (+18% Tix/min).',
-        description_en: 'Relic forged with Kortex Crystals from Weekly Quests (+18% Tix/min).',
+        description_es: 'Reliquia forjada con Vóxeles de Misiones Semanales (+18% Tix/min).',
+        description_en: 'Relic forged with Voxels from Weekly Quests (+18% Tix/min).',
         created_at: new Date().toISOString()
     },
     {
@@ -186,7 +186,7 @@ const DEFAULT_TYCOON_CATALOG = [
         category: 'NORMAL',
         currency_type: 'CRYSTAL',
         creator_id: 'SYSTEM',
-        creator_name: 'Kortex Crystal Vault',
+        creator_name: 'Kortex Voxel Vault',
         base_price: 65,
         current_rap: 0,
         boost_pct: 25,
@@ -195,8 +195,8 @@ const DEFAULT_TYCOON_CATALOG = [
         sales_count: 0,
         icon_emoji: '🪽',
         color_hex: '#38BDF8',
-        description_es: 'Alas cibernéticas de energía pura comprables con Cristales Kortex (+25% Tix/min).',
-        description_en: 'Pure energy cybernetic wings purchasable with Kortex Crystals (+25% Tix/min).',
+        description_es: 'Alas cibernéticas de energía pura comprables con Vóxeles (+25% Tix/min).',
+        description_en: 'Pure energy cybernetic wings purchasable with Voxels (+25% Tix/min).',
         created_at: new Date().toISOString()
     },
     {
@@ -206,7 +206,7 @@ const DEFAULT_TYCOON_CATALOG = [
         category: 'NORMAL',
         currency_type: 'CRYSTAL',
         creator_id: 'SYSTEM',
-        creator_name: 'Kortex Crystal Vault',
+        creator_name: 'Kortex Voxel Vault',
         base_price: 110,
         current_rap: 0,
         boost_pct: 34,
@@ -215,8 +215,8 @@ const DEFAULT_TYCOON_CATALOG = [
         sales_count: 0,
         icon_emoji: '💫',
         color_hex: '#A855F7',
-        description_es: 'Corona gravitatoria suprema de la Tienda de Cristales (+34% Tix/min).',
-        description_en: 'Supreme gravitational crown from the Crystal Shop (+34% Tix/min).',
+        description_es: 'Corona gravitatoria suprema de la Tienda de Vóxeles (+34% Tix/min).',
+        description_en: 'Supreme gravitational crown from the Voxel Shop (+34% Tix/min).',
         created_at: new Date().toISOString()
     },
     // BÓVEDA LIMITED (Cofres de Ascensión / Rebirth, Tradeables con RAP dinámico)

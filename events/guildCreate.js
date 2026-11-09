@@ -29,7 +29,7 @@ const SECCIONES_TOUR_BIENVENIDA = {
         contenido: (guildName, memberCount) =>
             `¡Gracias por sumar a **Kortex** a **${guildName}**${memberCount ? ` (\`${memberCount.toLocaleString('es-AR')}\` miembros)` : ''}!\n\n` +
             '> • **`/roblox`** *(o mencionar `@Kortex`)* — 20 herramientas en 4 categorías (**Economía**, **Avatares 3D/2D**, **Juegos** y **Estadísticas y Análisis**).\n' +
-            '> • **`/tycoon`** — Simulador 3D de Estudio de Desarrollo Roblox con Tix, Cristales Kortex, Cofres y Misiones Semanales.\n' +
+            '> • **`/tycoon`** — Simulador 3D de Estudio de Desarrollo Roblox con Tix, Vóxeles, Cofres y Misiones Semanales.\n' +
             '> • **`/config`** — Configuración de cuentas vinculadas, datos guardados, **idioma** y región de precios.\n' +
             '> • **`/help`** — Guía interactiva de comandos y herramientas.\n' +
             '> • **`/ping`** — Estado y latencia del bot en tiempo real.'

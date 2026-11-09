@@ -169,7 +169,7 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '### 🎮 `/roblox` o mención `@Kortex`\n' +
                 '> Acceso directo al conjunto de herramientas de Roblox: Economía y Precios, Avatares 3D y 2D, Servidores y Juegos, y Estado de Servidores en vivo.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Tu Estudio Tycoon en 3D: Colector de Tix, Cristales Kortex, Misiones Semanales, Tienda, Taller UGC con 70% de regalías, Bóveda de Limiteds y Comercio P2P.\n\n' +
+                '> Tu Estudio Tycoon en 3D: Colector de Tix, Vóxeles, Misiones Semanales, Tienda, Taller UGC con 70% de regalías, Bóveda de Limiteds y Comercio P2P.\n\n' +
                 '### ⚙️ `/config`\n' +
                 '> Vinculá tus cuentas de Discord y Roblox, configurá tu prefijo personalizado de comandos, idioma y preferencias de uso.\n\n' +
                 '### 🏓 `/ping`\n' +
@@ -184,9 +184,9 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '### 👤 2. Mi Perfil e Inventario\n' +
                 '> Consultá tu ficha de estadísticas generales del Tycoon, equipá los objetos de tu inventario y diseñá tus propios objetos UGC.\n\n' +
                 '### 🛒 3. Tienda, Cofres e Intercambios\n' +
-                '> Tienda unificada de ítems clásicos, Limiteds numerados y artefactos de Cristal, junto con Cofres de Ascensión e Intercambios P2P.\n\n' +
+                '> Tienda unificada de ítems clásicos, Limiteds numerados y artefactos de Vóxeles, junto con Cofres de Ascensión e Intercambios P2P.\n\n' +
                 '### 🏆 4. Misiones, Laboratorio y Ranking\n' +
-                '> Completá misiones semanales para ganar Cristales gratis, activá elixires de laboratorio y consultá el Top 5 de estudios.'
+                '> Completá misiones semanales para ganar Vóxeles gratis, activá elixires de laboratorio y consultá el Top 5 de estudios.'
         },
         cmd_config: {
             titulo: '⚙️ Comando `/config` — Configuración',
@@ -206,7 +206,7 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '### 🎮 `/roblox` or mention `@Kortex`\n' +
                 '> Direct access to the Roblox toolkit: Economy & Pricing, 3D/2D Avatars, Games & Servers, and Live Server Status.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Your 3D Tycoon Studio: Tix Collector, Kortex Crystals, Weekly Quests, Shop, UGC Workshop with 70% royalties, Limiteds Vault, and P2P Trading.\n\n' +
+                '> Your 3D Tycoon Studio: Tix Collector, Voxels, Weekly Quests, Shop, UGC Workshop with 70% royalties, Limiteds Vault, and P2P Trading.\n\n' +
                 '### ⚙️ `/config`\n' +
                 '> Link your Discord and Roblox accounts, set your custom command prefix, language, and preferences.\n\n' +
                 '### 🏓 `/ping`\n' +
@@ -221,9 +221,9 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '### 👤 2. My Profile & Inventory\n' +
                 '> View your general Tycoon statistics card, equip your owned items, and publish custom UGC objects.\n\n' +
                 '### 🛒 3. Shop, Chests & P2P Trades\n' +
-                '> Unified shop for classic items, serialized Limiteds, and Crystal artifacts, plus Ascension Chests and P2P Trading.\n\n' +
+                '> Unified shop for classic items, serialized Limiteds, and Voxel artifacts, plus Ascension Chests and P2P Trading.\n\n' +
                 '### 🏆 4. Quests, Lab & Leaderboard\n' +
-                '> Complete weekly quests to earn free Crystals, activate laboratory potions, and check the Top 5 studio leaderboard.'
+                '> Complete weekly quests to earn free Voxels, activate laboratory potions, and check the Top 5 studio leaderboard.'
         },
         cmd_config: {
             titulo: '⚙️ Command `/config` — Settings',

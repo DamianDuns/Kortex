@@ -53,7 +53,7 @@ test('Standalone /status command is removed and Category 4 of /roblox has 5 symm
     assert.ok(Array.isArray(mainHub.components) && mainHub.components.length === 1);
 });
 
-test('Tycoon Weekly Quests, Kortex Crystals, Daily Streak & Leaderboard work end-to-end', async () => {
+test('Tycoon Weekly Quests, Voxels, Daily Streak & Leaderboard work end-to-end', async () => {
     const testUserId = `test_tycoon_${Date.now()}`;
     const initialState = await getOrCreatePlayerState(testUserId);
 
@@ -72,7 +72,7 @@ test('Tycoon Weekly Quests, Kortex Crystals, Daily Streak & Leaderboard work end
     assert.equal(dailyDuplicate.ok, false);
     assert.equal(dailyDuplicate.reason, 'cooldown');
 
-    // Complete a weekly quest and claim Crystals
+    // Complete a weekly quest and claim Voxels
     const qState = {
         ...(initialState.profile.weekly_quests_state || {}),
         progress: { ...(initialState.profile.weekly_quests_state?.progress || {}), q_collect_tix: 3000 },
@@ -88,7 +88,7 @@ test('Tycoon Weekly Quests, Kortex Crystals, Daily Streak & Leaderboard work end
     assert.ok(claimRes.totalCrystalsEarned >= 12);
     assert.equal(claimRes.state.profile.crystal_balance, 30 + claimRes.totalCrystalsEarned);
 
-    // Buy Crystal item
+    // Buy Voxel item
     const buyRes = await buyCrystalShopItem(testUserId, 'crys_darkheart_katana');
     assert.equal(buyRes.ok, true);
     assert.equal(buyRes.cost, 35);

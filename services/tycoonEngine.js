@@ -130,7 +130,7 @@ const POTIONS_CATALOG = {
     }
 };
 
-// Misiones Semanales (Weekly Quests) que se reinician cada semana ISO y otorgan Cristales Kortex (💠) gratuitos
+// Misiones Semanales (Weekly Quests) que se reinician cada semana ISO y otorgan Vóxeles (💠) gratuitos
 const WEEKLY_QUESTS_POOL = [
     {
         id: 'q_collect_tix',
@@ -245,7 +245,7 @@ function syncWeeklyQuestsState(profile, nowMs = Date.now()) {
     }
 
     if (profile.crystal_balance === undefined || profile.crystal_balance === null) {
-        profile.crystal_balance = 15; // 15 Cristales de bienvenida
+        profile.crystal_balance = 15; // 15 Vóxeles de bienvenida
         mutated = true;
     }
 
@@ -831,7 +831,7 @@ async function buyNormalShopItem(userId, itemId) {
 }
 
 /**
- * Compra un ítem exclusivo con Cristales Kortex (💠) obtenidos en Misiones Semanales.
+ * Compra un ítem exclusivo con Vóxeles (💠) obtenidos en Misiones Semanales.
  */
 async function buyCrystalShopItem(userId, itemId) {
     const state = await getOrCreatePlayerState(userId);
@@ -886,7 +886,7 @@ async function buyCrystalShopItem(userId, itemId) {
 }
 
 /**
- * Reclama todas las Misiones Semanales completadas (o una específica) y acredita Cristales Kortex (💠) + Tix.
+ * Reclama todas las Misiones Semanales completadas (o una específica) y acredita Vóxeles (💠) + Tix.
  */
 async function claimWeeklyQuestReward(userId, targetQuestId = null) {
     const state = await getOrCreatePlayerState(userId);
@@ -920,7 +920,7 @@ async function claimWeeklyQuestReward(userId, targetQuestId = null) {
         };
     }
 
-    // Verificar si ya reclamó las 4 misiones de la semana para otorgar el bono extra de +30 Cristales
+    // Verificar si ya reclamó las 4 misiones de la semana para otorgar el bono extra de +30 Vóxeles
     const allFourClaimed = WEEKLY_QUESTS_POOL.every(q => Boolean(stateObj.claimed[q.id]));
     let grantedAllBonus = false;
     if (allFourClaimed && !stateObj.allBonusClaimed) {
@@ -1784,7 +1784,7 @@ function buildDailyStreakSummary(profile, nowMs = Date.now()) {
 }
 
 /**
- * Reclama la Racha Diaria (Daily Streak) otorgando Tix + Cristales Kortex (💠).
+ * Reclama la Racha Diaria (Daily Streak) otorgando Tix + Vóxeles (💠).
  */
 async function claimDailyStreak(userId) {
     const state = await getOrCreatePlayerState(userId);

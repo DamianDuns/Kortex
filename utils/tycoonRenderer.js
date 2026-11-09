@@ -1740,7 +1740,7 @@ async function renderTycoonShopShowcase({ state, lang = 'es' }) {
         const tierLabel = isLimited
             ? (isEn ? 'LIMITED ITEM' : 'ÍTEM LIMITED')
             : (isCrystal
-                ? (isEn ? 'CRYSTAL ARTIFACT' : 'ARTEFACTO CRISTAL')
+                ? (isEn ? 'VOXEL ARTIFACT' : 'ARTEFACTO VÓXELES')
                 : (isUgc ? (isEn ? 'UGC OBJECT' : 'OBJETO UGC') : (isEn ? 'PROFILE ITEM' : 'ÍTEM DE PERFIL')));
         ctx.font = 'bold 10px KortexSans';
         ctx.fillStyle = isLimited ? '#FDE047' : (isCrystal ? '#F472B6' : (isUgc ? '#C084FC' : '#7DD3FC'));
@@ -1884,7 +1884,7 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
     ctx.textAlign = 'center';
     ctx.fillText(
         keys > 0
-            ? (isEn ? 'COST: 1 ASCENSION KEY' : 'COSTO: 1 LLAVE DE REBIRTH')
+            ? (isEn ? 'COST: 1 KEY FRAGMENT' : 'COSTO: 1 FRAGMENTO DE LLAVE')
             : (isEn ? 'COST: 3,500 TIX' : 'COSTO: 3,500 TIX'),
         chestX + chestW / 2,
         chestY + 379
@@ -1957,7 +1957,7 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
                 : (isLimU
                     ? `LIMITED U (#${item.minted_count || 0}/${item.max_supply || 15})`
                     : (isCrystal
-                        ? (isEn ? 'CRYSTAL SHOP' : 'TIENDA CRISTALES')
+                        ? (isEn ? 'VOXEL SHOP' : 'TIENDA VÓXELES')
                         : (isChestLim
                             ? (isEn ? 'CHEST LIMITED' : 'COFRE LIMITED')
                             : (isEn ? 'CLASSIC SHOP' : 'TIENDA TIX')))),
@@ -1999,7 +1999,7 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
             statusLine = rem > 0 ? `${Number(item.base_price).toLocaleString()} Tix (${rem} disp.)` : 'AGOTADO';
             statusCol = rem > 0 ? '#FDA4AF' : '#EF4444';
         } else if (isCrystal) {
-            statusLine = `${Number(item.base_price).toLocaleString()} ${isEn ? 'Crystals' : 'Cristales'}`;
+            statusLine = `${Number(item.base_price).toLocaleString()} ${isEn ? 'Voxels' : 'Vóxeles'}`;
             statusCol = '#F472B6';
         } else if (isChestLim) {
             statusLine = isEn ? 'Drop in Ascension Chest' : 'Sale en Cofre Ascensión';
@@ -2053,8 +2053,8 @@ async function renderTycoonQuestsShowcase({ state, leaderboard = [], lang = 'es'
     ctx.fillStyle = '#F8FAFC';
     ctx.fillText(
         isEn
-            ? `Complete Weekly Quests for Free Kortex Crystals (+${wq.bonusCrystals} Bonus for All 4!)`
-            : `Completá Misiones Semanales para Ganar Cristales Gratis (+${wq.bonusCrystals} Bono por las 4)`,
+            ? `Complete Weekly Quests for Free Voxels (+${wq.bonusCrystals} Bonus for All 4!)`
+            : `Completá Misiones Semanales para Ganar Vóxeles Gratis (+${wq.bonusCrystals} Bono por las 4)`,
         40,
         64
     );
@@ -2097,7 +2097,7 @@ async function renderTycoonQuestsShowcase({ state, leaderboard = [], lang = 'es'
         ctx.textAlign = 'right';
         ctx.font = 'bold 13px KortexSans';
         ctx.fillStyle = '#F472B6';
-        ctx.fillText(`+${q.rewardCrystals} ${isEn ? 'Crystals' : 'Cristales'}`, qStartX + qW - 18, qY + 34);
+        ctx.fillText(`+${q.rewardCrystals} ${isEn ? 'Voxels' : 'Vóxeles'}`, qStartX + qW - 18, qY + 34);
         ctx.font = 'bold 12px KortexSans';
         ctx.fillStyle = '#FDE047';
         ctx.fillText(`+${q.rewardTix} Tix`, qStartX + qW - 18, qY + 54);
