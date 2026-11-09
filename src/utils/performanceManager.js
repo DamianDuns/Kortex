@@ -64,7 +64,9 @@ const DEFAULT_OWNER_CONFIG = {
     maxSandboxItems: 5,
     maxGameSubs: 3,
     priceCheckIntervalMinutes: Math.max(1, parseInt(process.env.PRICE_CHECK_INTERVAL_MINUTES || '5', 10) || 5),
-    workersIntervalMinutes: 15
+    workersIntervalMinutes: 15,
+    vipUserIds: [],
+    vipRoleIds: []
 };
 
 let botOwnerConfig = {
@@ -174,11 +176,20 @@ function guardarConfigPropietario(patch = {}) {
         ? String(patch.botActivityText || '').trim().slice(0, 80) || DEFAULT_OWNER_CONFIG.botActivityText
         : (botOwnerConfig.botActivityText || DEFAULT_OWNER_CONFIG.botActivityText);
 
+    const nextVipUsers = Array.isArray(patch.vipUserIds)
+        ? [...new Set(patch.vipUserIds.map(v => String(v || '').trim()).filter(Boolean))]
+        : (Array.isArray(botOwnerConfig.vipUserIds) ? botOwnerConfig.vipUserIds : []);
+    const nextVipRoles = Array.isArray(patch.vipRoleIds)
+        ? [...new Set(patch.vipRoleIds.map(v => String(v || '').trim()).filter(Boolean))]
+        : (Array.isArray(botOwnerConfig.vipRoleIds) ? botOwnerConfig.vipRoleIds : []);
+
     botOwnerConfig = {
         ...botOwnerConfig,
         ...patch,
         botPresenceStatus: nextPresence,
         botActivityText: nextActivityText,
+        vipUserIds: nextVipUsers,
+        vipRoleIds: nextVipRoles,
         maxWishlistItems: Math.min(25, Math.max(1, Number.isFinite(nextWish) ? Math.round(nextWish) : 5)),
         maxSandboxItems: Math.min(15, Math.max(1, Number.isFinite(nextSand) ? Math.round(nextSand) : 5)),
         maxGameSubs: Math.min(15, Math.max(1, Number.isFinite(nextSubs) ? Math.round(nextSubs) : 3)),

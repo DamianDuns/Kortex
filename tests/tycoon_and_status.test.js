@@ -117,7 +117,7 @@ test('All 4 symmetrical /tycoon categories render visual PNG showcases without R
     for (const sec of ['sec_studio', 'sec_shop', 'sec_vault', 'sec_perks']) {
         const panel = await construirPanelTycoon({ id: testUserId, username: 'damianpro13' }, sec);
         assert.ok(Array.isArray(panel.components) && panel.components.length === 1);
-        assert.ok(Array.isArray(panel.files) && panel.files.length === 1);
+        assert.ok(Array.isArray(panel.files) && panel.files.length === 0);
     }
 });
 

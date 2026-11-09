@@ -6,6 +6,28 @@
 // ==========================================
 
 const supabase = require('../db');
+const { obtenerConfigPropietario, guardarConfigPropietario } = require('../src/utils/performanceManager');
+
+function isUserAuthorizedVip(userId, member = null) {
+    const uid = String(userId || '').trim();
+    if (!uid) return false;
+    const ownerCfg = obtenerConfigPropietario();
+    const vipUsers = Array.isArray(ownerCfg.vipUserIds) ? ownerCfg.vipUserIds.map(String) : [];
+    if (vipUsers.includes(uid)) {
+        return true;
+    }
+    const vipRoles = Array.isArray(ownerCfg.vipRoleIds) ? ownerCfg.vipRoleIds.map(r => String(r).toLowerCase()) : [];
+    if (vipRoles.length > 0 && member && member.roles?.cache) {
+        const hasConfiguredRole = member.roles.cache.some(role =>
+            vipRoles.includes(String(role.id).toLowerCase()) ||
+            vipRoles.includes(String(role.name || '').toLowerCase())
+        );
+        if (hasConfiguredRole) {
+            return true;
+        }
+    }
+    return false;
+}
 
 // Definición de los 6 Pads de Construcción del Estudio Tycoon
 const STUDIO_PADS = [
@@ -423,7 +445,7 @@ function computeProductionMetrics(profile, equippedCatalogItem = null, nowMs = D
 /**
  * Obtiene o crea el perfil de /tycoon de un jugador y sincroniza su Collector Pad por timestamps.
  */
-async function getOrCreatePlayerState(userId) {
+async function getOrCreatePlayerState(userId, member = null) {
     const uid = String(userId);
     const now = new Date();
     const nowMs = now.getTime();
@@ -479,6 +501,15 @@ async function getOrCreatePlayerState(userId) {
 
     const { mutated: questsMutated } = syncWeeklyQuestsState(profile, nowMs);
 
+    // Sincronizar estado VIP estrictamente con la configuración del Administrador en /config
+    const authorizedVip = isUserAuthorizedVip(uid, member);
+    let vipMutated = false;
+    if (Boolean(profile.vip_nitro_boost) !== authorizedVip || Boolean(profile.vip_yt_sub) !== false) {
+        profile.vip_nitro_boost = authorizedVip;
+        profile.vip_yt_sub = false;
+        vipMutated = true;
+    }
+
     const { items: inventory, totalRap, catalogMap } = await getUserInventory(uid);
     const equippedItem = profile.equipped_item_id
         ? catalogMap.get(String(profile.equipped_item_id)) || null
@@ -494,7 +525,7 @@ async function getOrCreatePlayerState(userId) {
     const generatedTix = Math.floor(elapsedMinutes * metrics.effectiveTixPerMin);
 
     let currentCollector = Number(profile.collector_tix || 0);
-    let dirty = questsMutated;
+    let dirty = questsMutated || vipMutated;
 
     if (generatedTix > 0) {
         currentCollector = Math.min(metrics.collectorCap, currentCollector + generatedTix);
@@ -1633,84 +1664,87 @@ async function buyAndActivatePotion(userId, potionId = 'speed_potion') {
  * detectando automáticamente el estado del miembro en el servidor o rol/conexión,
  * y entregando el Sombrero de Copa Neón Booster + Poción Diaria de YouTube.
  */
-async function syncCommunityPerks(interaction) {
-    const userId = interaction.user.id;
-    const state = await getOrCreatePlayerState(userId);
-    const { profile, inventory } = state;
+/**
+ * Permite al Administrador / Propietario del bot gestionar manualmente qué usuarios o roles tienen VIP en /tycoon.
+ */
+async function manageVipByAdmin({ action = 'add', rawUsersInput = '', rawRolesInput = '' }) {
+    const ownerCfg = obtenerConfigPropietario();
+    const currentVipUsers = new Set(Array.isArray(ownerCfg.vipUserIds) ? ownerCfg.vipUserIds.map(String) : []);
+    const currentVipRoles = new Set(Array.isArray(ownerCfg.vipRoleIds) ? ownerCfg.vipRoleIds.map(String) : []);
 
-    let detectedNitro = Boolean(profile.vip_nitro_boost);
-    let detectedYt = Boolean(profile.vip_yt_sub);
+    const normAction = String(action || 'add').trim().toLowerCase();
+    const isRemove = normAction === 'remove' || normAction === 'quitar' || normAction === 'delete' || normAction === 'del';
 
-    const member = interaction.member;
-    if (member) {
-        if (member.premiumSince || member.premiumSinceTimestamp) {
-            detectedNitro = true;
+    const parsedUsers = String(rawUsersInput || '')
+        .split(/[\s,;]+/)
+        .map(t => t.replace(/[<@!>]/g, '').trim())
+        .filter(t => /^\d{5,25}$/.test(t));
+
+    const parsedRoles = String(rawRolesInput || '')
+        .split(/[,;]+/)
+        .map(t => t.replace(/[<@&>]/g, '').trim())
+        .filter(Boolean);
+
+    for (const uid of parsedUsers) {
+        if (isRemove) {
+            currentVipUsers.delete(uid);
+        } else {
+            currentVipUsers.add(uid);
         }
-        const rolesCache = member.roles?.cache;
-        if (rolesCache && typeof rolesCache.some === 'function') {
-            if (rolesCache.some(r => /boost|nitro|vip/i.test(r.name))) {
-                detectedNitro = true;
+
+        const state = await getOrCreatePlayerState(uid).catch(() => null);
+        if (state && state.profile) {
+            state.profile.vip_nitro_boost = !isRemove;
+            state.profile.vip_yt_sub = false;
+            if (!isRemove) {
+                state.profile.ugc_license_unlocked = true;
+                const ownsTopHat = state.inventory.some(i => i.item_id === 'vip_neon_booster_tophat');
+                if (!ownsTopHat) {
+                    await supabase.from('tycoon_user_inventory').insert({
+                        instance_id: `inv_${uid}_vip_tophat`,
+                        user_id: String(uid),
+                        item_id: 'vip_neon_booster_tophat',
+                        serial_number: null,
+                        acquired_at: new Date().toISOString()
+                    });
+                }
             }
-            if (rolesCache.some(r => /youtube|yt|suscriptor|subscriber|miembro|member|sub/i.test(r.name))) {
-                detectedYt = true;
-            }
+            await supabase.from('tycoon_profiles').upsert(state.profile, { onConflict: 'user_id' });
         }
     }
 
-    // Si el usuario ejecuta la sincronización de beneficios VIP, activar los perks detectados
-    // (y si está en un servidor de prueba sin roles configurados, activar ambos beneficios VIP para que pueda disfrutarlos)
-    if (!detectedNitro && !detectedYt) {
-        detectedNitro = true;
-        detectedYt = true;
-    }
-
-    profile.vip_nitro_boost = detectedNitro;
-    profile.vip_yt_sub = detectedYt;
-    profile.ugc_license_unlocked = true;
-
-    let grantedTopHat = false;
-    if (detectedNitro) {
-        const ownsTopHat = inventory.some(i => i.item_id === 'vip_neon_booster_tophat');
-        if (!ownsTopHat) {
-            const hatInstance = {
-                instance_id: `inv_${userId}_vip_tophat`,
-                user_id: String(userId),
-                item_id: 'vip_neon_booster_tophat',
-                serial_number: null,
-                acquired_at: new Date().toISOString()
-            };
-            await supabase.from('tycoon_user_inventory').insert(hatInstance);
-            if (!profile.equipped_item_id) {
-                profile.equipped_item_id = 'vip_neon_booster_tophat';
-            }
-            grantedTopHat = true;
+    for (const roleToken of parsedRoles) {
+        if (isRemove) {
+            currentVipRoles.delete(roleToken);
+        } else {
+            currentVipRoles.add(roleToken);
         }
     }
 
-    let grantedDailyPotion = false;
-    if (detectedYt) {
-        const nowMs = Date.now();
-        const lastPotionMs = profile.last_yt_potion_at ? new Date(profile.last_yt_potion_at).getTime() : 0;
-        if (!lastPotionMs || nowMs - lastPotionMs >= 24 * 60 * 60 * 1000) {
-            const currentExpMs = profile.potion_expires_at ? new Date(profile.potion_expires_at).getTime() : 0;
-            const baseMs = Number.isFinite(currentExpMs) && currentExpMs > nowMs ? currentExpMs : nowMs;
-            profile.potion_type = 'speed_potion';
-            profile.potion_expires_at = new Date(baseMs + 30 * 60000).toISOString();
-            profile.last_yt_potion_at = new Date(nowMs).toISOString();
-            grantedDailyPotion = true;
-        }
-    }
-
-    await supabase.from('tycoon_profiles').upsert(profile, { onConflict: 'user_id' });
-    const updatedState = await getOrCreatePlayerState(userId);
+    const updatedCfg = guardarConfigPropietario({
+        vipUserIds: [...currentVipUsers],
+        vipRoleIds: [...currentVipRoles]
+    });
 
     return {
         ok: true,
-        detectedNitro,
-        detectedYt,
-        grantedTopHat,
-        grantedDailyPotion,
-        state: updatedState
+        action: isRemove ? 'remove' : 'add',
+        vipUserIds: updatedCfg.vipUserIds,
+        vipRoleIds: updatedCfg.vipRoleIds
+    };
+}
+
+async function syncCommunityPerks(interaction) {
+    const userId = interaction.user.id;
+    const authorizedVip = isUserAuthorizedVip(userId, interaction.member);
+    const state = await getOrCreatePlayerState(userId, interaction.member);
+    return {
+        ok: authorizedVip,
+        detectedNitro: authorizedVip,
+        detectedYt: false,
+        grantedTopHat: false,
+        grantedDailyPotion: false,
+        state
     };
 }
 
@@ -1869,5 +1903,7 @@ module.exports = {
     createTradeOffer,
     resolveTradeOffer,
     buyAndActivatePotion,
-    syncCommunityPerks
+    syncCommunityPerks,
+    manageVipByAdmin,
+    isUserAuthorizedVip
 };

@@ -11,10 +11,10 @@ const { construirPanelTycoon } = require('../interactions/tycoonHandler');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('tycoon')
-        .setDescription('Abrí tu Estudio Roblox Tycoon en 3ra persona: Colector de Tix, Taller UGC, Limited U y Trading P2P'),
+        .setDescription('Abrí tu Estudio Kortex Tycoon: Estaciones, Perfil, Tienda Unificada, Cofres, Misiones y Ranking'),
 
     async execute(interaction) {
-        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', null);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', null, interaction.member);
         await interaction.reply(panel);
     }
 };

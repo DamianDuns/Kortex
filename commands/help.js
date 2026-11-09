@@ -176,17 +176,17 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '> Medición de latencia y velocidad de respuesta con Discord en tiempo real, tiempo activo del bot y consumo de memoria.'
         },
         cmd_tycoon: {
-            titulo: '🏭 Comando `/tycoon` — Estudio Roblox Tycoon',
+            titulo: '🏭 Comando `/tycoon` — Kortex Tycoon',
             color: 0x22C55E,
             contenido:
                 '### 🏗️ 1. Mi Estudio y Producción\n' +
-                '> Mapa 3D isométrico con tu avatar, cinta transportadora, Colector de Tix, Racha Diaria y Rebirth.\n\n' +
-                '### 👤 2. Mi Perfil, Inventario y Objetos UGC\n' +
-                '> Consultá tus estadísticas generales del Tycoon, equipá tus ítems adquiridos y creá tus propios Objetos UGC con 70% de regalías.\n\n' +
+                '> Controlá tu Bóveda Colectora en vivo, construí las 6 Estaciones del Estudio, reclamá tu Racha Diaria y ascendé con Rebirth.\n\n' +
+                '### 👤 2. Mi Perfil e Inventario\n' +
+                '> Consultá tu ficha de estadísticas generales del Tycoon, equipá los objetos de tu inventario y diseñá tus propios objetos UGC.\n\n' +
                 '### 🛒 3. Tienda, Cofres e Intercambios\n' +
                 '> Tienda unificada de ítems clásicos, Limiteds numerados y artefactos de Cristal, junto con Cofres de Ascensión e Intercambios P2P.\n\n' +
-                '### 💠 4. Misiones, Pociones y Ranking\n' +
-                '> Completá misiones semanales para ganar Cristales gratis, activá pociones temporales y competí en el ranking de estudios.'
+                '### 🏆 4. Misiones, Laboratorio y Ranking\n' +
+                '> Completá misiones semanales para ganar Cristales gratis, activá elixires de laboratorio y consultá el Top 5 de estudios.'
         },
         cmd_config: {
             titulo: '⚙️ Comando `/config` — Configuración',
@@ -213,17 +213,17 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '> Real-time latency and Discord response time measurement, bot uptime, and memory usage.'
         },
         cmd_tycoon: {
-            titulo: '🏭 Command `/tycoon` — Tycoon Studio',
+            titulo: '🏭 Command `/tycoon` — Kortex Tycoon',
             color: 0x22C55E,
             contenido:
-                '### 🏗️ 1. Studio & Production\n' +
-                '> 3D isometric studio map with your avatar, conveyor belt, Tix Collector, Daily Streak, and Rebirth.\n\n' +
-                '### 👤 2. My Profile, Inventory & UGC Objects\n' +
-                '> View your general Tycoon statistics, equip your owned items, and publish custom UGC objects with 70% royalties.\n\n' +
+                '### 🏗️ 1. My Studio & Production\n' +
+                '> Manage your live Collector Vault, build all 6 Studio Stations, claim your Daily Streak, and ascend via Rebirth.\n\n' +
+                '### 👤 2. My Profile & Inventory\n' +
+                '> View your general Tycoon statistics card, equip your owned items, and publish custom UGC objects.\n\n' +
                 '### 🛒 3. Shop, Chests & P2P Trades\n' +
                 '> Unified shop for classic items, serialized Limiteds, and Crystal artifacts, plus Ascension Chests and P2P Trading.\n\n' +
-                '### 💠 4. Quests, Potions & Leaderboard\n' +
-                '> Complete weekly quests to earn free Crystals, activate temporary potions, and climb the studio leaderboard.'
+                '### 🏆 4. Quests, Lab & Leaderboard\n' +
+                '> Complete weekly quests to earn free Crystals, activate laboratory potions, and check the Top 5 studio leaderboard.'
         },
         cmd_config: {
             titulo: '⚙️ Command `/config` — Settings',

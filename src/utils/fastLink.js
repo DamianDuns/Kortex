@@ -3121,6 +3121,11 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             dnd: isEn ? '⛔ Do Not Disturb' : '⛔ No Molestar (DND)'
         };
         const fmtPresence = `${presenceLabels[ownerCfg.botPresenceStatus] || presenceLabels.online} — \`${ownerCfg.botActivityText || '/roblox • /tycoon • /help • /config'}\``;
+        const vipUsersCount = Array.isArray(ownerCfg.vipUserIds) ? ownerCfg.vipUserIds.length : 0;
+        const vipRolesCount = Array.isArray(ownerCfg.vipRoleIds) ? ownerCfg.vipRoleIds.length : 0;
+        const fmtVipSummary = isEn
+            ? `\`${vipUsersCount} VIP user(s)\` • \`${vipRolesCount} VIP role(s)\``
+            : `\`${vipUsersCount} usuario(s) VIP\` • \`${vipRolesCount} rol(es) VIP\``;
 
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             isEn
@@ -3132,6 +3137,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                   `• **Global Background Alerts:** ${fmtAlertsGlobal}\n` +
                   `• **Personal Data Saving:** ${fmtOAuth}\n` +
                   `• **Tycoon Ecosystem (\`/tycoon\`):** ${fmtTycoon}\n` +
+                  `• **VIP Users & Roles (\`/tycoon\`):** ${fmtVipSummary}\n` +
                   `• **Execution Mode:** ${fmtLoading}\n` +
                   `• **Maintenance Mode:** ${fmtMant}`
                 : `### ⚡ Mecánicas y Parámetros Activos\n` +
@@ -3142,6 +3148,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                   `• **Alertas Automáticas Globales:** ${fmtAlertsGlobal}\n` +
                   `• **Guardado de Datos:** ${fmtOAuth}\n` +
                   `• **Ecosistema Tycoon (\`/tycoon\`):** ${fmtTycoon}\n` +
+                  `• **Usuarios y Roles VIP (\`/tycoon\`):** ${fmtVipSummary}\n` +
                   `• **Modo de Respuesta:** ${fmtLoading}\n` +
                   `• **Mantenimiento:** ${fmtMant}`
         ));
@@ -3204,6 +3211,15 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                         : 'Activar o pausar temporalmente el comando /tycoon')
                     .setValue('owner_toggle_tycoon')
                     .setEmoji('🏭'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(isEn
+                        ? `Manage VIP Users & Roles (${vipUsersCount} Users / ${vipRolesCount} Roles)`
+                        : `Gestionar Usuarios y Roles VIP (${vipUsersCount} Usuarios / ${vipRolesCount} Roles)`)
+                    .setDescription(isEn
+                        ? 'Assign or remove VIP benefits (+50% Tix/min & UGC License) for specific users or roles'
+                        : 'Asignar o quitar beneficios VIP (+50% Tix/min y Licencia UGC) a usuarios o roles')
+                    .setValue('owner_modal_vip_manage')
+                    .setEmoji('💎'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel(isEn
                         ? 'Moderate / Delete Abusive UGC Item (/tycoon)'

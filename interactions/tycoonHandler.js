@@ -1,20 +1,18 @@
 // ==========================================
 // ARCHIVO: interactions/tycoonHandler.js
-// Constructor de Paneles Simétricos de 4 Categorías (Components V2) para /tycoon
-// Soporta Español ('es') e Inglés ('en') con Vitrinas Gráficas PNG por Categoría (Sin RAP)
+// Sistema Interactivo Nativos Components V2 para /tycoon (100% Texto Estructurado, Sin Canvas)
+// Diseño Moderno de 4 Categorías Simétricas en Español ('es') e Inglés ('en')
 // ==========================================
 
 const {
     ContainerBuilder,
+    SectionBuilder,
     TextDisplayBuilder,
-    MediaGalleryBuilder,
-    MediaGalleryItemBuilder,
     ActionRowBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
     ButtonBuilder,
     ButtonStyle,
-    AttachmentBuilder,
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
@@ -25,7 +23,6 @@ const { COLORES, footer, separador } = require('../utils/ui');
 const { obtenerIdiomaUsuario } = require('../src/utils/i18n');
 const { obtenerCuentaVinculada } = require('../src/utils/fastLink');
 const { obtenerConfigPropietario, construirPanelAvisoModeracion } = require('../src/utils/performanceManager');
-const { renderTycoonSectionCanvas } = require('../utils/tycoonRenderer');
 const {
     STUDIO_PADS,
     getOrCreatePlayerState,
@@ -46,20 +43,23 @@ const {
     getActiveTrades,
     createTradeOffer,
     resolveTradeOffer,
-    buyAndActivatePotion,
-    syncCommunityPerks
+    buyAndActivatePotion
 } = require('../services/tycoonEngine');
 
-function buildQuestProgressBar(current, target, width = 8) {
-    const ratio = Math.max(0, Math.min(1, Number(current || 0) / Math.max(1, Number(target || 1))));
-    const filled = Math.round(ratio * width);
-    return '▰'.repeat(filled) + '▱'.repeat(Math.max(0, width - filled));
+/**
+ * Construye una barra de progreso visual limpia en bloques Unicode.
+ */
+function buildVisualBar(current, max, slots = 10) {
+    const safeMax = Math.max(1, Number(max || 1));
+    const ratio = Math.max(0, Math.min(1, Number(current || 0) / safeMax));
+    const filled = Math.round(ratio * slots);
+    return '▰'.repeat(filled) + '▱'.repeat(Math.max(0, slots - filled));
 }
 
 /**
- * Normaliza la clave de categoría a las 4 Categorías Simétricas de /tycoon.
+ * Normaliza la clave de categoría activa a una de las 4 secciones de /tycoon.
  */
-function normalizeTycoonSection(sec) {
+function resolveActiveSection(sec) {
     if (sec === 'sec_ugc' || sec === 'sec_shop') return 'sec_shop';
     if (sec === 'sec_vault') return 'sec_vault';
     if (sec === 'sec_perks' || sec === 'sec_quests') return 'sec_perks';
@@ -67,69 +67,69 @@ function normalizeTycoonSection(sec) {
 }
 
 /**
- * Construye el selector simétrico de las 4 Categorías de /tycoon.
+ * Construye el selector desplegable de las 4 Categorías de /tycoon.
  */
-function buildSectionSelectMenu(activeSection = 'sec_studio', isEn = false) {
-    const norm = normalizeTycoonSection(activeSection);
+function createCategoryMenu(activeSection = 'sec_studio', isEn = false) {
+    const current = resolveActiveSection(activeSection);
     return new StringSelectMenuBuilder()
         .setCustomId('tycoon_section_select')
         .setPlaceholder(
             isEn
-                ? '🏭 Select a /tycoon category (1 to 4)...'
-                : '🏭 Seleccioná una categoría de /tycoon (1 a 4)...'
+                ? '🏭 Navigate /tycoon categories (1 to 4)...'
+                : '🏭 Navegá por las categorías de /tycoon (1 a 4)...'
         )
         .addOptions([
             new StringSelectMenuOptionBuilder()
-                .setLabel(isEn ? 'Category 1: My Studio & Production' : 'Categoría 1: Mi Estudio y Producción')
+                .setLabel(isEn ? '1. My Studio & Production' : '1. Mi Estudio y Producción')
                 .setDescription(
                     isEn
-                        ? '3D Isometric Studio, Tix Collector, Machines, Daily Streak & Rebirth'
-                        : 'Mapa 3D del Estudio, Colector de Tix, Máquinas, Racha Diaria y Rebirth'
+                        ? 'Collector Vault, 6 Studio Stations, Daily Streak & Rebirth'
+                        : 'Bóveda Colectora, las 6 Estaciones del Estudio, Racha Diaria y Rebirth'
                 )
                 .setValue('sec_studio')
                 .setEmoji('🏗️')
-                .setDefault(norm === 'sec_studio'),
+                .setDefault(current === 'sec_studio'),
             new StringSelectMenuOptionBuilder()
-                .setLabel(isEn ? 'Category 2: My Profile, Inventory & UGC' : 'Categoría 2: Mi Perfil, Inventario y UGC')
+                .setLabel(isEn ? '2. My Profile & Inventory' : '2. Mi Perfil e Inventario')
                 .setDescription(
                     isEn
-                        ? 'General Tycoon Statistics, Your Owned Items & UGC Workshop'
-                        : 'Estadísticas Generales del Tycoon, Tus Ítems y Objetos UGC'
+                        ? 'General Tycoon Statistics, Your Owned Items & UGC Creation'
+                        : 'Estadísticas Generales del Tycoon, Tus Objetos Adquiridos y Taller UGC'
                 )
                 .setValue('sec_shop')
                 .setEmoji('👤')
-                .setDefault(norm === 'sec_shop'),
+                .setDefault(current === 'sec_shop'),
             new StringSelectMenuOptionBuilder()
-                .setLabel(isEn ? 'Category 3: Shop, Chests & P2P Trades' : 'Categoría 3: Tienda, Cofres e Intercambios')
+                .setLabel(isEn ? '3. Unified Shop, Chests & P2P Trades' : '3. Tienda, Cofres e Intercambios')
                 .setDescription(
                     isEn
-                        ? 'Unified Shop (Classic, Limiteds & Crystals), Chests & P2P Trading'
-                        : 'Tienda Unificada (Clásicos, Limiteds y Cristales), Cofres e Intercambios'
+                        ? 'Buy Classic Items, Limiteds & Crystal Artifacts, Unbox Chests & Trade P2P'
+                        : 'Tienda Unificada (Clásicos, Limiteds y Cristales), Cofres e Intercambios P2P'
                 )
                 .setValue('sec_vault')
                 .setEmoji('🛒')
-                .setDefault(norm === 'sec_vault'),
+                .setDefault(current === 'sec_vault'),
             new StringSelectMenuOptionBuilder()
-                .setLabel(isEn ? 'Category 4: Weekly Quests, Potions & Ranking' : 'Categoría 4: Misiones, Pociones y Ranking')
+                .setLabel(isEn ? '4. Weekly Quests, Lab & Leaderboard' : '4. Misiones, Laboratorio y Ranking')
                 .setDescription(
                     isEn
-                        ? 'Earn free Kortex Crystals in Weekly Quests, Lab Potions & Top Ranking'
-                        : 'Ganá Cristales Kortex gratis en Misiones Semanales, Pociones y Ranking'
+                        ? 'Earn Kortex Crystals in Weekly Quests, Lab Potions & Top Studios'
+                        : 'Ganá Cristales Kortex en Misiones Semanales, Pociones y Ranking Top'
                 )
                 .setValue('sec_perks')
-                .setEmoji('💠')
-                .setDefault(norm === 'sec_perks')
+                .setEmoji('🏆')
+                .setDefault(current === 'sec_perks')
         ]);
 }
 
 /**
- * Construye el panel completo de /tycoon para la categoría seleccionada.
+ * Construye el panel completo de /tycoon en formato nativo Discord Components V2 (100% texto estructurado, sin imágenes).
  */
-async function construirPanelTycoon(user, activeSection = 'sec_studio', feedbackMsg = null) {
+async function construirPanelTycoon(user, activeSection = 'sec_studio', feedbackMsg = null, member = null) {
     const userId = String(user.id);
     const lang = obtenerIdiomaUsuario(userId);
     const isEn = lang === 'en';
-    const normSection = normalizeTycoonSection(activeSection);
+    const sectionKey = resolveActiveSection(activeSection);
 
     const ownerCfg = obtenerConfigPropietario();
     if (ownerCfg.tycoonEnabled === false) {
@@ -143,115 +143,147 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
     }
 
     const [state, linkedRoblox] = await Promise.all([
-        getOrCreatePlayerState(userId),
+        getOrCreatePlayerState(userId, member),
         obtenerCuentaVinculada(userId).catch(() => null)
     ]);
 
     const { profile, inventory, equippedItem, metrics, weeklyQuests, dailyStreak, catalogMap } = state;
     const displayUsername = linkedRoblox?.roblox_username || user.username || 'Player';
-    const avatarUrl = linkedRoblox?.avatar_full_url || linkedRoblox?.avatar_url || null;
+    const discordAvatarUrl = typeof user.displayAvatarURL === 'function'
+        ? user.displayAvatarURL({ extension: 'png', size: 256 })
+        : null;
+    const thumbUrl = linkedRoblox?.avatar_url || linkedRoblox?.avatar_full_url || discordAvatarUrl || null;
+
     if (linkedRoblox?.roblox_user_id && !profile.roblox_user_id) {
         profile.roblox_user_id = linkedRoblox.roblox_user_id;
     }
 
-    let activeTrades = [];
-    let leaderboard = [];
-    if (normSection === 'sec_vault') {
-        const trRes = await getActiveTrades(userId);
-        activeTrades = trRes.trades || [];
-    } else if (normSection === 'sec_perks') {
-        leaderboard = await getTycoonLeaderboard(5);
-    }
-
-    // Renderizar la vitrina visual PNG correspondiente a la categoría activa
-    const pngBuffer = await renderTycoonSectionCanvas({
-        state,
-        username: displayUsername,
-        avatarUrl,
-        lang,
-        activeSection: normSection,
-        tradesCount: activeTrades.length,
-        leaderboard
-    });
-    const attachment = new AttachmentBuilder(pngBuffer, { name: 'tycoon_snapshot.png' });
-
-    const accentColors = {
+    const sectionColors = {
         sec_studio: 0x22C55E,
         sec_shop: 0x38BDF8,
         sec_vault: 0xF59E0B,
-        sec_perks: 0xEC4899
+        sec_perks: 0xA855F7
     };
-    const container = new ContainerBuilder().setAccentColor(accentColors[normSection] || COLORES.primario);
 
-    const eqTitle = equippedItem
-        ? `${equippedItem.icon_emoji || '🎩'} **${isEn ? (equippedItem.name_en || equippedItem.name) : equippedItem.name}** (\`+${equippedItem.boost_pct}%\`)`
-        : (isEn ? '`None`' : '`Ninguno`');
+    const sectionTitlesEs = {
+        sec_studio: '🏗️ Categoría 1 • Mi Estudio y Producción',
+        sec_shop: '👤 Categoría 2 • Mi Perfil e Inventario',
+        sec_vault: '🛒 Categoría 3 • Tienda, Cofres e Intercambios',
+        sec_perks: '🏆 Categoría 4 • Misiones, Laboratorio y Ranking'
+    };
 
-    // Encabezado superior limpio sin estadísticas redundantes
-    const headerBanner =
-        `# 🏭 Roblox Tycoon — @${displayUsername}` +
-        (feedbackMsg ? `\n\n> ${feedbackMsg}` : '');
+    const sectionTitlesEn = {
+        sec_studio: '🏗️ Category 1 • My Studio & Production',
+        sec_shop: '👤 Category 2 • My Profile & Inventory',
+        sec_vault: '🛒 Category 3 • Shop, Chests & P2P Trades',
+        sec_perks: '🏆 Category 4 • Quests, Lab & Leaderboard'
+    };
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerBanner));
+    const container = new ContainerBuilder().setAccentColor(sectionColors[sectionKey] || COLORES.primario);
 
-    // Imagen visual dinámica (Estudio 3D, Perfil e Inventario, Tienda y Cofres o Tablero de Misiones/Ranking)
-    container.addMediaGalleryComponents(
-        new MediaGalleryBuilder().addItems(
-            new MediaGalleryItemBuilder().setURL('attachment://tycoon_snapshot.png')
-        )
-    );
+    const headerLines = [
+        `# 🏭 Kortex Tycoon — @${displayUsername}`,
+        `**${isEn ? sectionTitlesEn[sectionKey] : sectionTitlesEs[sectionKey]}**`
+    ];
+    if (feedbackMsg) {
+        headerLines.push(`\n> ${feedbackMsg}`);
+    }
 
-    // Selector de las 4 Categorías Simétricas
+    const headerText = new TextDisplayBuilder().setContent(headerLines.join('\n'));
+    if (thumbUrl && /^https?:\/\//i.test(String(thumbUrl))) {
+        container.addSectionComponents(
+            new SectionBuilder()
+                .addTextDisplayComponents(headerText)
+                .setThumbnailAccessory(thumb => thumb.setURL(String(thumbUrl)))
+        );
+    } else {
+        container.addTextDisplayComponents(headerText);
+    }
+
     container.addActionRowComponents(
-        new ActionRowBuilder().addComponents(buildSectionSelectMenu(normSection, isEn))
+        new ActionRowBuilder().addComponents(createCategoryMenu(sectionKey, isEn))
     );
     container.addSeparatorComponents(separador(true));
+
+    const eqLabel = equippedItem
+        ? `${equippedItem.icon_emoji || '🎩'} **${isEn ? (equippedItem.name_en || equippedItem.name) : equippedItem.name}** (\`+${equippedItem.boost_pct}% Tix/min\`)`
+        : (isEn ? '`None`' : '`Ninguno`');
 
     // =========================================================================
     // CATEGORÍA 1: MI ESTUDIO Y PRODUCCIÓN
     // =========================================================================
-    if (normSection === 'sec_studio') {
+    if (sectionKey === 'sec_studio') {
         const unlockedSet = new Set(metrics.unlockedPads);
         const builtCount = STUDIO_PADS.filter(p => unlockedSet.has(p.id)).length;
         const nextPad = metrics.nextPad;
 
-        const nextPadLine = nextPad
-            ? (isEn
-                ? `🟡 **Next Upgrade:** ${nextPad.emoji} **${nextPad.name_en}** — Cost: \`${nextPad.cost.toLocaleString()} Tix\` (\`+${nextPad.tixPerMin} Tix/min\`)`
-                : `🟡 **Siguiente Mejora:** ${nextPad.emoji} **${nextPad.name_es}** — Costo: \`${nextPad.cost.toLocaleString()} Tix\` (\`+${nextPad.tixPerMin} Tix/min\`)`)
-            : (isEn
-                ? `✨ **All 6 Machines Built!** Your Studio is ready for **Rebirth** (\`+35%\` permanent speed & \`+1 Ascension Key\`).`
-                : `✨ **¡Las 6 Máquinas están Construidas!** Tu Estudio está listo para hacer **Rebirth** (\`+35%\` permanente y \`+1 Llave de Cofre\`).`);
+        const collectorNow = Number(profile.collector_tix || 0);
+        const collectorCap = Math.max(1, Number(profile.collector_cap || 500));
+        const collectorPct = Math.min(100, Math.round((collectorNow / collectorCap) * 100));
+        const collectorBar = buildVisualBar(collectorNow, collectorCap, 10);
+
+        const vaultAndProdBlock = isEn
+            ? `### 🟢 Collector Vault & Live Production\n` +
+              `• ⚡ **Production Speed:** \`+${metrics.effectiveTixPerMin} Tix/min\` • **Multiplier:** \`x${metrics.multiplier}\`\n` +
+              `• 🟢 **Stored in Collector:** \`${collectorNow.toLocaleString()} / ${collectorCap.toLocaleString()} Tix\` (\`${collectorPct}%\`)\n` +
+              `• 📊 **Vault Capacity:** \`[${collectorBar}]\` • 🎟️ **Wallet:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\``
+            : `### 🟢 Bóveda Colectora y Producción en Vivo\n` +
+              `• ⚡ **Ritmo de Producción:** \`+${metrics.effectiveTixPerMin} Tix/min\` • **Multiplicador:** \`x${metrics.multiplier}\`\n` +
+              `• 🟢 **Acumulado en Colector:** \`${collectorNow.toLocaleString()} / ${collectorCap.toLocaleString()} Tix\` (\`${collectorPct}%\`)\n` +
+              `• 📊 **Nivel de Llenado:** \`[${collectorBar}]\` • 🎟️ **Billetera:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\``;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(vaultAndProdBlock));
+        container.addSeparatorComponents(separador());
+
+        const stationsLines = STUDIO_PADS.map(pad => {
+            const isBuilt = unlockedSet.has(pad.id);
+            const isNext = nextPad && nextPad.id === pad.id;
+            const pName = isEn ? pad.name_en : pad.name_es;
+            if (isBuilt) {
+                return isEn
+                    ? `🟢 **Stage ${pad.stage}:** ${pad.emoji} **${pName}** — \`Active (+${pad.tixPerMin} Tix/min)\``
+                    : `🟢 **Nivel ${pad.stage}:** ${pad.emoji} **${pName}** — \`Operativa (+${pad.tixPerMin} Tix/min)\``;
+            }
+            if (isNext) {
+                return isEn
+                    ? `🟡 **Stage ${pad.stage}:** ${pad.emoji} **${pName}** — \`Next Upgrade: ${pad.cost.toLocaleString()} Tix (+${pad.tixPerMin} Tix/min)\``
+                    : `🟡 **Nivel ${pad.stage}:** ${pad.emoji} **${pName}** — \`Siguiente Mejora: ${pad.cost.toLocaleString()} Tix (+${pad.tixPerMin} Tix/min)\``;
+            }
+            return isEn
+                ? `🔒 **Stage ${pad.stage}:** ${pad.emoji} *${pName}* — \`${pad.cost.toLocaleString()} Tix (+${pad.tixPerMin} Tix/min)\``
+                : `🔒 **Nivel ${pad.stage}:** ${pad.emoji} *${pName}* — \`${pad.cost.toLocaleString()} Tix (+${pad.tixPerMin} Tix/min)\``;
+        }).join('\n');
 
         const ds = dailyStreak || { currentStreak: 0, nextStreakDay: 1, canClaim: true, rewardTix: 350, rewardCrystals: 5, hoursLeft: 0, minsLeft: 0 };
-        const streakLine = ds.canClaim
+        const streakStatus = ds.canClaim
             ? (isEn
-                ? `🔥 **Daily Reward (Day ${ds.nextStreakDay}/7):** \`Ready to claim!\` (**+${ds.rewardTix} 🎟️** & **+${ds.rewardCrystals} 💠**)`
-                : `🔥 **Racha Diaria (Día ${ds.nextStreakDay}/7):** \`¡Lista para reclamar!\` (**+${ds.rewardTix} 🎟️** y **+${ds.rewardCrystals} 💠**)`)
+                ? `🔥 **Daily Streak (Day ${ds.nextStreakDay}/7):** 🟢 **Ready to Claim!** (\`+${ds.rewardTix} Tix\` & \`+${ds.rewardCrystals} 💠\`)`
+                : `🔥 **Racha Diaria (Día ${ds.nextStreakDay}/7):** 🟢 **¡Lista para reclamar!** (\`+${ds.rewardTix} Tix\` y \`+${ds.rewardCrystals} 💠\`)`)
             : (isEn
                 ? `🔥 **Daily Streak (Day ${ds.currentStreak}/7):** Next reward in \`${ds.hoursLeft}h ${ds.minsLeft}m\``
                 : `🔥 **Racha Diaria (Día ${ds.currentStreak}/7):** Próxima recompensa en \`${ds.hoursLeft}h ${ds.minsLeft}m\``);
 
-        const studioText = isEn
-            ? `### 🏗️ Category 1: My Studio & Production (\`${builtCount}/6\` Machines)\n` +
-              `• ⚡ **Active Production:** \`+${metrics.effectiveTixPerMin} Tix/min (x${metrics.multiplier})\`  •  🟢 **Collector Vault:** \`${Number(profile.collector_tix || 0).toLocaleString()} / ${Number(profile.collector_cap || 500).toLocaleString()} Tix\`\n` +
-              `• ${nextPadLine}\n` +
-              `• ${streakLine}`
-            : `### 🏗️ Categoría 1: Mi Estudio y Producción (\`${builtCount}/6\` Máquinas)\n` +
-              `• ⚡ **Producción Activa:** \`+${metrics.effectiveTixPerMin} Tix/min (x${metrics.multiplier})\`  •  🟢 **Bóveda Colectora:** \`${Number(profile.collector_tix || 0).toLocaleString()} / ${Number(profile.collector_cap || 500).toLocaleString()} Tix\`\n` +
-              `• ${nextPadLine}\n` +
-              `• ${streakLine}`;
+        const rebirthStatus = metrics.allPadsUnlocked
+            ? (isEn
+                ? `✨ **Rebirth Ready:** All 6 stations are active! Ascend now for **+35% permanent speed** & **+1 Chest Key**.`
+                : `✨ **Rebirth Disponible:** ¡Completaste las 6 estaciones! Ascendé para ganar **+35% permanente** y **+1 Llave de Cofre**.`)
+            : (isEn
+                ? `✨ **Rebirth Progress:** \`${builtCount}/6\` stations built (Current Rebirths: \`x${profile.rebirth_count || 0}\`)`
+                : `✨ **Progreso hacia Rebirth:** \`${builtCount}/6\` estaciones construidas (Rebirths actuales: \`x${profile.rebirth_count || 0}\`)`);
 
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(studioText));
+        const blueprintBlock = isEn
+            ? `### 🏗️ Studio Assembly Line (\`${builtCount}/6\` Built)\n${stationsLines}\n\n• ${streakStatus}\n• ${rebirthStatus}`
+            : `### 🏗️ Estaciones de tu Estudio (\`${builtCount}/6\` Construidas)\n${stationsLines}\n\n• ${streakStatus}\n• ${rebirthStatus}`;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(blueprintBlock));
         container.addSeparatorComponents(separador());
 
-        const collectorTix = Number(profile.collector_tix || 0);
         const btnCollect = new ButtonBuilder()
             .setCustomId('tycoon_collect_pad')
             .setLabel(
                 isEn
-                    ? `Collect (${collectorTix.toLocaleString()} Tix)`
-                    : `Recolectar (${collectorTix.toLocaleString()} Tix)`
+                    ? `Collect (${collectorNow.toLocaleString()} Tix)`
+                    : `Recolectar (${collectorNow.toLocaleString()} Tix)`
             )
             .setEmoji('🟢')
             .setStyle(ButtonStyle.Success);
@@ -263,7 +295,7 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                     ? (isEn
                         ? `Build: ${nextPad.name_en} (${nextPad.cost.toLocaleString()} Tix)`
                         : `Construir: ${nextPad.name_es} (${nextPad.cost.toLocaleString()} Tix)`)
-                    : (isEn ? '6/6 Built' : '6/6 Construidas')
+                    : (isEn ? '6/6 Stations Built' : '6/6 Estaciones Listas')
             )
             .setEmoji('🟡')
             .setStyle(ButtonStyle.Primary)
@@ -299,18 +331,46 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
     }
 
     // =========================================================================
-    // CATEGORÍA 2: MI PERFIL, INVENTARIO Y OBJETOS UGC
+    // CATEGORÍA 2: MI PERFIL E INVENTARIO
     // =========================================================================
-    else if (normSection === 'sec_shop') {
+    else if (sectionKey === 'sec_shop') {
         const allCatalog = [...catalogMap.values()];
-        const ugcItems = allCatalog
-            .filter(it => it.category === 'UGC')
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        const myUgcs = ugcItems.filter(it => String(it.creator_id) === userId);
+        const myUgcs = allCatalog.filter(it => it.category === 'UGC' && String(it.creator_id) === userId);
         const myLimiteds = inventory.filter(
             i => i.catalog && (i.catalog.category === 'LIMITED' || i.catalog.category === 'LIMITED_U')
         );
-        const hasLicense = Boolean(profile.ugc_license_unlocked || profile.vip_nitro_boost || profile.vip_yt_sub);
+        const isVipActive = Boolean(profile.vip_nitro_boost || profile.vip_yt_sub);
+        const hasLicense = Boolean(profile.ugc_license_unlocked || isVipActive);
+
+        const rebirthBonusPct = Number(profile.rebirth_count || 0) * 35;
+        const vipStatusText = isVipActive
+            ? (isEn ? '🟢 **VIP Active** (`+50% Tix/min` & UGC License)' : '🟢 **VIP Activo** (`+50% Tix/min` y Licencia UGC)')
+            : (isEn ? '⚪ Standard Account' : '⚪ Cuenta Estándar');
+
+        const statsBlock = isEn
+            ? `### 📊 General Tycoon Statistics\n` +
+              `**💰 Wallet & Resources:**\n` +
+              `• 🎟️ **Tix Balance:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`\n` +
+              `• 💠 **Kortex Crystals:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Crystals\`\n` +
+              `• 🗝️ **Ascension Chest Keys:** \`${Number(profile.ascension_tokens || 0)} Key(s)\`\n\n` +
+              `**⚙️ Studio Performance & Progression:**\n` +
+              `• 🏗️ **Studio Stage:** \`Stage ${profile.studio_stage || 1}/6\` (\`[${buildVisualBar(profile.studio_stage || 1, 6, 6)}]\`)\n` +
+              `• ✨ **Rebirths Completed:** \`x${profile.rebirth_count || 0}\` (\`+${rebirthBonusPct}% permanent bonus\`)\n` +
+              `• ⚡ **Total Production:** \`+${metrics.effectiveTixPerMin} Tix/min\` (\`x${metrics.multiplier} multiplier\`)\n` +
+              `• 💎 **Account Status:** ${vipStatusText}`
+            : `### 📊 Estadísticas Generales del Tycoon\n` +
+              `**💰 Billetera y Recursos:**\n` +
+              `• 🎟️ **Saldo de Tix:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`\n` +
+              `• 💠 **Cristales Kortex:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Cristales\`\n` +
+              `• 🗝️ **Llaves de Cofre de Ascensión:** \`${Number(profile.ascension_tokens || 0)} Llave(s)\`\n\n` +
+              `**⚙️ Rendimiento y Progreso del Estudio:**\n` +
+              `• 🏗️ **Nivel del Estudio:** \`Nivel ${profile.studio_stage || 1}/6\` (\`[${buildVisualBar(profile.studio_stage || 1, 6, 6)}]\`)\n` +
+              `• ✨ **Ascensiones (Rebirths):** \`x${profile.rebirth_count || 0}\` (\`+${rebirthBonusPct}% bono permanente\`)\n` +
+              `• ⚡ **Producción Total:** \`+${metrics.effectiveTixPerMin} Tix/min\` (\`Multiplicador x${metrics.multiplier}\`)\n` +
+              `• 💎 **Estado de Cuenta:** ${vipStatusText}`;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statsBlock));
+        container.addSeparatorComponents(separador());
 
         const uniqueOwnedItems = [];
         const seenItemIds = new Set();
@@ -321,43 +381,53 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             }
         }
 
-        const ownedPreviewLines = uniqueOwnedItems.length > 0
-            ? uniqueOwnedItems.slice(0, 6).map(inv => {
+        const ownedLines = uniqueOwnedItems.length > 0
+            ? uniqueOwnedItems.slice(0, 10).map(inv => {
                 const c = inv.catalog;
                 const cName = isEn ? (c.name_en || c.name) : c.name;
+                const isEq = String(profile.equipped_item_id) === String(c.item_id);
                 const serialTag = c.category === 'LIMITED_U' && inv.serial_number
                     ? ` **[#${String(inv.serial_number).padStart(2, '0')}/${c.max_supply || 15}]**`
                     : '';
-                return `• ${c.icon_emoji || '🎩'} **${cName}**${serialTag} (\`+${c.boost_pct}% Tix/min\`)`;
+                const eqTag = isEq ? (isEn ? ' • 🟢 **[EQUIPPED]**' : ' • 🟢 **[EQUIPADO]**') : '';
+                return `• ${c.icon_emoji || '🎩'} **${cName}**${serialTag} — \`+${c.boost_pct}% Tix/min\`${eqTag}`;
             }).join('\n')
             : (isEn
-                ? '> *Your inventory is empty right now. Visit **Category 3 (Shop & Chests)** to get items and Limiteds!*'
-                : '> *Aún no tenés ítems en tu inventario. ¡Visitá la **Categoría 3 (Tienda y Cofres)** para conseguir ítems y Limiteds!*');
+                ? `> 📭 You don't have any items in your inventory yet. Visit **Category 3: Shop, Chests & Trades** to get items and Limiteds!`
+                : `> 📭 Todavía no tenés objetos en tu inventario. ¡Visitá la **Categoría 3: Tienda, Cofres e Intercambios** para adquirir ítems y Limiteds!`);
 
-        const profileSummaryText = isEn
-            ? `### 👤 Category 2: My Profile, Inventory & UGC Objects\n` +
-              `**📊 General Tycoon Statistics:**\n` +
-              `• 🏗️ **Studio Stage:** \`Level ${profile.studio_stage || 1}/6\`  •  ✨ **Rebirths:** \`x${profile.rebirth_count || 0}\`  •  ⚡ **Production:** \`+${metrics.effectiveTixPerMin} Tix/min (x${metrics.multiplier})\`\n` +
-              `• 🎟️ **Tix Balance:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`  •  💠 **Kortex Crystals:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()}\`  •  🗝️ **Chest Keys:** \`${Number(profile.ascension_tokens || 0)}\`\n` +
-              `• 🎩 **Equipped Item:** ${eqTitle}  •  🎨 **UGC Workshop:** ${hasLicense ? `🟢 Active (\`${myUgcs.length}/2\` created)` : '🔒 Locked (`1,200 Tix` at Stage 6 or Free with VIP)'}\n\n` +
-              `**🎒 Your Items & UGC Collection (${inventory.length} Total • ${myLimiteds.length} Limiteds):**\n${ownedPreviewLines}`
-            : `### 👤 Categoría 2: Mi Perfil, Inventario y Objetos UGC\n` +
-              `**📊 Estadísticas Generales del Tycoon:**\n` +
-              `• 🏗️ **Nivel del Estudio:** \`Nivel ${profile.studio_stage || 1}/6\`  •  ✨ **Rebirths:** \`x${profile.rebirth_count || 0}\`  •  ⚡ **Producción Activa:** \`+${metrics.effectiveTixPerMin} Tix/min (x${metrics.multiplier})\`\n` +
-              `• 🎟️ **Saldo de Tix:** \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`  •  💠 **Cristales Kortex:** \`${Number(profile.crystal_balance ?? 15).toLocaleString()}\`  •  🗝️ **Llaves de Cofre:** \`${Number(profile.ascension_tokens || 0)}\`\n` +
-              `• 🎩 **Ítem Equipado:** ${eqTitle}  •  🎨 **Taller UGC:** ${hasLicense ? `🟢 Activo (\`${myUgcs.length}/2\` creados)` : '🔒 Bloqueado (`1,200 Tix` en Nivel 6 o Gratis con VIP)'}\n\n` +
-              `**🎒 Tus Ítems y Objetos UGC (${inventory.length} en Total • ${myLimiteds.length} Limiteds):**\n${ownedPreviewLines}`;
+        const ugcPublishedLines = myUgcs.length > 0
+            ? '\n\n' + (isEn ? '**🎨 Your Published UGC Designs:**\n' : '**🎨 Tus Diseños UGC Publicados:**\n') +
+              myUgcs.map(u => `• ${u.icon_emoji || '🎨'} **${u.name}** — Precio: \`${Number(u.base_price).toLocaleString()} Tix\` (\`+10% Tix/min\`)`).join('\n')
+            : '';
 
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(profileSummaryText));
+        const ugcLicenseLine = hasLicense
+            ? (isEn
+                ? `🟢 **Creator License Active** (\`${myUgcs.length}/2\` custom UGC items published • Earn 70% royalties per sale)`
+                : `🟢 **Licencia de Creador Activa** (\`${myUgcs.length}/2\` objetos UGC publicados • Ganás 70% de regalías por venta)`)
+            : (isEn
+                ? `🔒 **Locked** (Requires Studio Stage 6 + \`1,200 Tix\`, or VIP status)`
+                : `🔒 **Bloqueada** (Requiere Estudio Nivel 6 + \`1,200 Tix\`, o estado VIP)`);
 
-        // Selector para equipar cualquier ítem que el jugador tenga en su inventario
+        const inventoryBlock = isEn
+            ? `### 🎒 My Inventory (\`${inventory.length}\` Total • \`${myLimiteds.length}\` Limiteds)\n` +
+              `• 🎩 **Currently Equipped:** ${eqLabel}\n` +
+              `• 🎨 **UGC Creator Workshop:** ${ugcLicenseLine}\n\n` +
+              `${ownedLines}${ugcPublishedLines}`
+            : `### 🎒 Mi Inventario de Objetos (\`${inventory.length}\` en Total • \`${myLimiteds.length}\` Limiteds)\n` +
+              `• 🎩 **Objeto Equipado:** ${eqLabel}\n` +
+              `• 🎨 **Taller de Creación UGC:** ${ugcLicenseLine}\n\n` +
+              `${ownedLines}${ugcPublishedLines}`;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(inventoryBlock));
+
         if (uniqueOwnedItems.length > 0) {
             const selectEquip = new StringSelectMenuBuilder()
                 .setCustomId('tycoon_equip_item_select')
                 .setPlaceholder(
                     isEn
-                        ? '🎩 Equip an item from your inventory...'
-                        : '🎩 Equipar un ítem de tu inventario...'
+                        ? '🎩 Select an item from your inventory to equip...'
+                        : '🎩 Seleccioná un objeto de tu inventario para equipar...'
                 )
                 .addOptions(
                     uniqueOwnedItems.slice(0, 25).map(inv => {
@@ -386,7 +456,7 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             profileBtns.push(
                 new ButtonBuilder()
                     .setCustomId('tycoon_unlock_ugc_license')
-                    .setLabel(isEn ? 'Unlock UGC License (1,200 Tix / VIP)' : 'Desbloquear Licencia UGC (1,200 Tix / VIP)')
+                    .setLabel(isEn ? 'Unlock UGC License (1,200 Tix)' : 'Desbloquear Licencia UGC (1,200 Tix)')
                     .setEmoji('🔓')
                     .setStyle(ButtonStyle.Success)
             );
@@ -397,7 +467,7 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                 .setLabel(
                     isEn
                         ? `Create Custom UGC (${myUgcs.length}/2)`
-                        : `Crear Objeto UGC (${myUgcs.length}/2)`
+                        : `Diseñar Objeto UGC (${myUgcs.length}/2)`
                 )
                 .setEmoji('🎨')
                 .setStyle(ButtonStyle.Primary)
@@ -415,7 +485,10 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
     // =========================================================================
     // CATEGORÍA 3: TIENDA UNIFICADA, COFRES DE ASCENSIÓN E INTERCAMBIOS P2P
     // =========================================================================
-    else if (normSection === 'sec_vault') {
+    else if (sectionKey === 'sec_vault') {
+        const trRes = await getActiveTrades(userId);
+        const activeTrades = trRes.trades || [];
+
         const allCatalog = [...catalogMap.values()];
         const ownedIds = new Set(inventory.map(i => String(i.item_id)));
         const myLimiteds = inventory.filter(
@@ -434,6 +507,45 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
             .filter(it => it.category === 'UGC')
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+        const tixCatalogLines = [
+            ...normalTixItems.map(it => {
+                const iName = isEn ? (it.name_en || it.name) : it.name;
+                const status = ownedIds.has(String(it.item_id))
+                    ? (isEn ? '✅ Owned' : '✅ Adquirido')
+                    : `\`${Number(it.base_price).toLocaleString()} Tix\``;
+                return `• ${it.icon_emoji || '🛒'} **${iName}** (\`+${it.boost_pct}% Tix/min\`) — ${status}`;
+            }),
+            ...limitedUDrops.map(d => {
+                const dName = isEn ? (d.name_en || d.name) : d.name;
+                const rem = Math.max(0, Number(d.max_supply || 15) - Number(d.minted_count || 0));
+                const stockTxt = rem > 0
+                    ? `\`${Number(d.base_price).toLocaleString()} Tix\` (\`${rem}/${d.max_supply}\` disp.)`
+                    : (isEn ? '🔴 Sold Out' : '🔴 Agotado');
+                return `• ${d.icon_emoji || '👑'} **[LIMITED U] ${dName}** (\`+${d.boost_pct}% Tix/min\`) — ${stockTxt}`;
+            })
+        ].join('\n');
+
+        const crystalCatalogLines = crystalShopItems.map(it => {
+            const iName = isEn ? (it.name_en || it.name) : it.name;
+            const status = ownedIds.has(String(it.item_id))
+                ? (isEn ? '✅ Owned' : '✅ Adquirido')
+                : `\`${Number(it.base_price).toLocaleString()} 💠\``;
+            return `• ${it.icon_emoji || '💠'} **${iName}** (\`+${it.boost_pct}% Tix/min\`) — ${status}`;
+        }).join('\n');
+
+        const shopBlock = isEn
+            ? `### 🛍️ Unified Item & Limited Shop\n` +
+              `• **Your Balance:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Crystals\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Key(s)\`\n\n` +
+              `**🎟️ Classic Gear & Serialized Limited U (Tix):**\n${tixCatalogLines}\n\n` +
+              `**💠 Kortex Crystal Artifacts:**\n${crystalCatalogLines}`
+            : `### 🛍️ Catálogo de la Tienda Unificada\n` +
+              `• **Tu Saldo:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\` • 💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Cristales\` • 🗝️ \`${Number(profile.ascension_tokens || 0)} Llave(s)\`\n\n` +
+              `**🎟️ Ítems Clásicos y Limited U Numerados (Tix):**\n${tixCatalogLines}\n\n` +
+              `**💠 Artefactos de Cristales Kortex:**\n${crystalCatalogLines}`;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(shopBlock));
+        container.addSeparatorComponents(separador());
+
         const tradesLines = activeTrades.length > 0
             ? activeTrades.slice(0, 4).map(tr => {
                 const sItems = (tr.sender_items || []).map(si => {
@@ -450,20 +562,18 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                 return `• \`${tr.trade_id}\` ${scopeBadge} **${tr.sender_name}:** **${sItems}**${tixOff} ⇄ **${reqText}**`;
             }).join('\n')
             : (isEn
-                ? '> *No active P2P trades right now. Use the buttons below to post or send an offer!*'
-                : '> *No hay intercambios P2P activos ahora mismo. ¡Usá los botones de abajo para publicar o enviar una oferta!*');
+                ? '> *No active P2P trade offers right now. Use the buttons below to post or send a trade!*'
+                : '> *No hay ofertas de intercambio P2P activas en este momento. ¡Usá los botones de abajo para publicar o enviar un trade!*');
 
-        const vaultText = isEn
-            ? `### 🛒 Category 3: Unified Shop, Ascension Chests & P2P Trading\n` +
-              `• **Your Wallet:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`  •  💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Crystals\`  •  🗝️ \`${profile.ascension_tokens || 0} Chest Key(s)\`\n` +
-              `• **Unified Store & Chests:** Buy Classic Items, Serialized Limiteds (\`#01/Max\`), Community UGCs, Crystal Artifacts, or open **Ascension Chests** for guaranteed Limited drops!\n\n` +
-              `**🤝 Active P2P Trade Board:**\n${tradesLines}`
-            : `### 🛒 Categoría 3: Tienda Unificada, Cofres de Ascensión e Intercambios\n` +
-              `• **Tu Billetera:** 🎟️ \`${Number(profile.tix_balance || 0).toLocaleString()} Tix\`  •  💠 \`${Number(profile.crystal_balance ?? 15).toLocaleString()} Cristales\`  •  🗝️ \`${profile.ascension_tokens || 0} Llave(s) de Cofre\`\n` +
-              `• **Tienda y Cofres:** Comprá Ítems Clásicos, Limiteds Numerados (\`#01/Máx\`), Objetos UGC de la Comunidad y Artefactos de Cristal, o abrí **Cofres de Ascensión** para ganar Limiteds garantizados.\n\n` +
-              `**🤝 Tablero de Intercambios P2P Activos:**\n${tradesLines}`;
+        const chestAndTradesBlock = isEn
+            ? `### 🗝️ Ascension Chests & P2P Trading\n` +
+              `• **Ascension Chest:** Costs \`1 Rebirth Key\` or \`3,500 Tix\` — Grants **1 Guaranteed Limited Item** (\`+16%\` to \`+30% Tix/min\`; duplicates award \`+1,200 Tix\`).\n\n` +
+              `**🤝 Active P2P Trade Board (\`${activeTrades.length}\`):**\n${tradesLines}`
+            : `### 🗝️ Cofres de Ascensión e Intercambios P2P\n` +
+              `• **Cofre de Ascensión:** Cuesta \`1 Llave de Rebirth\` o \`3,500 Tix\` — Otorga **1 Objeto Limited Garantizado** (\`+16%\` a \`+30% Tix/min\`; duplicados dan \`+1,200 Tix\`).\n\n` +
+              `**🤝 Tablero de Intercambios P2P Activos (\`${activeTrades.length}\`):**\n${tradesLines}`;
 
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(vaultText));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(chestAndTradesBlock));
 
         // 1. Selector de Tienda Unificada en Tix (Ítems Clásicos + Limiteds Numerados + UGCs de la Comunidad)
         const buyableNormals = normalTixItems.filter(it => !ownedIds.has(String(it.item_id)));
@@ -525,8 +635,8 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                 .setCustomId('tycoon_buy_normal_select')
                 .setPlaceholder(
                     isEn
-                        ? '🛒 Shop: Buy Classic Items, Limiteds & Community UGCs (Tix)...'
-                        : '🛒 Tienda: Comprar Ítems Clásicos, Limiteds y UGCs (Tix)...'
+                        ? '🛒 Tix Shop: Buy Classic Items, Limiteds & Community UGCs...'
+                        : '🛒 Tienda en Tix: Comprar Ítems Clásicos, Limiteds y UGCs...'
                 )
                 .addOptions(unifiedTixOptions.slice(0, 25));
             container.addActionRowComponents(new ActionRowBuilder().addComponents(selectBuyNormal));
@@ -648,9 +758,10 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
     }
 
     // =========================================================================
-    // CATEGORÍA 4: MISIONES SEMANALES (CRISTALES 💠), POCIONES Y RANKING
+    // CATEGORÍA 4: MISIONES SEMANALES, LABORATORIO Y RANKING TOP
     // =========================================================================
-    else if (normSection === 'sec_perks') {
+    else if (sectionKey === 'sec_perks') {
+        const leaderboard = await getTycoonLeaderboard(5);
         const wq = weeklyQuests || {
             weekKey: '2026-W01',
             resetDays: 4,
@@ -662,33 +773,54 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
         };
 
         const questsLines = (wq.quests || []).map(q => {
-            const bar = buildQuestProgressBar(q.current, q.target, 7);
+            const bar = buildVisualBar(q.current, q.target, 8);
             const qTitle = isEn ? q.title_en : q.title_es;
             const statusBadge = q.claimed
                 ? (isEn ? '✅ **[CLAIMED]**' : '✅ **[RECLAMADA]**')
                 : (q.completed
                     ? (isEn ? '🎁 **[READY!]**' : '🎁 **[¡LISTA!]**')
-                    : `\`${bar}\` (\`${q.current.toLocaleString()}/${q.target.toLocaleString()}\`)`);
+                    : `\`[${bar}]\` (\`${q.current.toLocaleString()}/${q.target.toLocaleString()}\`)`);
             return `• ${q.emoji} **${qTitle}** — ${statusBadge} • **+${q.rewardCrystals} 💠** & **+${q.rewardTix} 🎟️**`;
         }).join('\n');
+
+        const bonusLine = wq.allBonusClaimed
+            ? (isEn ? `✅ **Weekly Full Completion Bonus (+${wq.bonusCrystals} 💠):** Claimed!` : `✅ **Bono por Completar las 4 Misiones (+${wq.bonusCrystals} 💠):** ¡Reclamado!`)
+            : (isEn ? `🌟 **Full Completion Bonus:** Complete all 4 quests for an extra **+${wq.bonusCrystals} Kortex Crystals (💠)**.` : `🌟 **Bono Semanal Extra:** Completá las 4 misiones para recibir **+${wq.bonusCrystals} Cristales Kortex (💠)** adicionales.`);
+
+        const questsBlock = isEn
+            ? `### 🎯 Weekly Quests (\`${wq.resetDays}d ${wq.resetHours}h\` until reset)\n${questsLines}\n\n• ${bonusLine}`
+            : `### 🎯 Misiones Semanales (\`${wq.resetDays}d ${wq.resetHours}h\` para el reinicio)\n${questsLines}\n\n• ${bonusLine}`;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(questsBlock));
+        container.addSeparatorComponents(separador());
 
         const potionStatus = metrics.potionActive
             ? (isEn
                 ? `🟢 **Active:** ${metrics.potionInfo?.emoji || '🧪'} **${metrics.potionInfo?.name_en}** (\`+${metrics.potionBonusPct}%\` for \`${metrics.potionRemainingMin}m\` left)`
-                : `🟢 **Activa:** ${metrics.potionInfo?.emoji || '🧪'} **${metrics.potionInfo?.name_es}** (\`+${metrics.potionBonusPct}%\` por \`${metrics.potionRemainingMin}m\` restantes)`)
+                : `🟢 **Activa:** ${metrics.potionInfo?.emoji || '🧪'} **${metrics.potionInfo?.name_es}** (\`+${metrics.potionBonusPct}%\` durante \`${metrics.potionRemainingMin}m\` restantes)`)
             : (isEn ? '⚪ **No active potion right now**' : '⚪ **Sin poción activa en este momento**');
 
-        const perksText = isEn
-            ? `### 💠 Category 4: Weekly Quests (\`${wq.resetDays}d ${wq.resetHours}h\` left), Lab Potions & VIP\n` +
-              `${questsLines}\n\n` +
-              `• **🧪 Lab Potion Status:** ${potionStatus}\n` +
-              `• **💎 Community VIP Perks:** Nitro Boost (\`+50%\`) & YouTube VIP (\`+35%\` + Free Daily Potion)`
-            : `### 💠 Categoría 4: Misiones Semanales (\`${wq.resetDays}d ${wq.resetHours}h\` restantes), Pociones y VIP\n` +
-              `${questsLines}\n\n` +
-              `• **🧪 Estado de Poción:** ${potionStatus}\n` +
-              `• **💎 Beneficios VIP de Comunidad:** Nitro Boost (\`+50%\`) y YouTube VIP (\`+35%\` + Poción Diaria Gratis)`;
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        const rankingLines = leaderboard.length > 0
+            ? leaderboard.slice(0, 5).map((row, idx) => {
+                const medal = medals[idx] || `#${idx + 1}`;
+                return isEn
+                    ? `${medal} **${row.displayName}** — \`+${row.tixPerMin} Tix/min\` • Stage \`${row.stage}/6\` • Rebirth \`x${row.rebirths}\``
+                    : `${medal} **${row.displayName}** — \`+${row.tixPerMin} Tix/min\` • Nivel \`${row.stage}/6\` • Rebirth \`x${row.rebirths}\``;
+            }).join('\n')
+            : (isEn ? '> *No studios ranked yet.*' : '> *Todavía no hay estudios registrados en el ranking.*');
 
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(perksText));
+        const labAndRankingBlock = isEn
+            ? `### 🧪 Potion Laboratory & Top Studios\n` +
+              `• **Active Elixir:** ${potionStatus}\n` +
+              `• 🧪 **Speed Potion:** \`+50% Tix/min\` for 30 min (\`450 Tix\`) • ⚗️ **Mega Elixir:** \`+100% Tix/min\` for 30 min (\`850 Tix\`)\n\n` +
+              `**🏆 Top 5 Tycoon Studios:**\n${rankingLines}`
+            : `### 🧪 Laboratorio de Pociones y Ranking Top\n` +
+              `• **Estado de Laboratorio:** ${potionStatus}\n` +
+              `• 🧪 **Poción de Velocidad:** \`+50% Tix/min\` por 30 min (\`450 Tix\`) • ⚗️ **Elixir Mega:** \`+100% Tix/min\` por 30 min (\`850 Tix\`)\n\n` +
+              `**🏆 Top 5 Estudios de /tycoon:**\n${rankingLines}`;
+
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(labAndRankingBlock));
         container.addSeparatorComponents(separador());
 
         container.addActionRowComponents(
@@ -714,11 +846,6 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
                     .setEmoji('⚗️')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
-                    .setCustomId('tycoon_sync_vip')
-                    .setLabel(isEn ? 'Sync VIP Perks' : 'Sincronizar VIP')
-                    .setEmoji('💎')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
                     .setCustomId('tycoon_refresh:sec_perks')
                     .setLabel(isEn ? 'Refresh' : 'Actualizar')
                     .setEmoji('🔄')
@@ -731,30 +858,30 @@ async function construirPanelTycoon(user, activeSection = 'sec_studio', feedback
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
         footer(
             isEn
-                ? 'Roblox Tycoon • 4 Symmetrical Categories • /tycoon'
-                : 'Roblox Tycoon • 4 Categorías Simétricas • /tycoon'
+                ? 'Kortex Tycoon • /tycoon'
+                : 'Kortex Tycoon • /tycoon'
         )
     ));
 
     return {
         components: [container],
-        files: [attachment],
+        files: [],
         attachments: [],
         flags: MessageFlags.IsComponentsV2
     };
 }
 
 /**
- * Construye el Modal del Taller UGC para diseñar y publicar un ítem comunitario.
+ * Construye el Modal del Taller UGC para diseñar y publicar un objeto comunitario.
  */
 function construirModalCrearUgc(isEn = false) {
     const modal = new ModalBuilder()
         .setCustomId('tycoon_modal_ugc_create')
-        .setTitle(isEn ? '🎨 Create & Publish UGC Item' : '🎨 Crear y Publicar Ítem UGC');
+        .setTitle(isEn ? '🎨 Create & Publish UGC Item' : '🎨 Diseñar y Publicar Objeto UGC');
 
     const inputName = new TextInputBuilder()
         .setCustomId('ugc_name')
-        .setLabel(isEn ? 'Item Name (auto-prefixed with [🎨 UGC])' : 'Nombre del Ítem (se añade [🎨 UGC])')
+        .setLabel(isEn ? 'Item Name (auto-prefixed with [🎨 UGC])' : 'Nombre del Objeto (se añade [🎨 UGC])')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder(isEn ? 'Cyber Neon Visor' : 'Visor Cyber Neón')
         .setMinLength(3)
@@ -890,14 +1017,14 @@ async function handleTycoonInteraction(interaction) {
     const cid = interaction.customId || '';
     const userId = interaction.user.id;
     const isEn = obtenerIdiomaUsuario(userId) === 'en';
+    const member = interaction.member || null;
 
-    // 1. Apertura de Modales (deben responder con showModal antes de deferUpdate)
     if (cid === 'tycoon_open_ugc_modal' && interaction.isButton()) {
         return await interaction.showModal(construirModalCrearUgc(isEn));
     }
 
     if ((cid === 'tycoon_open_trade_public_modal' || cid === 'tycoon_open_trade_direct_modal') && interaction.isButton()) {
-        const state = await getOrCreatePlayerState(userId);
+        const state = await getOrCreatePlayerState(userId, member);
         const myLimiteds = state.inventory.filter(
             i => i.catalog && (i.catalog.category === 'LIMITED' || i.catalog.category === 'LIMITED_U')
         );
@@ -907,34 +1034,32 @@ async function handleTycoonInteraction(interaction) {
 
     await interaction.deferUpdate();
 
-    // 2. Cambio de categoría en el menú desplegable principal
     if (cid === 'tycoon_section_select' && interaction.isStringSelectMenu()) {
         const selectedSection = interaction.values[0] || 'sec_studio';
-        const panel = await construirPanelTycoon(interaction.user, selectedSection, null);
+        const panel = await construirPanelTycoon(interaction.user, selectedSection, null, member);
         return await interaction.editReply(panel);
     }
 
-    // 3. Botón Actualizar vista de cualquier categoría
     if (cid.startsWith('tycoon_refresh:')) {
         const targetSec = cid.split(':')[1] || 'sec_studio';
         const msg = isEn
-            ? '🔄 **View synchronized in real time.**'
-            : '🔄 **Vista actualizada en tiempo real.**';
-        const panel = await construirPanelTycoon(interaction.user, targetSec, msg);
+            ? '🔄 **Panel synchronized in real time.**'
+            : '🔄 **Panel actualizado en tiempo real.**';
+        const panel = await construirPanelTycoon(interaction.user, targetSec, msg, member);
         return await interaction.editReply(panel);
     }
 
-    // 4. CATEGORÍA 1: Recolectar Pad, Construir Máquina, Racha Diaria, Hacer Rebirth
+    // CATEGORÍA 1: Estudio y Producción
     if (cid === 'tycoon_collect_pad') {
         const res = await collectPadTix(userId);
         const msg = res.ok
             ? (isEn
-                ? `🟢 **Collected \`+${res.collected.toLocaleString()} Tix\`** from your Collector Pad! Wallet: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`
-                : `🟢 **¡Recolectaste \`+${res.collected.toLocaleString()} Tix\`** de tu Colector Verde! Billetera: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`)
+                ? `🟢 **Collected \`+${res.collected.toLocaleString()} Tix\`** from your Collector Vault! Wallet: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`
+                : `🟢 **¡Recolectaste \`+${res.collected.toLocaleString()} Tix\`** de tu Bóveda Colectora! Billetera: \`${Number(res.state.profile.tix_balance).toLocaleString()} Tix\`.`)
             : (isEn
-                ? `ℹ️ Your Collector Pad is at \`0 Tix\` right now. Wait a moment while your machines produce more Tix!`
-                : `ℹ️ Tu Colector Verde está en \`0 Tix\` ahora mismo. ¡Esperá unos instantes mientras tus máquinas fabrican más Tix!`);
-        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg);
+                ? `ℹ️ Your Collector Vault is at \`0 Tix\` right now. Wait a moment while your stations produce more Tix!`
+                : `ℹ️ Tu Bóveda Colectora está en \`0 Tix\` ahora mismo. ¡Esperá unos instantes mientras tus estaciones producen más Tix!`);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -947,7 +1072,7 @@ async function handleTycoonInteraction(interaction) {
             : (isEn
                 ? `⏳ Your next Daily Streak reward will be ready in \`${res.hoursLeft}h ${res.minsLeft}m\`.`
                 : `⏳ Tu próxima recompensa de Racha Diaria estará lista en \`${res.hoursLeft}h ${res.minsLeft}m\`.`);
-        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -957,8 +1082,8 @@ async function handleTycoonInteraction(interaction) {
         if (res.ok) {
             const pName = isEn ? res.pad.name_en : res.pad.name_es;
             msg = isEn
-                ? `🎉 **Machine Built:** ${res.pad.emoji} **${pName}**! Your Studio is now **Stage ${res.state.profile.studio_stage}/6** (\`+${res.pad.tixPerMin} Tix/min\`).`
-                : `🎉 **¡Máquina Construida:** ${res.pad.emoji} **${pName}**! Tu Estudio subió a **Nivel ${res.state.profile.studio_stage}/6** (\`+${res.pad.tixPerMin} Tix/min\`).`;
+                ? `🎉 **Station Built:** ${res.pad.emoji} **${pName}**! Your Studio reached **Stage ${res.state.profile.studio_stage}/6** (\`+${res.pad.tixPerMin} Tix/min\`).`
+                : `🎉 **¡Estación Construida:** ${res.pad.emoji} **${pName}**! Tu Estudio subió a **Nivel ${res.state.profile.studio_stage}/6** (\`+${res.pad.tixPerMin} Tix/min\`).`;
         } else if (res.reason === 'insufficient_tix') {
             const pName = isEn ? res.pad.name_en : res.pad.name_es;
             msg = isEn
@@ -966,10 +1091,10 @@ async function handleTycoonInteraction(interaction) {
                 : `⚠️ Necesitás \`${res.needed.toLocaleString()} Tix\` para construir **${pName}** (tenés \`${res.balance.toLocaleString()} Tix\`).`;
         } else {
             msg = isEn
-                ? `✅ All 6 Studio Machines are built! Click **Rebirth** to ascend.`
-                : `✅ ¡Ya construiste las 6 Máquinas del Estudio! Tocá **Rebirth** para ascender.`;
+                ? `✅ All 6 Studio Stations are built! Click **Rebirth** to ascend.`
+                : `✅ ¡Ya construiste las 6 Estaciones del Estudio! Tocá **Rebirth** para ascender.`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -977,21 +1102,16 @@ async function handleTycoonInteraction(interaction) {
         const res = await performRebirth(userId);
         const msg = res.ok
             ? (isEn
-                ? `✨ **REBIRTH #${res.newRebirthCount} COMPLETED!** You gained a permanent **+35% production multiplier**, **+1,500 Collector Cap**, and **+1 Ascension Chest Key (\`🗝️\`)** for Category 3!`
-                : `✨ **¡REBIRTH #${res.newRebirthCount} COMPLETADO!** Ganaste **+35% de multiplicador permanente**, **+1,500 de capacidad en Colector** y **+1 Llave de Cofre de Ascensión (\`🗝️\`)** para la Categoría 3.`)
+                ? `✨ **REBIRTH #${res.newRebirthCount} COMPLETED!** You gained a permanent **+35% production multiplier**, **+1,500 Collector Cap**, and **+1 Ascension Chest Key (\`🗝️\`)**!`
+                : `✨ **¡REBIRTH #${res.newRebirthCount} COMPLETADO!** Ganaste **+35% de multiplicador permanente**, **+1,500 de capacidad en Colector** y **+1 Llave de Cofre de Ascensión (\`🗝️\`)**.`)
             : (isEn
-                ? `⚠️ Build all 6 Studio Machines (Stage 6) before performing a Rebirth.`
-                : `⚠️ Necesitás construir las 6 Máquinas del Estudio (Nivel 6) antes de hacer Rebirth.`);
-        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg);
+                ? `⚠️ Build all 6 Studio Stations (Stage 6) before performing a Rebirth.`
+                : `⚠️ Necesitás construir las 6 Estaciones del Estudio (Nivel 6) antes de hacer Rebirth.`);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_studio', msg, member);
         return await interaction.editReply(panel);
     }
 
-    if (cid === 'tycoon_open_quests') {
-        const panel = await construirPanelTycoon(interaction.user, 'sec_perks', null);
-        return await interaction.editReply(panel);
-    }
-
-    // 5. CATEGORÍA 2 Y 3: Tienda Unificada (Clásicos, Limiteds y UGCs en Tix + Artefactos de Cristal 💠), Equipar y Taller UGC
+    // CATEGORÍA 2 Y 3: Tienda Unificada, Perfil e Inventario
     if (cid === 'tycoon_buy_normal_select' && interaction.isStringSelectMenu()) {
         const itemId = interaction.values[0];
         let msg;
@@ -1041,7 +1161,7 @@ async function handleTycoonInteraction(interaction) {
             }
         }
 
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1061,7 +1181,7 @@ async function handleTycoonInteraction(interaction) {
         } else {
             msg = isEn ? `ℹ️ You already own this Crystal artifact.` : `ℹ️ Ya tenés este artefacto de Cristal en tu inventario.`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1074,7 +1194,7 @@ async function handleTycoonInteraction(interaction) {
                 ? `🎩 **Equipped on your Avatar:** ${res.item?.icon_emoji || '🎩'} **${iName}** (\`+${res.item?.boost_pct || 5}% Tix/min\`)!`
                 : `🎩 **¡Equipado en tu Avatar:** ${res.item?.icon_emoji || '🎩'} **${iName}** (\`+${res.item?.boost_pct || 5}% Tix/min\`)!`)
             : (isEn ? `⚠️ Could not equip that item.` : `⚠️ No se pudo equipar ese ítem.`);
-        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1084,15 +1204,15 @@ async function handleTycoonInteraction(interaction) {
         if (res.ok) {
             msg = res.method === 'vip_free'
                 ? (isEn
-                    ? `🔓 **UGC Creator License Unlocked for FREE** thanks to your VIP perks!`
-                    : `🔓 **¡Licencia de Creador UGC Desbloqueada GRATIS** gracias a tus beneficios VIP!`)
+                    ? `🔓 **UGC Creator License Unlocked for FREE** thanks to your VIP status!`
+                    : `🔓 **¡Licencia de Creador UGC Desbloqueada GRATIS** gracias a tu estado VIP!`)
                 : (isEn
                     ? `🔓 **UGC Creator License Unlocked** for \`1,200 Tix\`!`
                     : `🔓 **¡Licencia de Creador UGC Desbloqueada** por \`1,200 Tix\`!`);
         } else if (res.reason === 'requires_stage_6') {
             msg = isEn
-                ? `🔒 Reach **Studio Stage 6** (or 1 Rebirth) + \`1,200 Tix\`, or sync **VIP Perks** in Category 4 for free access!`
-                : `🔒 Necesitás **Estudio Nivel 6** (o 1 Rebirth) + \`1,200 Tix\`, o sincronizar **Beneficios VIP** en la Categoría 4 para acceso gratis.`;
+                ? `🔒 Reach **Studio Stage 6** (or 1 Rebirth) + \`1,200 Tix\` to unlock the UGC Creator License.`
+                : `🔒 Necesitás **Estudio Nivel 6** (o 1 Rebirth) + \`1,200 Tix\` para desbloquear la Licencia UGC.`;
         } else if (res.reason === 'insufficient_tix') {
             msg = isEn
                 ? `⚠️ You need \`1,200 Tix\` to unlock the UGC License (you have \`${res.balance.toLocaleString()} Tix\`).`
@@ -1100,7 +1220,7 @@ async function handleTycoonInteraction(interaction) {
         } else {
             msg = isEn ? `✅ Your UGC Creator License is already active.` : `✅ Tu Licencia de Creador UGC ya está activa.`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1142,28 +1262,10 @@ async function handleTycoonInteraction(interaction) {
                 : `⚠️ No se pudo publicar el ítem UGC (máx. 2 UGCs activos por creador).`;
         }
 
-        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_shop', msg, member);
         return await interaction.editReply(panel);
     }
 
-    if (cid === 'tycoon_buy_ugc_select' && interaction.isStringSelectMenu()) {
-        const itemId = interaction.values[0];
-        const res = await buyCommunityUgcItem(userId, itemId);
-        let msg;
-        if (res.ok) {
-            msg = isEn
-                ? `🛍️ **Bought Community UGC:** ${res.item.icon_emoji} **${res.item.name}** for \`${res.price.toLocaleString()} Tix\`!`
-                : `🛍️ **¡Compraste el UGC:** ${res.item.icon_emoji} **${res.item.name}** por \`${res.price.toLocaleString()} Tix\`!`;
-        } else {
-            msg = isEn
-                ? `⚠️ Could not complete UGC purchase (${res.reason}).`
-                : `⚠️ No se pudo completar la compra del UGC (${res.reason}).`;
-        }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
-        return await interaction.editReply(panel);
-    }
-
-    // 6. CATEGORÍA 3: Cofres de Ascensión, Limited U e Intercambios P2P
     if (cid === 'tycoon_open_chest') {
         const res = await openAscensionChest(userId);
         let msg;
@@ -1186,31 +1288,7 @@ async function handleTycoonInteraction(interaction) {
         } else {
             msg = isEn ? `⚠️ Could not open Ascension Chest.` : `⚠️ No se pudo abrir el Cofre de Ascensión.`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
-        return await interaction.editReply(panel);
-    }
-
-    if (cid === 'tycoon_claim_limu_select' && interaction.isStringSelectMenu()) {
-        const itemId = interaction.values[0];
-        const res = await claimLimitedUDrop(userId, itemId);
-        let msg;
-        if (res.ok) {
-            const dName = isEn ? (res.item.name_en || res.item.name) : res.item.name;
-            msg = isEn
-                ? `👑 **SERIALIZED LIMITED U MINTED!** You claimed ${res.item.icon_emoji} **${dName} [#${String(res.serialNumber).padStart(2, '0')}/${res.maxSupply}]** (\`+${res.item.boost_pct}% Tix/min\`)!`
-                : `👑 **¡LIMITED U NUMERADO ACUÑADO!** Reclamaste ${res.item.icon_emoji} **${dName} [#${String(res.serialNumber).padStart(2, '0')}/${res.maxSupply}]** (\`+${res.item.boost_pct}% Tix/min\`)!`;
-        } else if (res.reason === 'sold_out') {
-            msg = isEn
-                ? `🔴 **SOLD OUT!** All global copies have been claimed. Acquire it via P2P Trading!`
-                : `🔴 **¡AGOTADO!** Todas las copias globales ya fueron reclamadas. ¡Conseguilo por Intercambio P2P!`;
-        } else if (res.reason === 'insufficient_tix') {
-            msg = isEn
-                ? `⚠️ You need \`${res.cost.toLocaleString()} Tix\` to claim this Limited U Drop.`
-                : `⚠️ Necesitás \`${res.cost.toLocaleString()} Tix\` para reclamar este Drop Limited U.`;
-        } else {
-            msg = isEn ? `⚠️ Could not claim Limited U drop.` : `⚠️ No se pudo reclamar el Drop Limited U.`;
-        }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1222,7 +1300,7 @@ async function handleTycoonInteraction(interaction) {
         const rawRequestTix = interaction.fields.getTextInputValue('trade_request_tix').trim();
         const rawRequestItem = interaction.fields.getTextInputValue('trade_request_item')?.trim() || '';
 
-        const state = await getOrCreatePlayerState(userId);
+        const state = await getOrCreatePlayerState(userId, member);
         const myLimiteds = state.inventory.filter(
             i => i.catalog && (i.catalog.category === 'LIMITED' || i.catalog.category === 'LIMITED_U')
         );
@@ -1240,7 +1318,7 @@ async function handleTycoonInteraction(interaction) {
             const msg = isEn
                 ? `⚠️ You don't own a Limited item matching \`${rawOfferItem}\`.`
                 : `⚠️ No tenés ningún ítem Limited que coincida con \`${rawOfferItem}\`.`;
-            const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
+            const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
             return await interaction.editReply(panel);
         }
 
@@ -1275,7 +1353,7 @@ async function handleTycoonInteraction(interaction) {
                 ? `⚠️ Could not create trade offer (${res.reason}).`
                 : `⚠️ No se pudo crear la oferta de intercambio (${res.reason}).`);
 
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1297,11 +1375,11 @@ async function handleTycoonInteraction(interaction) {
                 ? `⚠️ Could not process trade (\`${res.reason}\`).`
                 : `⚠️ No se pudo procesar el intercambio (\`${res.reason}\`).`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_vault', msg, member);
         return await interaction.editReply(panel);
     }
 
-    // 7. CATEGORÍA 4: Reclamar Misiones Semanales (Cristales 💠), Pociones y Beneficios VIP
+    // CATEGORÍA 4: Misiones Semanales y Laboratorio de Pociones
     if (cid === 'tycoon_claim_quests') {
         const res = await claimWeeklyQuestReward(userId);
         let msg;
@@ -1318,7 +1396,7 @@ async function handleTycoonInteraction(interaction) {
                 ? `ℹ️ You don't have any completed quests ready to claim yet.`
                 : `ℹ️ Aún no tenés misiones completadas listas para reclamar.`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_perks', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_perks', msg, member);
         return await interaction.editReply(panel);
     }
 
@@ -1336,23 +1414,7 @@ async function handleTycoonInteraction(interaction) {
                 ? `⚠️ You need \`${res.cost.toLocaleString()} Tix\` to buy that potion.`
                 : `⚠️ Necesitás \`${res.cost.toLocaleString()} Tix\` para comprar esa poción.`;
         }
-        const panel = await construirPanelTycoon(interaction.user, 'sec_perks', msg);
-        return await interaction.editReply(panel);
-    }
-
-    if (cid === 'tycoon_sync_vip') {
-        const res = await syncCommunityPerks(interaction);
-        const perksUnlocked = [];
-        if (res.detectedNitro) perksUnlocked.push('💎 Discord Nitro Boost (+50%)');
-        if (res.detectedYt) perksUnlocked.push('▶️ YouTube VIP (+35%)');
-        if (res.grantedTopHat) perksUnlocked.push(isEn ? '🎩 Neon Booster Top Hat' : '🎩 Sombrero Neón Booster');
-        if (res.grantedDailyPotion) perksUnlocked.push(isEn ? '🧪 Free Daily Speed Potion' : '🧪 Poción Diaria Gratis');
-
-        const msg = isEn
-            ? `🌟 **VIP Perks Synchronized!** Active: ${perksUnlocked.join(' • ')} + **Free UGC License**!`
-            : `🌟 **¡Beneficios VIP Sincronizados!** Activos: ${perksUnlocked.join(' • ')} + **Licencia UGC Gratis**!`;
-
-        const panel = await construirPanelTycoon(interaction.user, 'sec_perks', msg);
+        const panel = await construirPanelTycoon(interaction.user, 'sec_perks', msg, member);
         return await interaction.editReply(panel);
     }
 }

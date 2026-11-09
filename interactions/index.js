@@ -76,7 +76,8 @@ const {
 const {
     rewardSilentActivity,
     getCatalogItems,
-    deleteUgcItemByOwner
+    deleteUgcItemByOwner,
+    manageVipByAdmin
 } = require('../services/tycoonEngine');
 
 const buttons = new Map();
@@ -274,6 +275,45 @@ function construirModalPresenciaPropietario(cfg, isEn = false) {
     return modal;
 }
 
+function construirModalVipPropietario(cfg, isEn = false) {
+    const modal = new ModalBuilder()
+        .setCustomId('modal_owner_vip_manage_submit')
+        .setTitle(isEn ? '💎 Manage VIP Users & Roles (/tycoon)' : '💎 Gestionar Usuarios y Roles VIP (/tycoon)');
+
+    const inputAction = new TextInputBuilder()
+        .setCustomId('owner_vip_action')
+        .setLabel(isEn ? 'Action: add or remove' : 'Acción: dar o quitar')
+        .setStyle(TextInputStyle.Short)
+        .setValue(isEn ? 'add' : 'dar')
+        .setPlaceholder(isEn ? 'add / remove' : 'dar / quitar')
+        .setRequired(true);
+
+    const currentUsers = Array.isArray(cfg.vipUserIds) ? cfg.vipUserIds.join(', ') : '';
+    const inputUsers = new TextInputBuilder()
+        .setCustomId('owner_vip_users')
+        .setLabel(isEn ? 'User Discord ID(s) or @Mention(s)' : 'ID(s) de Usuario de Discord o @Mención')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('123456789012345678')
+        .setValue(currentUsers.slice(0, 95))
+        .setRequired(false);
+
+    const currentRoles = Array.isArray(cfg.vipRoleIds) ? cfg.vipRoleIds.join(', ') : '';
+    const inputRoles = new TextInputBuilder()
+        .setCustomId('owner_vip_roles')
+        .setLabel(isEn ? 'Role ID(s) or Role Name(s) (comma-separated)' : 'ID(s) o Nombre(s) de Rol VIP (por coma)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('VIP, Server Booster')
+        .setValue(currentRoles.slice(0, 95))
+        .setRequired(false);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(inputAction),
+        new ActionRowBuilder().addComponents(inputUsers),
+        new ActionRowBuilder().addComponents(inputRoles)
+    );
+    return modal;
+}
+
 async function procesarInteraccionInterna(interaction) {
     // Puente Silencioso: Recompensar con Tix en segundo plano (cooldown 5 min) sin interrumpir /roblox
     if (interaction.user?.id) {
@@ -350,7 +390,8 @@ async function procesarInteraccionInterna(interaction) {
         cid === 'modal_owner_limits_submit' ||
         cid === 'modal_owner_intervals_submit' ||
         cid === 'modal_owner_presence_submit' ||
-        cid === 'modal_owner_ugc_delete_submit'
+        cid === 'modal_owner_ugc_delete_submit' ||
+        cid === 'modal_owner_vip_manage_submit'
     ) {
         const esOwner = await esPropietarioDelBot(interaction.user.id, interaction.client);
         const isEn = obtenerIdiomaUsuario(interaction.user.id) === 'en';
@@ -377,6 +418,9 @@ async function procesarInteraccionInterna(interaction) {
             }
             if (chosen === 'owner_modal_ugc_mod') {
                 return await interaction.showModal(construirModalModeracionUgcPropietario(isEn));
+            }
+            if (chosen === 'owner_modal_vip_manage') {
+                return await interaction.showModal(construirModalVipPropietario(ownerCfg, isEn));
             }
         }
 
@@ -436,6 +480,18 @@ async function procesarInteraccionInterna(interaction) {
                     ? `⚠️ No community UGC item found matching \`${query}\`.`
                     : `⚠️ No se encontró ningún ítem UGC que coincida con \`${query}\`.`;
             }
+        } else if (cid === 'modal_owner_vip_manage_submit' && interaction.isModalSubmit()) {
+            const rawAction = interaction.fields.getTextInputValue('owner_vip_action') || 'dar';
+            const rawUsers = interaction.fields.getTextInputValue('owner_vip_users') || '';
+            const rawRoles = interaction.fields.getTextInputValue('owner_vip_roles') || '';
+            const vipRes = await manageVipByAdmin({
+                action: rawAction,
+                rawUsersInput: rawUsers,
+                rawRolesInput: rawRoles
+            });
+            feedback = isEn
+                ? `💎 **VIP Configuration Updated:** Active VIP Users: \`${vipRes.vipUserIds.length}\` • Active VIP Roles: \`${vipRes.vipRoleIds.length}\`.`
+                : `💎 **Configuración VIP Actualizada:** Usuarios VIP activos: \`${vipRes.vipUserIds.length}\` • Roles VIP activos: \`${vipRes.vipRoleIds.length}\`.`;
         } else if (cid === 'btn_owner_scan_now') {
             const scanRes = await ejecutarEscaneoManualCompleto(interaction.client);
             feedback = isEn
