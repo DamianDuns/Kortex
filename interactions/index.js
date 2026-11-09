@@ -814,8 +814,8 @@ async function procesarInteraccionInterna(interaction) {
         await interaction.deferUpdate();
         const feedback = nextEphemeral
             ? (isEn
-                ? '🔒 **Private Mode (Only visible to me) ENABLED:** Next time you run `/roblox`, `/status`, `/tycoon`, or `/config`, the panel will open privately so only you can see it in the channel.'
-                : '🔒 **Modo Privado (Solo visible para mí) ACTIVADO:** La próxima vez que ejecutes `/roblox`, `/status`, `/tycoon` o `/config`, el panel se abrirá en privado para que nadie más en el canal lo vea.')
+                ? '🔒 **Private Mode (Only visible to me) ENABLED:** Next time you run `/roblox`, `/tycoon`, or `/config`, the panel will open privately so only you can see it in the channel.'
+                : '🔒 **Modo Privado (Solo visible para mí) ACTIVADO:** La próxima vez que ejecutes `/roblox`, `/tycoon` o `/config`, el panel se abrirá en privado para que nadie más en el canal lo vea.')
             : (isEn
                 ? '👁️ **Public Mode ENABLED:** Commands will open normally in the channel.'
                 : '👁️ **Modo Público ACTIVADO:** Los comandos se abrirán públicamente en el canal como de costumbre.');
