@@ -110,40 +110,32 @@ async function registrarComandos() {
     const GUILD_ID = process.env.GUILD_ID;
     if (!DISCORD_TOKEN || !CLIENT_ID) return;
 
-    const rest = new REST().setToken(DISCORD_TOKEN);
+    const rest = new REST({ timeout: 15000 }).setToken(DISCORD_TOKEN);
     const inicio = Date.now();
     const lista = nombresComandos.map(n => `/${n}`).join(', ');
 
     try {
         logger.deploy(`Sincronizando ${commandsForDeploy.length} comando(s) slash globales con Discord (${lista})...`);
-        await rest.put(
-            Routes.applicationCommands(CLIENT_ID),
-            { body: commandsForDeploy }
-        );
+        await Promise.race([
+            rest.put(
+                Routes.applicationCommands(CLIENT_ID),
+                { body: commandsForDeploy }
+            ),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 15s al contactar Discord REST API para registrar comandos')), 15000))
+        ]);
 
-        const guildIds = new Set();
-        if (GUILD_ID) guildIds.add(GUILD_ID);
-        try {
-            const guilds = await rest.get(Routes.userGuilds());
-            if (Array.isArray(guilds)) {
-                guilds.forEach(g => guildIds.add(g.id));
-            }
-        } catch {
-            // Continuar con GUILD_ID si existe
-        }
-
-        for (const gid of guildIds) {
+        if (GUILD_ID) {
             try {
-                await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), { body: [] });
+                await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: [] });
             } catch {
-                // Ignorar si no tiene acceso
+                // Silencioso si no aplica
             }
         }
 
         const ms = Date.now() - inicio;
-        logger.ok(`Comandos slash sincronizados globalmente (sin duplicados de servidor) en ${ms}ms.`);
+        logger.ok(`Comandos slash sincronizados globalmente en ${ms}ms.`);
     } catch (error) {
-        logger.error('DEPLOY', error);
+        logger.warn(`Sincronización de comandos en segundo plano: ${error.message || error}`);
     }
 }
 
@@ -169,11 +161,15 @@ process.once('SIGTERM', () => apagar('SIGTERM'));
         return;
     }
 
-    await registrarComandos();
     try {
         logger.info('Autenticando cliente con Discord Gateway...');
         await client.login(process.env.DISCORD_TOKEN);
     } catch (error) {
         logger.error('LOGIN', `No se pudo iniciar sesión en Discord: ${error.message}`);
     }
+
+    // Sincronizar comandos slash en segundo plano sin demorar la presencia activa del bot
+    registrarComandos().catch(err => {
+        logger.warn('Fallo en sincronización diferida de comandos:', err.message);
+    });
 })();
