@@ -181,10 +181,10 @@ const SECCIONES_PRINCIPALES_HELP = {
             contenido:
                 '### 🏗️ 1. Mi Estudio y Producción\n' +
                 '> Mapa 3D isométrico con tu avatar, cinta transportadora, Colector de Tix, Racha Diaria y Rebirth.\n\n' +
-                '### 🎒 2. Tienda, Ítems y Taller UGC\n' +
-                '> Comprá ítems con Tix o Cristales Kortex, equipá hasta 3 ítems y publicá accesorios UGC con 70% de regalías.\n\n' +
-                '### 👑 3. Cofres, Limiteds e Intercambios\n' +
-                '> Abrí cofres con llaves de Rebirth, conseguí ítems Limited U seriados y comerciá P2P.\n\n' +
+                '### 👤 2. Mi Perfil, Inventario y Objetos UGC\n' +
+                '> Consultá tus estadísticas generales del Tycoon, equipá tus ítems adquiridos y creá tus propios Objetos UGC con 70% de regalías.\n\n' +
+                '### 🛒 3. Tienda, Cofres e Intercambios\n' +
+                '> Tienda unificada de ítems clásicos, Limiteds numerados y artefactos de Cristal, junto con Cofres de Ascensión e Intercambios P2P.\n\n' +
                 '### 💠 4. Misiones, Pociones y Ranking\n' +
                 '> Completá misiones semanales para ganar Cristales gratis, activá pociones temporales y competí en el ranking de estudios.'
         },
@@ -218,10 +218,10 @@ const SECCIONES_PRINCIPALES_HELP = {
             contenido:
                 '### 🏗️ 1. Studio & Production\n' +
                 '> 3D isometric studio map with your avatar, conveyor belt, Tix Collector, Daily Streak, and Rebirth.\n\n' +
-                '### 🎒 2. Shop, Items & UGC Workshop\n' +
-                '> Buy items with Tix or Kortex Crystals, equip up to 3 items, and publish UGC items with 70% royalties.\n\n' +
-                '### 👑 3. Chests, Limiteds & P2P Trading\n' +
-                '> Unbox chests with Rebirth keys, collect serialized Limited U drops, and trade P2P.\n\n' +
+                '### 👤 2. My Profile, Inventory & UGC Objects\n' +
+                '> View your general Tycoon statistics, equip your owned items, and publish custom UGC objects with 70% royalties.\n\n' +
+                '### 🛒 3. Shop, Chests & P2P Trades\n' +
+                '> Unified shop for classic items, serialized Limiteds, and Crystal artifacts, plus Ascension Chests and P2P Trading.\n\n' +
                 '### 💠 4. Quests, Potions & Leaderboard\n' +
                 '> Complete weekly quests to earn free Crystals, activate temporary potions, and climb the studio leaderboard.'
         },

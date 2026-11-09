@@ -1381,106 +1381,6 @@ async function renderTycoonSnapshot({ state, username = 'Player', avatarUrl = nu
     ctx.fillText(vaultBannerText, badgeX + badgeW / 2 + 10, badgeY + 27);
     ctx.restore();
 
-    // =========================================================================
-    // 8. BARRA SUPERIOR HUD (4 TARJETAS LIMPIAS ESTILO ROBLOX — SIN NEÓN EXCESIVO NI RAP)
-    // =========================================================================
-    ctx.save();
-    const crystals = Number(profile.crystal_balance ?? 15);
-    const hudCards = [
-        {
-            x: 18,
-            w: 220,
-            border: '#38BDF8',
-            icon: 'crown',
-            iconColor: '#38BDF8',
-            label: isEn ? 'STUDIO LEVEL' : 'NIVEL DE ESTUDIO',
-            val: `${profile.studio_stage || 1}/6 • Rebirth x${profile.rebirth_count || 0}`,
-            valColor: '#FFFFFF'
-        },
-        {
-            x: 252,
-            w: 220,
-            border: '#FACC15',
-            icon: 'tix',
-            iconColor: '#FACC15',
-            label: isEn ? 'TIX WALLET' : 'BILLETERA DE TIX',
-            val: `${Number(profile.tix_balance || 0).toLocaleString()} Tix`,
-            valColor: '#FEF08A'
-        },
-        {
-            x: 486,
-            w: 220,
-            border: '#F472B6',
-            icon: 'crystal',
-            iconColor: '#F472B6',
-            label: isEn ? 'KORTEX CRYSTALS' : 'CRISTALES KORTEX',
-            val: `${crystals.toLocaleString()} ${isEn ? 'Crystals' : 'Cristales'}`,
-            valColor: '#FBCFE8'
-        },
-        {
-            x: 720,
-            w: 222,
-            border: '#4ADE80',
-            icon: 'bolt',
-            iconColor: '#4ADE80',
-            label: isEn ? 'ACTIVE PRODUCTION' : 'PRODUCCIÓN ACTIVA',
-            val: `+${metrics.effectiveTixPerMin} Tix/m (x${metrics.multiplier})`,
-            valColor: '#86EFAC'
-        }
-    ];
-
-    for (const c of hudCards) {
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
-        drawRoundedRect(ctx, c.x, 12, c.w, 54, 12);
-        ctx.fill();
-        ctx.strokeStyle = c.border;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.font = 'bold 10.5px KortexSans';
-        ctx.fillStyle = '#CBD5E1';
-        ctx.textAlign = 'left';
-        ctx.fillText(c.label, c.x + 14, 29);
-
-        drawVectorIcon(ctx, c.icon, c.x + 22, 48, 14, c.iconColor);
-        ctx.font = 'bold 15px KortexSans';
-        ctx.fillStyle = c.valColor;
-        ctx.fillText(c.val, c.x + 36, 53);
-    }
-    ctx.restore();
-
-    // =========================================================================
-    // 9. PÍLDORA INFERIOR DE NAVEGACIÓN DE LAS 4 CATEGORÍAS
-    // =========================================================================
-    ctx.save();
-    const pillX = 42;
-    const pillY = height - 38;
-    const pillW = 636;
-    const pillH = 30;
-
-    ctx.fillStyle = 'rgba(15, 35, 18, 0.86)';
-    drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 9);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    drawVectorIcon(ctx, 'crystal', pillX + 18, pillY + pillH / 2, 12, '#F472B6');
-    ctx.font = 'bold 11.5px KortexSans';
-    ctx.fillStyle = '#F1F5F9';
-    ctx.textAlign = 'left';
-
-    const footerMsg = metrics.potionActive
-        ? (isEn
-            ? `Active Potion: +${metrics.potionBonusPct}% (${metrics.potionRemainingMin}m left)  •  1. Studio • 2. Shop • 3. Chests • 4. Quests`
-            : `Poción Activa: +${metrics.potionBonusPct}% (${metrics.potionRemainingMin}m)  •  1. Estudio • 2. Tienda • 3. Cofres • 4. Misiones`)
-        : (isEn
-            ? 'Explore the 4 Categories: 1. Studio  •  2. Items & Shop  •  3. Chests & Limiteds  •  4. Quests & Ranking'
-            : 'Explorá las 4 Categorías: 1. Estudio  •  2. Tienda e Ítems  •  3. Cofres y Limiteds  •  4. Misiones y Ranking');
-
-    ctx.fillText(footerMsg, pillX + 32, pillY + 20);
-    ctx.restore();
-
     return canvas.toBuffer('image/png');
 }
 
@@ -1740,11 +1640,11 @@ function drawItemIllustration(ctx, itemId, category, cx, cy, size = 44, accentCo
 }
 
 /**
- * Renderiza la Vitrina Gráfica de Tarjetas de Ítems para la Categoría 2 (Tienda, Ítems y Taller UGC).
+ * Renderiza la Vitrina Gráfica de Tarjetas para la Categoría 2 (Perfil del Usuario, Inventario y Objetos UGC).
  */
 async function renderTycoonShopShowcase({ state, lang = 'es' }) {
     const isEn = lang === 'en';
-    const { profile, inventory, equippedItem, catalogMap } = state;
+    const { profile, inventory, catalogMap } = state;
     const width = 960;
     const height = 550;
     const canvas = createCanvas(width, height);
@@ -1763,60 +1663,48 @@ async function renderTycoonShopShowcase({ state, lang = 'es' }) {
     ctx.fillStyle = '#38BDF8';
     ctx.textAlign = 'left';
     ctx.fillText(
-        isEn ? 'CATEGORY 2 • VISUAL ITEM SHOWCASE & INVENTORY' : 'CATEGORÍA 2 • VITRINA VISUAL DE ÍTEMS E INVENTARIO',
+        isEn ? 'CATEGORY 2 • PLAYER PROFILE, INVENTORY & UGC ITEMS' : 'CATEGORÍA 2 • PERFIL DEL USUARIO, INVENTARIO Y OBJETOS UGC',
         40,
         36
     );
 
-    const eqName = equippedItem
-        ? formatCleanCardItemName(isEn ? (equippedItem.name_en || equippedItem.name) : equippedItem.name, 26)
-        : (isEn ? 'No Accessory Equipped' : 'Sin Accesorio Equipado');
-    const eqBoost = equippedItem ? `+${equippedItem.boost_pct}% Tix/min` : '+0% Tix/min';
-
     ctx.font = 'bold 19px KortexSans';
     ctx.fillStyle = '#F8FAFC';
     ctx.fillText(
-        isEn ? `Equipped: ${eqName} (${eqBoost})` : `Equipado: ${eqName} (${eqBoost})`,
+        isEn
+            ? `Studio Level ${profile.studio_stage || 1}/6  •  Rebirth x${profile.rebirth_count || 0}  •  Owned Items: ${inventory.length}`
+            : `Nivel de Estudio ${profile.studio_stage || 1}/6  •  Rebirth x${profile.rebirth_count || 0}  •  Ítems en tu Inventario: ${inventory.length}`,
         40,
         66
     );
 
-    const tixBal = Number(profile.tix_balance || 0).toLocaleString();
-    const crysBal = Number(profile.crystal_balance ?? 15).toLocaleString();
-
-    draw3DBox(ctx, 560, 24, 178, 52, 3, '#0F172A', '#090D16', '#FACC15', 10);
-    drawVectorIcon(ctx, 'tix', 582, 50, 14, '#FACC15');
-    ctx.font = 'bold 10px KortexSans';
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(isEn ? 'TIX BALANCE' : 'SALDO EN TIX', 602, 42);
-    ctx.font = 'bold 15px KortexSans';
-    ctx.fillStyle = '#FDE047';
-    ctx.fillText(`${tixBal} Tix`, 602, 62);
-
-    draw3DBox(ctx, 750, 24, 178, 52, 3, '#0F172A', '#090D16', '#EC4899', 10);
-    drawVectorIcon(ctx, 'crystal', 772, 50, 14, '#EC4899');
-    ctx.font = 'bold 10px KortexSans';
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(isEn ? 'KORTEX CRYSTALS' : 'CRISTALES KORTEX', 792, 42);
-    ctx.font = 'bold 15px KortexSans';
-    ctx.fillStyle = '#F472B6';
-    ctx.fillText(`${crysBal} ${isEn ? 'Crystals' : 'Cristales'}`, 792, 62);
-
     const allCatalog = [...catalogMap.values()];
-    const shopItems = allCatalog.filter(it => it.category === 'NORMAL' && Number(it.base_price) > 0);
-    const ugcItems = allCatalog.filter(it => it.category === 'UGC');
-    const displayCards = [...shopItems];
-    for (const u of ugcItems) {
-        if (displayCards.length < 8) displayCards.push(u);
+    const displayCards = [];
+    const seenCardIds = new Set();
+
+    for (const inv of inventory) {
+        if (inv.catalog && !seenCardIds.has(String(inv.item_id)) && displayCards.length < 8) {
+            seenCardIds.add(String(inv.item_id));
+            displayCards.push(inv.catalog);
+        }
     }
+
+    const ugcItems = allCatalog.filter(it => it.category === 'UGC');
+    for (const u of ugcItems) {
+        if (!seenCardIds.has(String(u.item_id)) && displayCards.length < 8) {
+            seenCardIds.add(String(u.item_id));
+            displayCards.push(u);
+        }
+    }
+
     while (displayCards.length < 8) {
         displayCards.push({
             item_id: 'ugc_creator_slot',
             category: 'UGC',
-            name: 'Crear Ítem UGC (70%)',
-            name_en: 'Create Custom UGC (70%)',
+            name: 'Ranura de Objeto UGC',
+            name_en: 'Custom UGC Item Slot',
             boost_pct: 10,
-            base_price: 2500
+            base_price: 0
         });
     }
 
@@ -1835,25 +1723,27 @@ async function renderTycoonShopShowcase({ state, lang = 'es' }) {
         const y = startY + row * (cardH + gapY);
 
         const isCrystal = item.currency_type === 'CRYSTAL' || String(item.item_id).startsWith('crys_');
+        const isLimited = item.category === 'LIMITED' || item.category === 'LIMITED_U';
         const isUgc = item.category === 'UGC';
         const isOwned = ownedIds.has(String(item.item_id));
-        const isEquipped = String(profile.equipped_item_id) === String(item.item_id);
 
-        const borderColor = isEquipped
+        const borderColor = isOwned
             ? '#22C55E'
-            : (isCrystal ? '#EC4899' : (isUgc ? '#A855F7' : '#38BDF8'));
-        const topBg = isEquipped
+            : (isLimited ? '#FACC15' : (isCrystal ? '#EC4899' : (isUgc ? '#A855F7' : '#38BDF8')));
+        const topBg = isOwned
             ? '#064E3B'
-            : (isCrystal ? '#2E1065' : (isUgc ? '#1E1B4B' : '#131C31'));
+            : (isLimited ? '#271202' : (isCrystal ? '#2E1065' : (isUgc ? '#1E1B4B' : '#131C31')));
         const frontBg = '#090D16';
 
         draw3DBox(ctx, x, y, cardW, cardH, 6, topBg, frontBg, borderColor, 12);
 
-        const tierLabel = isCrystal
-            ? (isEn ? 'CRYSTAL ARTIFACT' : 'ARTEFACTO CRISTAL')
-            : (isUgc ? (isEn ? 'UGC WORKSHOP' : 'TALLER UGC') : (isEn ? 'CLASSIC GEAR' : 'TIENDA CLÁSICA'));
+        const tierLabel = isLimited
+            ? (isEn ? 'LIMITED ITEM' : 'ÍTEM LIMITED')
+            : (isCrystal
+                ? (isEn ? 'CRYSTAL ARTIFACT' : 'ARTEFACTO CRISTAL')
+                : (isUgc ? (isEn ? 'UGC OBJECT' : 'OBJETO UGC') : (isEn ? 'PROFILE ITEM' : 'ÍTEM DE PERFIL')));
         ctx.font = 'bold 10px KortexSans';
-        ctx.fillStyle = isCrystal ? '#F472B6' : (isUgc ? '#C084FC' : '#7DD3FC');
+        ctx.fillStyle = isLimited ? '#FDE047' : (isCrystal ? '#F472B6' : (isUgc ? '#C084FC' : '#7DD3FC'));
         ctx.textAlign = 'center';
         ctx.fillText(tierLabel, x + cardW / 2, y + 22);
 
@@ -1876,25 +1766,19 @@ async function renderTycoonShopShowcase({ state, lang = 'es' }) {
         ctx.fillText(`+${item.boost_pct}% Tix/min`, x + cardW / 2, y + 140);
 
         let footerBadgeText = '';
-        let footerColor = '#FDE047';
-        if (isEquipped) {
-            footerBadgeText = isEn ? 'EQUIPPED ON AVATAR' : 'EQUIPADO AHORA';
-            footerColor = '#4ADE80';
-        } else if (isOwned) {
+        let footerColor = '#4ADE80';
+        if (isOwned) {
             footerBadgeText = isEn ? 'IN YOUR INVENTORY' : 'EN TU INVENTARIO';
-            footerColor = '#38BDF8';
-        } else if (isCrystal) {
-            footerBadgeText = `${Number(item.base_price).toLocaleString()} ${isEn ? 'Crystals' : 'Cristales'}`;
-            footerColor = '#F472B6';
-        } else if (Number(item.base_price) > 0) {
-            footerBadgeText = `${Number(item.base_price).toLocaleString()} Tix`;
-            footerColor = '#FDE047';
-        } else {
-            footerBadgeText = isEn ? 'VIP / EVENT REWARD' : 'RECOMPENSA VIP';
+            footerColor = '#4ADE80';
+        } else if (item.item_id === 'ugc_creator_slot') {
+            footerBadgeText = isEn ? 'UGC WORKSHOP SLOT' : 'TALLER DE OBJETOS UGC';
             footerColor = '#C084FC';
+        } else {
+            footerBadgeText = isEn ? 'COMMUNITY UGC' : 'UGC DE COMUNIDAD';
+            footerColor = '#38BDF8';
         }
 
-        ctx.font = 'bold 13px KortexSans';
+        ctx.font = 'bold 12px KortexSans';
         ctx.fillStyle = footerColor;
         ctx.fillText(footerBadgeText, x + cardW / 2, y + 174);
     });
@@ -1903,7 +1787,7 @@ async function renderTycoonShopShowcase({ state, lang = 'es' }) {
 }
 
 /**
- * Renderiza la Vitrina Gráfica de Cofres de Ascensión y Colección Limited / Limited U (Categoría 3 — Sin RAP).
+ * Renderiza la Vitrina Gráfica de Tienda Unificada, Cofres de Ascensión e Intercambios (Categoría 3).
  */
 async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }) {
     const isEn = lang === 'en';
@@ -1925,40 +1809,22 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
     ctx.fillStyle = '#FBBF24';
     ctx.textAlign = 'left';
     ctx.fillText(
-        isEn ? 'CATEGORY 3 • ASCENSION CHESTS, LIMITEDS & P2P TRADING' : 'CATEGORÍA 3 • COFRES DE ASCENSIÓN, LIMITEDS E INTERCAMBIOS',
+        isEn ? 'CATEGORY 3 • UNIFIED SHOP, ASCENSION CHESTS & P2P TRADING' : 'CATEGORÍA 3 • TIENDA UNIFICADA, COFRES DE ASCENSIÓN E INTERCAMBIOS',
         40,
         36
-    );
-
-    const myLimiteds = inventory.filter(
-        i => i.catalog && (i.catalog.category === 'LIMITED' || i.catalog.category === 'LIMITED_U')
     );
 
     ctx.font = 'bold 19px KortexSans';
     ctx.fillStyle = '#F8FAFC';
     ctx.fillText(
         isEn
-            ? `Your Limited Collection: ${myLimiteds.length} Items  •  Active Trades: ${tradesCount}`
-            : `Tu Colección Limited: ${myLimiteds.length} Ítems  •  Intercambios Activos: ${tradesCount}`,
+            ? `Classic Shop, Limiteds & Crystal Artifacts  •  Ascension Chests  •  Active Trades: ${tradesCount}`
+            : `Tienda de Ítems, Limiteds y Artefactos  •  Cofres de Ascensión  •  Ofertas P2P: ${tradesCount}`,
         40,
         64
     );
 
     const keys = Number(profile.ascension_tokens || 0);
-    draw3DBox(ctx, 680, 22, 246, 54, 3, '#271202', '#140901', '#FACC15', 10);
-    drawVectorIcon(ctx, 'crown', 704, 49, 15, '#FACC15');
-    ctx.font = 'bold 10px KortexSans';
-    ctx.fillStyle = '#FDE047';
-    ctx.fillText(isEn ? 'ASCENSION CHEST KEYS' : 'LLAVES DE COFRE DISPONIBLES', 726, 40);
-    ctx.font = 'bold 15px KortexSans';
-    ctx.fillStyle = '#FEF08A';
-    ctx.fillText(
-        keys > 0
-            ? (isEn ? `${keys} Key(s) Ready!` : `¡${keys} Llave(s) Lista(s)!`)
-            : (isEn ? '0 Keys (Or 3,500 Tix)' : '0 Llaves (O 3,500 Tix)'),
-        726,
-        62
-    );
 
     const chestX = 20;
     const chestY = 104;
@@ -2024,11 +1890,20 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
         chestY + 379
     );
 
-    const allLimiteds = [...catalogMap.values()].filter(
-        it => it.category === 'LIMITED' || it.category === 'LIMITED_U'
-    );
-    while (allLimiteds.length < 6) {
-        allLimiteds.push({
+    const allCatalog = [...catalogMap.values()];
+    const normalTix = allCatalog.filter(it => it.category === 'NORMAL' && it.currency_type !== 'CRYSTAL' && Number(it.base_price) > 0);
+    const crystalItems = allCatalog.filter(it => it.category === 'NORMAL' && it.currency_type === 'CRYSTAL');
+    const limitedUDrops = allCatalog.filter(it => it.category === 'LIMITED_U');
+    const chestLimiteds = allCatalog.filter(it => it.category === 'LIMITED');
+
+    const storeShowcase = [
+        ...normalTix.slice(0, 2),
+        ...limitedUDrops.slice(0, 2),
+        ...crystalItems.slice(0, 1),
+        ...chestLimiteds.slice(0, 1)
+    ];
+    while (storeShowcase.length < 6) {
+        storeShowcase.push({
             item_id: 'p2p_trade_card',
             category: 'P2P_BOARD',
             name: 'Tablero de Intercambio P2P',
@@ -2036,8 +1911,9 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
             boost_pct: 0
         });
     }
+
     const ownedByItemId = new Map();
-    for (const inv of myLimiteds) {
+    for (const inv of inventory) {
         ownedByItemId.set(String(inv.item_id), inv);
     }
 
@@ -2048,7 +1924,7 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
     const gGapX = 16;
     const gGapY = 20;
 
-    allLimiteds.slice(0, 6).forEach((item, idx) => {
+    storeShowcase.slice(0, 6).forEach((item, idx) => {
         const col = idx % 3;
         const row = Math.floor(idx / 3);
         const x = gridStartX + col * (gCardW + gGapX);
@@ -2056,23 +1932,35 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
 
         const isP2P = item.category === 'P2P_BOARD';
         const isLimU = item.category === 'LIMITED_U';
+        const isChestLim = item.category === 'LIMITED';
+        const isCrystal = item.currency_type === 'CRYSTAL' || String(item.item_id).startsWith('crys_');
         const ownedInst = ownedByItemId.get(String(item.item_id));
         const isOwned = Boolean(ownedInst);
 
-        const borderCol = isOwned ? '#22C55E' : (isP2P ? '#38BDF8' : (isLimU ? '#F43F5E' : '#FACC15'));
-        const topCol = isOwned ? '#064E3B' : (isP2P ? '#0F172A' : (isLimU ? '#3B0764' : '#1E1B4B'));
+        const borderCol = isOwned
+            ? '#22C55E'
+            : (isP2P ? '#38BDF8' : (isLimU ? '#F43F5E' : (isCrystal ? '#EC4899' : (isChestLim ? '#FACC15' : '#38BDF8'))));
+        const topCol = isOwned
+            ? '#064E3B'
+            : (isP2P ? '#0F172A' : (isLimU ? '#3B0764' : (isCrystal ? '#2E1065' : (isChestLim ? '#1E1B4B' : '#131C31'))));
 
         draw3DBox(ctx, x, y, gCardW, gCardH, 6, topCol, '#090D16', borderCol, 12);
 
         ctx.font = 'bold 10px KortexSans';
-        ctx.fillStyle = isP2P ? '#7DD3FC' : (isLimU ? '#FDA4AF' : '#FDE047');
+        ctx.fillStyle = isP2P
+            ? '#7DD3FC'
+            : (isLimU ? '#FDA4AF' : (isCrystal ? '#F472B6' : (isChestLim ? '#FDE047' : '#7DD3FC')));
         ctx.textAlign = 'center';
         ctx.fillText(
             isP2P
                 ? (isEn ? 'P2P MARKETPLACE' : 'COMERCIO ENTRE JUGADORES')
                 : (isLimU
                     ? `LIMITED U (#${item.minted_count || 0}/${item.max_supply || 15})`
-                    : (isEn ? 'CHEST LIMITED' : 'COFRE LIMITED')),
+                    : (isCrystal
+                        ? (isEn ? 'CRYSTAL SHOP' : 'TIENDA CRISTALES')
+                        : (isChestLim
+                            ? (isEn ? 'CHEST LIMITED' : 'COFRE LIMITED')
+                            : (isEn ? 'CLASSIC SHOP' : 'TIENDA TIX')))),
             x + gCardW / 2,
             y + 22
         );
@@ -2104,14 +1992,20 @@ async function renderTycoonVaultShowcase({ state, tradesCount = 0, lang = 'es' }
             statusCol = '#38BDF8';
         } else if (isOwned) {
             const serialStr = ownedInst.serial_number ? ` #${String(ownedInst.serial_number).padStart(2, '0')}` : '';
-            statusLine = isEn ? `OWNED${serialStr}` : `EN TU BÓVEDA${serialStr}`;
+            statusLine = isEn ? `OWNED${serialStr}` : `ADQUIRIDO${serialStr}`;
             statusCol = '#4ADE80';
         } else if (isLimU) {
             const rem = Math.max(0, Number(item.max_supply || 15) - Number(item.minted_count || 0));
             statusLine = rem > 0 ? `${Number(item.base_price).toLocaleString()} Tix (${rem} disp.)` : 'AGOTADO';
             statusCol = rem > 0 ? '#FDA4AF' : '#EF4444';
-        } else {
+        } else if (isCrystal) {
+            statusLine = `${Number(item.base_price).toLocaleString()} ${isEn ? 'Crystals' : 'Cristales'}`;
+            statusCol = '#F472B6';
+        } else if (isChestLim) {
             statusLine = isEn ? 'Drop in Ascension Chest' : 'Sale en Cofre Ascensión';
+            statusCol = '#FDE047';
+        } else {
+            statusLine = `${Number(item.base_price).toLocaleString()} Tix`;
             statusCol = '#FDE047';
         }
 
