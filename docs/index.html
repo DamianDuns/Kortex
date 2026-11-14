@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Kortex — Documentación oficial del bot para Discord: 20 herramientas en /roblox, ecosistema visual de 4 categorías en /tycoon, configuración /config y semáforo de concurrencia RAM.">
+    <meta name="description" content="Kortex — Documentación oficial del bot para Discord: 20 herramientas en /roblox, ecosistema /tycoon de 4 categorías con Vóxeles y Llaves Maestras, /config y concurrencia RAM.">
     <meta property="og:title" content="Kortex — Documentación Oficial del Bot">
-    <meta property="og:description" content="Explorá todos los comandos (/roblox, /tycoon, /config, /help, /ping), 20 herramientas simétricas, vitrinas visuales PNG y el motor ligero de concurrencia y RAM.">
+    <meta property="og:description" content="Explorá todos los comandos (/roblox, /tycoon, /config, /help, /ping), 20 herramientas simétricas, vistas previas Components V2 y sincronización de cuentas.">
     <title>Kortex — Documentación Oficial del Bot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1953,8 +1953,8 @@
             display: block;
             border-bottom: 1px solid var(--border-subtle);
             background: #0B0F17;
-            aspect-ratio: 16 / 9;
-            object-fit: cover;
+            aspect-ratio: 800 / 420;
+            object-fit: contain;
         }
 
         .canvas-caption {
@@ -2020,79 +2020,82 @@
 
         <!-- PANE 1: CUENTAS E INICIO DE SESIÓN -->
         <div class="popover-pane active" id="popover-pane-accounts">
-            <!-- 1. Discord Verification Card (Code in /config + OAuth 2.0) -->
+            <!-- 1. Discord Verification Card (Synced with /config KTX-XXXXXX & Web Panel Link) -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
                         <div class="popover-avatar-lg discord" id="pop-discord-avatar">D</div>
                         <div class="popover-account-text">
                             <strong id="discord-status-title">Cuenta de Discord</strong>
-                            <span id="discord-status-sub">Verificación con comando /config o Autenticador OAuth 2.0</span>
+                            <span id="discord-status-sub">Sincronización directa con /config (código KTX)</span>
                         </div>
                     </div>
                 </div>
                 <div class="popover-btn-row">
                     <button type="button" class="popover-btn discord" id="btn-discord-login" onclick="startOAuthPopup('discord')" style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                        <span>🔐 Autenticador OAuth 2.0 (Discord)</span>
-                        <span style="background:#23A55A;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">RECOMENDADO</span>
+                        <span>🤖 Cómo conectar desde /config</span>
+                        <span style="background:#23A55A;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">1 CLIC</span>
                     </button>
                     <button type="button" class="popover-btn-ghost" id="btn-discord-disconnect" onclick="disconnectAccount('discord')" title="Cerrar sesión de Discord">
                         Salir
                     </button>
                 </div>
                 <div class="popover-quick-box">
-                    <span class="popover-quick-label">🔑 O conectate con el código alojado en el comando <code>/config</code> de Discord:</span>
+                    <span class="popover-quick-label">🔑 Ingresá tu clave <code>KTX-XXXXXX</code> del comando <code>/config</code> (y opcionalmente tu Discord ID):</span>
                     <div class="popover-quick-form">
-                        <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Tu Discord ID (ej: 123456789012345678)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                        <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Discord ID (opcional si la clave es única)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
                     </div>
                     <div id="discord-step2-verify" style="margin-top:8px;">
                         <div class="popover-quick-form">
-                            <input type="text" class="popover-quick-input" id="quick-discord-code" placeholder="2. Tu clave de /config (ej: KTX-123456)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                            <input type="text" class="popover-quick-input" id="quick-discord-code" placeholder="2. Clave de /config (ej: KTX-123456)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
                             <button type="button" class="popover-quick-submit" style="background:#16A34A;color:#FFFFFF;" onclick="quickVerifyDiscordWeb('verify')">✅ Vincular</button>
                         </div>
                     </div>
                 </div>
                 <div id="discord-feedback" class="popover-feedback">
-                    Podés usar el <strong>Autenticador OAuth 2.0</strong> o abrir el comando <code>/config</code> en Discord (apartado <strong>1. Cuenta de Discord</strong>) y pegar tu código <code>KTX-XXXXXX</code>.
+                    Ejecutá <code>/config</code> en Discord → <strong>1. Cuentas y Datos Guardados</strong> → tocá <strong>Panel Web</strong> para entrar en 1 clic o pegá tu código <code>KTX-XXXXXX</code>. Tu sesión queda guardada en cookie persistente.
                 </div>
             </div>
 
-            <!-- 2. Roblox Verification Card (Bio Code + OAuth 2.0) -->
+            <!-- 2. Roblox Verification Card (Bio Code + Auto Sync with Discord) -->
             <div class="popover-account-card">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
                         <div class="popover-avatar-lg roblox" id="pop-roblox-avatar">R</div>
                         <div class="popover-account-text">
                             <strong id="roblox-status-title">Cuenta de Roblox</strong>
-                            <span id="roblox-status-sub">Verificación con código en biografía o Autenticador OAuth 2.0</span>
+                            <span id="roblox-status-sub">Sincronizada con Discord y verificación en biografía</span>
                         </div>
                     </div>
                 </div>
                 <div class="popover-btn-row">
                     <button type="button" class="popover-btn roblox" id="btn-roblox-login" onclick="startOAuthPopup('roblox')" style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                        <span>🔐 Autenticador OAuth 2.0 (Roblox)</span>
-                        <span style="background:#0284C7;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">RECOMENDADO</span>
+                        <span>🔄 Sincronizar cuenta desde Discord / Web</span>
+                        <span style="background:#0284C7;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">SYNC</span>
                     </button>
                     <button type="button" class="popover-btn-ghost" id="btn-roblox-disconnect" onclick="disconnectAccount('roblox')" title="Desvincular cuenta de Roblox">
                         Quitar
                     </button>
                 </div>
                 <div class="popover-quick-box">
-                    <span class="popover-quick-label">🎮 O escribí tu @Usuario / ID de Roblox para verificarte con código en tu biografía:</span>
+                    <span class="popover-quick-label">🎮 Escribí tu <code>@Usuario</code> o ID numérico de Roblox para verificar y sincronizar en Discord y Web:</span>
                     <div class="popover-quick-form">
                         <input type="text" class="popover-quick-input" id="quick-roblox-input" placeholder="Ej: TuUsuarioRoblox o tu ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
                         <button type="button" class="popover-quick-submit" onclick="quickVerifyRobloxWeb('start')">🔑 Generar Código</button>
                     </div>
                     <div id="roblox-step2-verify" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.12);">
                         <div style="font-size:11px;color:#E2E8F0;line-height:1.45;margin-bottom:6px;">
-                            Pegá este código en la biografía <strong>"Acerca de" (About)</strong> de tu cuenta de Roblox <strong id="roblox-verify-target-label"></strong> y tocá comprobar:
+                            Pegá este código en la biografía <strong>"Acerca de" (About)</strong> de tu perfil de Roblox <strong id="roblox-verify-target-label"></strong> y tocá comprobar:
                             <div id="roblox-verify-code-badge" style="margin-top:5px;padding:6px 10px;background:#0F172A;border:1px solid #38BDF8;border-radius:6px;font-family:monospace;font-weight:800;font-size:13px;color:#38BDF8;text-align:center;letter-spacing:0.6px;user-select:all;">KORTEX-0000</div>
                         </div>
-                        <button type="button" class="popover-quick-submit" style="width:100%;background:#16A34A;color:#FFFFFF;padding:8px 12px;" onclick="quickVerifyRobloxWeb('verify')">✅ Ya pegué el código en mi biografía (Comprobar)</button>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="popover-quick-submit" style="flex:1;background:#16A34A;color:#FFFFFF;padding:8px 12px;" onclick="quickVerifyRobloxWeb('verify')">✅ Comprobar Biografía</button>
+                            <button type="button" class="popover-quick-submit" style="background:#334155;color:#E2E8F0;padding:8px 10px;" onclick="quickVerifyRobloxWeb('cancel')">Cancelar</button>
+                        </div>
                     </div>
                 </div>
                 <div id="roblox-feedback" class="popover-feedback">
-                    Podés usar el <strong>Autenticador OAuth 2.0</strong> o verificarte escribiendo tu nombre de usuario y colocando el código en tu biografía de Roblox.
+                    Si ya vinculaste tu Roblox en Discord (<code>/config</code>), se carga automáticamente al conectar tu Discord ID. También podés verificarlo acá por código en biografía.
                 </div>
             </div>
         </div>
@@ -2118,6 +2121,19 @@
                 </div>
             </div>
 
+            <div class="history-list-box" id="history-tycoon-box" style="display:none;margin-bottom:0.75rem;border-color:rgba(56,189,248,0.32);background:rgba(15,23,42,0.75);">
+                <div class="history-list-title">
+                    <span>🏭 Progreso Sincronizado /tycoon</span>
+                    <span id="tycoon-stat-level" style="font-size:0.73rem;color:#38BDF8;font-weight:700;">Nivel 1/6</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:0.65rem;font-size:0.78rem;color:#E2E8F0;padding-top:0.2rem;">
+                    <span>🎟️ <strong id="tycoon-stat-tix">0 Tix</strong></span>
+                    <span>💠 <strong id="tycoon-stat-voxeles" style="color:#38BDF8;">0 Vóxeles</strong></span>
+                    <span>🧩 <strong id="tycoon-stat-fragments">0/4 Frag.</strong></span>
+                    <span>🗝️ <strong id="tycoon-stat-keys" style="color:#4ADE80;">0 Llaves</strong></span>
+                </div>
+            </div>
+
             <div class="history-list-box">
                 <div class="history-list-title">
                     <span>📋 Historial de tu Cuenta Activa</span>
@@ -2125,14 +2141,14 @@
                 </div>
                 <div class="history-list-items" id="account-history-list">
                     <div class="history-item">
-                        <div class="history-item-detail">El historial solo guarda datos mientras estás en tu cuenta o tenés una cuenta registrada. Si quitás la cuenta, no se guardan datos.</div>
+                        <div class="history-item-detail">El historial sincronizado se conserva automáticamente en tu cookie de sesión y en Discord mientras tu cuenta esté conectada.</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="popover-footer-note">
-            Solo se guardan datos mientras tengas tu cuenta conectada. Al quitarla, su historial se limpia.
+            Sesión persistente protegida mediante cookies de navegador + sincronización en vivo con Discord (/config) y Roblox.
         </div>
     </div>
 
@@ -2182,12 +2198,12 @@
                 <div class="kicker">Documentación Oficial del Bot · Ecosistema para Discord</div>
                 <h1>Guía completa de comandos, paneles interactivos y utilidades de Kortex.</h1>
                 <p>
-                    Kortex integra paneles interactivos directamente en Discord: <strong>20 herramientas simétricas</strong> en <code>/roblox</code> (4 categorías × 5), el ecosistema 3D y vitrina visual de <strong>4 categorías</strong> en <code>/tycoon</code>, gestión de cuentas en <code>/config</code> y un motor de concurrencia directo sin sobrecarga de RAM.
+                    Kortex integra paneles interactivos directamente en Discord: <strong>20 herramientas simétricas</strong> en <code>/roblox</code> (4 categorías × 5), el ecosistema <strong>/tycoon</strong> de <strong>4 categorías</strong> con <strong>Vóxeles</strong> y <strong>Llaves Maestras</strong>, gestión sincronizada de cuentas en <code>/config</code> y un motor ligero sin sobrecarga de RAM.
                 </p>
                 <div class="hero-actions">
                     <a href="#comandos" class="btn btn-primary">Explorar Comandos</a>
-                    <button type="button" class="btn btn-secondary" onclick="openAccountPopover()">Cuentas e Iniciar Sesión</button>
-                    <a href="#vistas-previas" class="btn btn-secondary">Ver Vitrinas en Vivo</a>
+                    <button type="button" class="btn btn-secondary" onclick="openAccountPopover()">Cuentas y Sincronización</button>
+                    <a href="#vistas-previas" class="btn btn-secondary">Ver Vistas Previas</a>
                 </div>
             </div>
 
@@ -2269,27 +2285,27 @@
                 <article class="cmd-doc-card">
                     <div class="cmd-doc-top">
                         <span class="cmd-syntax">/tycoon</span>
-                        <span class="cmd-scope">4 Categorías Visuales · Lienzos PNG Dedicados</span>
+                        <span class="cmd-scope">4 Categorías · Components V2 · Vóxeles y Llaves Maestras</span>
                     </div>
                     <p class="cmd-doc-desc">
-                        Ecosistema Tycoon en 3ra persona donde cada una de sus 4 categorías renderiza su propia tarjeta gráfica PNG de alta resolución (960×550) sin saturación de texto.
+                        Sistema Tycoon centralizado exclusivamente en <code>/tycoon</code> con paneles nativos de Discord Components V2, mapa 3D del Estudio y economía dinámica sin spam de comandos.
                     </p>
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
-                            <strong>Categoría 1: 🏗️ Mi Estudio y Producción (3D Isométrico Roblox)</strong>
-                            Terreno 3D low-poly con pinos y rocas, plataforma de cemento limpia (sin neones cibernéticos), Dropper 1 con chimenea, cinta transportadora en L, Bóveda Colectora 3D, botones pisables circulares y tu <strong>PJ 3D de cuerpo completo + ítems equipados</strong>.
+                            <strong>Categoría 1: 🏗️ Mi Estudio y Producción</strong>
+                            Estudio 3D isométrico, Colector de Tix con <strong>Vaciado Crítico</strong> (15% de soltar <code>+1 🧩</code> al 100%), 6 Estaciones con <strong>Hallazgo en Cimientos</strong> (25%), evento aleatorio de <strong>Calibración Láser</strong>, Racha Diaria y Rebirth (<code>+35%</code>).
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 2: 🎒 Tienda, Ítems y Taller UGC</strong>
-                            Vitrina visual 2×4 con 8 tarjetas de ítems ilustradas a medida (Espadas, Katanas, Alas, Halos), equipamiento de hasta 3 ítems y Taller UGC (70% regalías).
+                            <strong>Categoría 2: 👤 Mi Perfil e Inventario</strong>
+                            Panel limpio con saldos de <code>Tix</code>, <code>💠 Vóxeles</code>, <code>🧩 Fragmentos (x/4)</code> y <code>🗝️ Llaves Maestras</code>, <strong>Forja interactiva</strong> (<code>4 🧩 → 1 🗝️</code>) con evento <strong>Presión Crítica</strong>, equipamiento y Taller UGC (70% regalías).
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 3: 👑 Cofres, Limiteds e Intercambios</strong>
-                            Vitrina visual con Cofre de Ascensión 3D + 6 tarjetas Limited y Limited U seriadas (<code>#01/15</code>) junto con el tablero de Trading P2P.
+                            <strong>Categoría 3: 🛒 Tienda, Cofres e Intercambios</strong>
+                            Tienda unificada (Clásicos Tix, Limited U seriados, UGC de la comunidad y Artefactos en Vóxeles), <strong>3 Cofres por Cerraduras</strong> (<code>📦 1 🗝️</code>, <code>🛡️ 2 🗝️</code>, <code>💠 3 🗝️</code>) con <strong>Multiplicador de Riesgo</strong> (<code>x1.0</code> / <code>x1.5</code> / <code>x2.5</code>) y Mercado P2P.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 4: 💠 Misiones, Pociones y Ranking</strong>
-                            Tablero visual con las 4 Misiones Semanales para ganar Cristales Kortex (<code>💠</code>) gratis, Pociones de 30m, Top 5 Estudios y ventajas Nitro/YouTube.
+                            <strong>Categoría 4: 🏆 Misiones, Laboratorio y Ranking</strong>
+                            4 Misiones Semanales recompensadas en <code>💠 Vóxeles</code> + Bono 4/4 (<code>+30 💠 &amp; +1 🗝️</code>), Laboratorio de Pociones incluido el <strong>Tónico del Prospector</strong> (2x drop de fragmentos) y Top 5 Estudios.
                         </div>
                     </div>
                 </article>
@@ -2298,23 +2314,23 @@
                 <article class="cmd-doc-card">
                     <div class="cmd-doc-top">
                         <span class="cmd-syntax">/config</span>
-                        <span class="cmd-scope">Cuentas OAuth 2.0 · Idioma · Moderación Propietario</span>
+                        <span class="cmd-scope">Cuentas Sincronizadas · Idioma · Administración Propietario</span>
                     </div>
                     <p class="cmd-doc-desc">
-                        Panel de configuración organizado por categorías: conexión de cuentas Discord/Roblox, selector de idioma (Español / English) y administración exclusiva del propietario.
+                        Panel de configuración en 3 categorías: vinculación directa Discord/Roblox con acceso Web en 1 clic, selector de idioma y herramientas exclusivas del administrador.
                     </p>
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
-                            <strong>Categoría 1: 🔗 Cuentas y Datos Guardados (Usuarios)</strong>
-                            Conecta tus cuentas de Discord y Roblox con OAuth 2.0 oficial y muestra el resumen de tu lista, Robux pendientes, alertas y códigos.
+                            <strong>Categoría 1: 🔗 Cuentas y Datos Guardados</strong>
+                            Muestra tu clave <code>KTX-XXXXXX</code> y botón <strong>Panel Web</strong> con auto-sincronización, vincula tu cuenta de Roblox y resume tu lista, Robux pendientes y saldo en <code>/tycoon</code>.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 2: 🌐 Idioma y Preferencias Regionales</strong>
-                            Alterna instantáneamente entre Español y English en todos los paneles y lienzos PNG, y ajusta tu región de precios predeterminada.
+                            <strong>Categoría 2: 🌐 Idioma y Preferencias</strong>
+                            Alterna instantáneamente entre Español e Inglés y ajusta tus preferencias activas del bot y región de precios.
                         </div>
                         <div class="cmd-cat-item">
-                            <strong>Categoría 3: 🛡️ Administración y Motor RAM (Propietario)</strong>
-                            Control exclusivo del Semáforo de Concurrencia (Auto / Ahorro / Turbo), Purga de Caché en 1 paso, límites por usuario y moderación UGC.
+                            <strong>Categoría 3: 🛡️ Administración del Bot (Propietario)</strong>
+                            Control exclusivo del Semáforo de Concurrencia, Purga de Caché, gestión de usuarios/roles <strong>VIP de /tycoon</strong> y mantenimiento.
                         </div>
                     </div>
                 </article>
@@ -2323,7 +2339,7 @@
                 <article class="cmd-doc-card">
                     <div class="cmd-doc-top">
                         <span class="cmd-syntax">/help · /ping</span>
-                        <span class="cmd-scope">Guía de 2 Niveles · Diagnóstico de Latencia y RAM</span>
+                        <span class="cmd-scope">Guía Interactiva · Diagnóstico de Latencia y RAM</span>
                     </div>
                     <p class="cmd-doc-desc">
                         Comandos de asistencia rápida y telemetría técnica para consultar cualquier función o medir la salud del servidor en vivo.
@@ -2331,7 +2347,7 @@
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
                             <strong>📚 /help — Navegación Interactiva de 2 Niveles</strong>
-                            Permite explorar el resumen general, las 4 categorías de <code>/roblox</code> (20 herramientas), las 4 categorías visuales de <code>/tycoon</code>, <code>/config</code> y <code>/ping</code>.
+                            Permite explorar el resumen general, las 4 categorías de <code>/roblox</code> (20 herramientas), las 4 categorías de <code>/tycoon</code>, las 3 categorías de <code>/config</code> y <code>/ping</code>.
                         </div>
                         <div class="cmd-cat-item">
                             <strong>🏓 /ping — Latencia WebSocket y Memoria Real del Host</strong>
@@ -2480,22 +2496,22 @@
         <section id="vistas-previas" class="section">
             <div class="section-header">
                 <h2>04. Vistas Previas en Vivo: Las 4 Categorías de /tycoon y Herramientas de /roblox</h2>
-                <p>Muestras reales generadas en tiempo real por el motor gráfico de Kortex. Usá los botones de la tarjeta de <code>/tycoon</code> para alternar entre sus 4 categorías visuales.</p>
+                <p>Muestras actualizadas de los paneles Components V2 y el motor gráfico de Kortex. Usá los botones de <code>/tycoon</code> para alternar entre sus 4 categorías.</p>
             </div>
 
             <div class="canvas-grid">
                 <div class="canvas-card" style="grid-column: 1 / -1;">
-                    <img id="img-tycoon" src="assets/preview-tycoon-studio.svg" alt="Vitrina Visual Interactiva de /tycoon" loading="lazy">
+                    <img id="img-tycoon" src="assets/preview-tycoon-studio.svg" alt="Vista Previa Interactiva de /tycoon" loading="lazy">
                     <div class="canvas-caption" style="flex-direction: column; align-items: stretch; gap: 0.75rem;">
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-                            <span id="tycoon-preview-caption"><strong>/tycoon — Categoría 1 (Mi Estudio 3D Roblox):</strong> Plataforma isométrica 3D cartoon/low-poly, PJ 3D con assets equipados, Cinta en L y Bóveda Colectora</span>
-                            <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCurrentTycoonCanvas()">↻ Recargar Lienzo</button>
+                            <span id="tycoon-preview-caption"><strong>/tycoon — Categoría 1 (Mi Estudio y Producción):</strong> Mapa isométrico 3D, Colector 100% con Vaciado Crítico (+15% 🧩), 6 Estaciones, Calibración Láser y HUD de Tix / Vóxeles / Llaves</span>
+                            <button class="btn btn-secondary" style="padding: 0.36rem 0.8rem; font-size: 0.8rem; min-height: 36px;" onclick="reloadCurrentTycoonCanvas()">↻ Recargar Vista</button>
                         </div>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <button type="button" class="btn btn-primary tycoon-sec-btn" data-sec="sec_studio" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_studio')">🏗️ 1. Mi Estudio 3D</button>
-                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_shop" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_shop')">🎒 2. Vitrina de Ítems (2×4)</button>
-                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_vault" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_vault')">👑 3. Cofres 3D y Limiteds</button>
-                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_perks" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_perks')">💠 4. Misiones y Top 5</button>
+                            <button type="button" class="btn btn-primary tycoon-sec-btn" data-sec="sec_studio" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_studio')">🏗️ 1. Estudio y Producción</button>
+                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_shop" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_shop')">👤 2. Perfil, Forja y UGC</button>
+                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_vault" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_vault')">🛒 3. Tienda, Cofres y P2P</button>
+                            <button type="button" class="btn btn-secondary tycoon-sec-btn" data-sec="sec_perks" style="padding: 0.42rem 0.9rem; font-size: 0.8rem; min-height: 36px;" onclick="switchTycoonCanvasPreview('sec_perks')">🏆 4. Misiones, Lab y Top 5</button>
                         </div>
                     </div>
                 </div>
@@ -2891,36 +2907,36 @@
                 label: '🏗️ Categoría 1: Mi Estudio y Producción (Mapa 3D Isométrico)',
                 canvasEndpoint: '/api/canvas/tycoon?section=sec_studio',
                 rows: [
-                    { name: '🟢 Colector de Tix + Cinta Transportadora 3D', sub: '4 tarjetas HUD simétricas (Nivel, Tix, Cristales y Producción/m) sin RAP innecesario.', btn: '🟢 Recolectar Tix' },
-                    { name: '🔥 Racha Diaria de Estudio (+Tix y +💠 Cada 5 Días)', sub: 'Reclamá tu recompensa cada 24h y multiplicá tu bono diario consecutivo.', btn: '🔥 Racha Diaria' },
-                    { name: '🚀 Ascensión Rebirth (+35% Permanente + Llave)', sub: 'Al llegar a Nivel 6 podés hacer Rebirth para ganar +35% permanente y 1 Llave de Cofre.', btn: '🚀 Rebirth' }
+                    { name: '🟢 Colector de Tix + Vaciado Crítico (15% 🧩)', sub: 'Al recolectar al 100% de capacidad tiene 15% de soltar +1 Fragmento de Llave (🧩).', btn: '💰 Recolectar Tix' },
+                    { name: '🏗️ 6 Estaciones + Hallazgo (25% 🧩) + Calibración Láser', sub: 'Al construir hay 25% de hallar +1 🧩; ocasionalmente calibrás el Upgrader Láser Nv.4.', btn: '🏗️ Construir' },
+                    { name: '🔥 Racha Diaria y Ascensión Rebirth (+35% + 1 🧩)', sub: 'Reclamá tu bono cada 24h o hacé Rebirth en Nivel 6 para sumar +35% permanente y +1 🧩.', btn: '🚀 Rebirth' }
                 ]
             },
             sec_shop: {
-                label: '🎒 Categoría 2: Tienda, Ítems y Taller UGC (Vitrina 2×4)',
+                label: '👤 Categoría 2: Mi Perfil e Inventario (Components V2)',
                 canvasEndpoint: '/api/canvas/tycoon?section=sec_shop',
                 rows: [
-                    { name: '🖼️ Vitrina Visual 2×4 de Tarjetas de Ítems Ilustradas', sub: 'Cada ítem muestra su propia ilustración vectorial a color (Espadas, Katanas, Alas, Halos, Cascos) + rareza + bono %.', btn: '🎟️ Comprar Tix' },
-                    { name: '💠 Tienda de Cristales Kortex + Equipamiento (3 Slots)', sub: 'Adquirí reliquias épicas/míticas con Cristales ganados en misiones y equipá hasta 3 a la vez.', btn: '💠 Tienda Cristales' },
-                    { name: '🎨 Taller Creador UGC (70% Regalías en Vivo)', sub: 'Publicá tu propio ítem personalizado en el mercado global y cobrá el 70% de cada venta.', btn: '🎨 Crear UGC' }
+                    { name: '💼 Saldos: Tix, 💠 Vóxeles, 🧩 Fragmentos (x/4) y 🗝️ Llaves', sub: 'Estadísticas generales del Tycoon, inventario activo y equipamiento rápido en Components V2.', btn: '🔄 Equipar Ítem' },
+                    { name: '🔨 Forja de Llave Maestra (4 🧩 → 1 🗝️) + Presión Crítica', sub: 'Forjá Llaves Maestras; con 25% elegís Enfriamiento Seguro (100% 1 🗝️) o Sobrecarga (50% 2 🗝️).', btn: '🔨 Forjar Llave' },
+                    { name: '🎨 Taller Creador UGC (70% Regalías en Vivo)', sub: 'Publicá prendas en la Tienda de Categoría 3 y cobrá el 70% en Tix de cada venta.', btn: '🎨 Crear UGC' }
                 ]
             },
             sec_vault: {
-                label: '👑 Categoría 3: Cofres, Limiteds e Intercambios P2P',
+                label: '🛒 Categoría 3: Tienda, Cofres e Intercambios P2P',
                 canvasEndpoint: '/api/canvas/tycoon?section=sec_vault',
                 rows: [
-                    { name: '🗝️ Cofre de Ascensión 3D (1 Llave de Rebirth)', sub: 'Abrí un cofre garantizando 1 reliquia o ítem especial que aún no tengas en tu inventario.', btn: '🗝️ Abrir Cofre (1 🗝️)' },
-                    { name: '👑 Bóveda Limited y Limited U Seriados (#01/15)', sub: '6 tarjetas visuales con estado de stock global y número de serie único por copia.', btn: '👑 Reclamar Limited U' },
-                    { name: '🤝 Mercado P2P e Intercambio Directo entre Jugadores', sub: 'Publicá ofertas en el tablero global o enviá copias Limited a otro jugador de Discord.', btn: '🤝 Publicar Oferta' }
+                    { name: '🛍️ Tienda Unificada (Tix, Limited U, UGC y 💠 Vóxeles)', sub: 'Un solo catálogo ordenado con Clásicos en Tix, Limited U seriados (#01/15), UGC y Artefactos.', btn: '🛍️ Ver Tienda' },
+                    { name: '🔐 3 Cofres por Cerraduras (📦 1 🗝️ · 🛡️ 2 🗝️ · 💠 3 🗝️) + Riesgo', sub: 'Girá cerraduras con Llaves Maestras y elegí Cobro Seguro (x1.0), Sobrecargar (x1.5) o Jackpot (x2.5).', btn: '🗝️ Abrir Cofres' },
+                    { name: '🤝 Mercado P2P e Intercambio Directo entre Jugadores', sub: 'Publicá ofertas en el tablero global o transferí copias Limited seriadas con otros usuarios.', btn: '🤝 Publicar Oferta' }
                 ]
             },
             sec_perks: {
-                label: '💠 Categoría 4: Misiones Semanales, Pociones y Ranking',
+                label: '🏆 Categoría 4: Misiones Semanales, Laboratorio y Ranking',
                 canvasEndpoint: '/api/canvas/tycoon?section=sec_perks',
                 rows: [
-                    { name: '🎯 4 Misiones Semanales con Barras de Progreso', sub: 'Completá objetivos semanales para reclamar Cristales Kortex (💠) y Tix 100% gratis.', btn: '🎁 Reclamar Misiones' },
-                    { name: '🧪 Laboratorio de Pociones (30 Minutos Activos)', sub: 'Activá el Elixir de Velocidad 2x o el Imán Cuántico con Tix o Cristales.', btn: '⚡ Poción 2x' },
-                    { name: '🏆 Top 5 Estudios + Ventajas Nitro Boost (+50%) y YouTube (+35%)', sub: 'Competí en el ranking global y sincronizá tus multiplicadores permanentes de comunidad.', btn: '🔄 Sincronizar VIP' }
+                    { name: '🎯 4 Misiones Semanales + Bono 4/4 (+30 💠 y +1 🗝️)', sub: 'Completá las 4 misiones para ganar Vóxeles (💠) gratis y una Llave Maestra adicional.', btn: '🎁 Reclamar Misiones' },
+                    { name: '🧪 Laboratorio (Velocidad, Elixir Mega y Tónico del Prospector)', sub: 'Incluye el Tónico del Prospector (600 Tix) que duplica x2 la probabilidad de Fragmentos (🧩).', btn: '🧪 Tónico Prospector' },
+                    { name: '🏅 Top 5 Estudios Globales y Beneficios VIP (/config Admin)', sub: 'Ranking global actualizado en vivo con multiplicadores VIP administrados desde /config.', btn: '🏆 Ver Ranking' }
                 ]
             }
         };
@@ -3020,10 +3036,10 @@
                                 <div class="v2-section-text"><strong>🎮 /roblox — 20 Herramientas Simétricas (4 Categorías × 5)</strong><span>Economía, Avatares 3D/2D, Juegos y Estadísticas/Estado de Roblox.</span></div>
                             </div>
                             <div class="v2-section-row">
-                                <div class="v2-section-text"><strong>🏭 /tycoon — Estudio 3D + 4 Categorías con Vitrinas PNG</strong><span>Estudio 3D, Vitrina 2×4 de Ítems, Cofres 3D/Limiteds y Misiones Semanales.</span></div>
+                                <div class="v2-section-text"><strong>🏭 /tycoon — Estudio 3D, Vóxeles y Llaves Maestras (4 Categorías)</strong><span>Colector con Vaciado Crítico, Forja 4 🧩 → 1 🗝️, Tienda Unificada + Cofres y Laboratorio.</span></div>
                             </div>
                             <div class="v2-section-row">
-                                <div class="v2-section-text"><strong>⚙️ /config — Cuentas OAuth 2.0, Idioma y Moderación</strong><span>Conexión de cuentas, Español/English y panel de administración del propietario.</span></div>
+                                <div class="v2-section-text"><strong>⚙️ /config — Cuentas, Idioma y Administración</strong><span>Sincronización Discord/Roblox + Panel Web, Español/English y controles de propietario.</span></div>
                             </div>
                             <div class="v2-section-row">
                                 <div class="v2-section-text"><strong>🏓 /ping — Diagnóstico, Latencia y RAM del Host</strong><span>Velocidad de respuesta y consumo real de memoria del contenedor.</span></div>
@@ -3047,7 +3063,7 @@
                     if (sub === 'sub_account') {
                         detailHtml = `
                             <div class="v2-section-list">
-                                <div class="v2-section-row"><div class="v2-section-text"><strong>🔐 Autorización Oficial con Roblox OAuth 2.0</strong><span>Autorizás tu cuenta directamente en la página oficial de Roblox y se conserva tu sesión de forma segura.</span></div></div>
+                                <div class="v2-section-row"><div class="v2-section-text"><strong>🔐 Vinculación Rápida de Roblox (/config y Web)</strong><span>Verificá tu cuenta con código en biografía o OAuth 2.0 y sincronizala al instante entre Discord y la Web.</span></div></div>
                             </div>
                         `;
                     } else {
@@ -3066,17 +3082,18 @@
                 } else if (sec === 'cmd_tycoon') {
                     detailHtml = `
                         <div class="v2-section-list">
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>🏗️ Categoría 1: Mi Estudio y Producción</strong><span>Mapa 3D isométrico (4 HUD cards sin RAP), Colector de Tix, Racha Diaria y Rebirth.</span></div></div>
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>🎒 Categoría 2: Tienda, Ítems y Taller UGC</strong><span>Vitrina visual 2×4 de tarjetas ilustradas + creación UGC con 70% de regalías.</span></div></div>
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>👑 Categoría 3: Cofres, Limiteds e Intercambios</strong><span>Cofre de Ascensión 3D + 6 tarjetas Limited / Limited U seriadas y Trading P2P.</span></div></div>
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>💠 Categoría 4: Misiones, Pociones y Ranking</strong><span>4 Misiones Semanales por Cristales gratis + Top 5 Estudios + Nitro/YouTube VIP.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🏗️ Categoría 1: Mi Estudio y Producción</strong><span>Colector (Vaciado Crítico 15% +1 🧩), 6 Estaciones (Hallazgo 25% +1 🧩), Calibración Láser y Rebirth.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>👤 Categoría 2: Mi Perfil e Inventario</strong><span>Saldos Tix / 💠 Vóxeles / 🧩 Fragmentos (x/4) / 🗝️ Llaves, Forja con Presión Crítica y Taller UGC (70%).</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🛒 Categoría 3: Tienda, Cofres e Intercambios</strong><span>Tienda Unificada, 3 Cofres por Cerraduras (📦/🛡️/💠) con Multiplicador de Riesgo y Mercado P2P.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🏆 Categoría 4: Misiones, Laboratorio y Ranking</strong><span>4 Misiones Semanales (+30 💠 y 1 🗝️ al 4/4), Tónico del Prospector (2x drop 🧩) y Top 5.</span></div></div>
                         </div>
                     `;
                 } else if (sec === 'cmd_config') {
                     detailHtml = `
                         <div class="v2-section-list">
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>🔗 Categoría 1: Cuentas y Conexión</strong><span>Estado de sesión OAuth 2.0 de Discord y Roblox para cualquier usuario.</span></div></div>
-                            <div class="v2-section-row"><div class="v2-section-text"><strong>🛡️ Categoría 2: Administración del Bot (Propietario)</strong><span>Semáforo de Concurrencia, Purga de Caché instantánea en 1 paso y moderación.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🔗 Categoría 1: Cuentas y Datos Guardados</strong><span>Clave KTX-XXXXXX, botón Panel Web en 1 clic, vínculo Roblox y resumen sincronizado.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🌐 Categoría 2: Idioma y Preferencias</strong><span>Selector Español / English y ajustes regionales sin opciones redundantes.</span></div></div>
+                            <div class="v2-section-row"><div class="v2-section-text"><strong>🛡️ Categoría 3: Administración del Bot (Propietario)</strong><span>Semáforo de Concurrencia, Purga de Caché, gestión VIP de /tycoon y mantenimiento.</span></div></div>
                         </div>
                     `;
                 } else {
@@ -3097,8 +3114,8 @@
                         <select class="v2-select" onchange="onSimSelectChange('helpSection', this.value)">
                             <option value="cmd_overview" ${sec === 'cmd_overview' ? 'selected' : ''}>🏠 Resumen General de Comandos del Bot</option>
                             <option value="cmd_roblox" ${sec === 'cmd_roblox' ? 'selected' : ''}>🎮 Comando /roblox — 20 Herramientas (4 Categorías)</option>
-                            <option value="cmd_tycoon" ${sec === 'cmd_tycoon' ? 'selected' : ''}>🏭 Comando /tycoon — Estudio 3D y 4 Vitrinas PNG</option>
-                            <option value="cmd_config" ${sec === 'cmd_config' ? 'selected' : ''}>⚙️ Comando /config — Cuentas, Idioma y Moderación</option>
+                            <option value="cmd_tycoon" ${sec === 'cmd_tycoon' ? 'selected' : ''}>🏭 Comando /tycoon — Vóxeles, Llaves Maestras y Estudio 3D</option>
+                            <option value="cmd_config" ${sec === 'cmd_config' ? 'selected' : ''}>⚙️ Comando /config — Cuentas, Idioma y Administración</option>
                             <option value="cmd_ping" ${sec === 'cmd_ping' ? 'selected' : ''}>🏓 Comando /ping — Latencia, Estado y RAM del Host</option>
                         </select>
                         <span class="v2-select-arrow">▼</span>
@@ -3123,10 +3140,10 @@
                     </div>
                     <div class="v2-select-wrap">
                         <select class="v2-select" onchange="onSimSelectChange('tycoonCat', this.value); switchTycoonCanvasPreview(this.value);">
-                            <option value="sec_studio" ${simState.tycoonCat === 'sec_studio' ? 'selected' : ''}>🏗️ 1. Mi Estudio y Producción (Mapa 3D y Racha)</option>
-                            <option value="sec_shop" ${simState.tycoonCat === 'sec_shop' ? 'selected' : ''}>🎒 2. Tienda, Ítems y Taller UGC (Vitrina 2×4)</option>
-                            <option value="sec_vault" ${simState.tycoonCat === 'sec_vault' ? 'selected' : ''}>👑 3. Cofres, Limiteds e Intercambios P2P</option>
-                            <option value="sec_perks" ${simState.tycoonCat === 'sec_perks' ? 'selected' : ''}>💠 4. Misiones Semanales, Pociones y Ranking</option>
+                            <option value="sec_studio" ${simState.tycoonCat === 'sec_studio' ? 'selected' : ''}>🏗️ 1. Mi Estudio y Producción (3D y Vaciado Crítico)</option>
+                            <option value="sec_shop" ${simState.tycoonCat === 'sec_shop' ? 'selected' : ''}>👤 2. Mi Perfil, Forja de Llaves y Taller UGC</option>
+                            <option value="sec_vault" ${simState.tycoonCat === 'sec_vault' ? 'selected' : ''}>🛒 3. Tienda Unificada, Cofres y Mercado P2P</option>
+                            <option value="sec_perks" ${simState.tycoonCat === 'sec_perks' ? 'selected' : ''}>🏆 4. Misiones Semanales, Laboratorio y Ranking</option>
                         </select>
                         <span class="v2-select-arrow">▼</span>
                     </div>
@@ -3141,7 +3158,7 @@
                     </div>
                     <div class="v2-separator"></div>
                     <div class="v2-btn-row">
-                        <button class="v2-btn blurple" onclick="switchTycoonCanvasPreview('${simState.tycoonCat}'); document.getElementById('vistas-previas').scrollIntoView({behavior:'smooth'});">🖼️ Ver Lienzo PNG en Vivo</button>
+                        <button class="v2-btn blurple" onclick="switchTycoonCanvasPreview('${simState.tycoonCat}'); document.getElementById('vistas-previas').scrollIntoView({behavior:'smooth'});">🖼️ Ver Vista Previa Interactiva</button>
                         <button class="v2-btn" onclick="switchCategory('tycoon'); document.getElementById('herramientas').scrollIntoView({behavior:'smooth'});">📖 Detalles de /tycoon</button>
                     </div>
                 `;
@@ -3184,37 +3201,43 @@
 
             if (simState.cmd === 'config') {
                 const isOwnerView = simState.configCat === 'cat_owner_bot';
+                const isPrefsView = simState.configCat === 'cat_preferences';
+                const configSelectHtml = `
+                    <div class="v2-select-wrap">
+                        <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
+                            <option value="cat_accounts" ${simState.configCat === 'cat_accounts' ? 'selected' : ''}>🔗 1. Cuentas y Datos Guardados</option>
+                            <option value="cat_preferences" ${isPrefsView ? 'selected' : ''}>🌐 2. Idioma y Preferencias</option>
+                            <option value="cat_owner_bot" ${isOwnerView ? 'selected' : ''}>🛡️ 3. Administración del Bot (Propietario)</option>
+                        </select>
+                        <span class="v2-select-arrow">▼</span>
+                    </div>
+                `;
+
                 if (isOwnerView) {
                     box.innerHTML = `
                         <div>
                             <div class="v2-title">🛡️ Administración del Bot (Propietario)</div>
-                            <div class="v2-subtitle">Semáforo de Concurrencia, Escudo Anti-Spam y Purga Instantánea en 1 Paso.</div>
+                            <div class="v2-subtitle">Semáforo de Concurrencia, VIPs de /tycoon y Purga Instantánea en 1 Paso.</div>
                         </div>
-                        <div class="v2-select-wrap">
-                            <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
-                                <option value="cat_accounts">🔗 Categoría: Cuentas y Conexión</option>
-                                <option value="cat_owner_bot" selected>🛡️ Categoría: Administración del Bot (Propietario)</option>
-                            </select>
-                            <span class="v2-select-arrow">▼</span>
-                        </div>
+                        ${configSelectHtml}
                         <div class="v2-separator"></div>
                         <div class="v2-section-list">
                             <div class="v2-section-row">
                                 <div class="v2-section-text">
                                     <strong>⚡ Semáforo de Concurrencia (${simState.ownerEngineMode}) &amp; Caché Anti-429</strong>
-                                    <span>🟢 Estable · RAM Proceso: 92.4 MB · Respuesta Directa en 1 Paso (Sin sobrecarga de filas)</span>
+                                    <span>🟢 Estable · RAM Proceso: 92.4 MB · Respuesta Directa en 1 Paso</span>
                                 </div>
                             </div>
                             <div class="v2-section-row">
                                 <div class="v2-section-text">
-                                    <strong>⚙️ Mecánicas y Módulos Generales del Bot</strong>
-                                    <span>Mantenimiento: ${simState.ownerMaintenance ? '🟠 Activo (Solo Propietario)' : '🟢 Público'} · /tycoon: 🟢 Activo</span>
+                                    <strong>👑 Gestión de Multiplicadores VIP (/tycoon) y Mantenimiento</strong>
+                                    <span>Mantenimiento: ${simState.ownerMaintenance ? '🟠 Activo (Solo Propietario)' : '🟢 Público'} · Roles/Usuarios VIP administrados por el propietario</span>
                                 </div>
                             </div>
                         </div>
                         ${simState.ownerCleanedNotice ? `
                         <div class="v2-terminal">
-                            <div><span class="term-ok">🧹 Limpieza de caché completada en 1 paso:</span> Se liberaron las entradas HTTP expiradas sin tocar sesiones OAuth activas.</div>
+                            <div><span class="term-ok">🧹 Limpieza de caché completada en 1 paso:</span> Se liberaron las entradas HTTP expiradas sin tocar sesiones activas.</div>
                         </div>` : ''}
                         <div class="v2-separator"></div>
                         <div class="v2-btn-row">
@@ -3226,36 +3249,61 @@
                     return;
                 }
 
+                if (isPrefsView) {
+                    box.innerHTML = `
+                        <div>
+                            <div class="v2-title">🌐 Idioma y Preferencias — Kortex</div>
+                            <div class="v2-subtitle">Personalizá el idioma, el prefijo activo y la región de precios en todos los comandos.</div>
+                        </div>
+                        ${configSelectHtml}
+                        <div class="v2-separator"></div>
+                        <div class="v2-section-list">
+                            <div class="v2-section-row">
+                                <div class="v2-section-text">
+                                    <strong>🗣️ 1. Idioma de la Interfaz</strong>
+                                    <span>Idioma actual: <strong>Español (es)</strong> · Alterná al instante entre Español e Inglés.</span>
+                                </div>
+                            </div>
+                            <div class="v2-section-row">
+                                <div class="v2-section-text">
+                                    <strong>⌨️ 2. Prefijo de Comandos del Bot</strong>
+                                    <span>Prefijo personalizado activo: <code>!</code> · Modificable directamente desde aquí (sin botón redundante).</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="v2-separator"></div>
+                        <div class="v2-btn-row">
+                            <button class="v2-btn blurple" onclick="checkAccountStatus()">🇪🇸 / 🇺🇸 Cambiar Idioma</button>
+                            <button class="v2-btn" onclick="openAccountPopover()">🔑 Ver Mis Cuentas</button>
+                        </div>
+                    `;
+                    return;
+                }
+
                 box.innerHTML = `
                     <div>
                         <div class="v2-title">⚙️ Configuración de Usuario — Kortex</div>
-                        <div class="v2-subtitle">Cuentas y Datos Guardados: Conectate con el código alojado en /config o con Autenticador OAuth 2.0.</div>
+                        <div class="v2-subtitle">Cuentas y Datos Guardados: Abrí el Panel Web en 1 clic o pegá tu clave KTX-XXXXXX.</div>
                     </div>
-                    <div class="v2-select-wrap">
-                        <select class="v2-select" onchange="onSimSelectChange('configCat', this.value)">
-                            <option value="cat_accounts" selected>🔗 Categoría: Cuentas y Datos Guardados</option>
-                            <option value="cat_owner_bot">🛡️ Categoría: Administración del Bot (Propietario)</option>
-                        </select>
-                        <span class="v2-select-arrow">▼</span>
-                    </div>
+                    ${configSelectHtml}
                     <div class="v2-separator"></div>
                     <div class="v2-section-list">
                         <div class="v2-section-row">
                             <div class="v2-section-text">
-                                <strong>💬 1. Cuenta de Discord (Código en /config o OAuth 2.0)</strong>
-                                <span>🔑 Tu código de verificación para conectar tu ID en la Web: <code>KTX-482910</code> · También podés usar el Autenticador OAuth 2.0.</span>
+                                <strong>💬 1. Cuenta de Discord (Código KTX &amp; Panel Web)</strong>
+                                <span>🔑 Tu código para la Web: <code>KTX-482910</code> · Queda sincronizado en Supabase y cookie persistente.</span>
                             </div>
                         </div>
                         <div class="v2-section-row">
                             <div class="v2-section-text">
-                                <strong>🎮 2. Cuenta de Roblox (Código en Biografía o OAuth 2.0)</strong>
-                                <span>Vinculá escribiendo tu usuario y colocando el código en tu biografía, o mediante el Autenticador OAuth 2.0.</span>
+                                <strong>🎮 2. Cuenta de Roblox (Sincronizada Discord ↔ Web)</strong>
+                                <span>Vinculá con código en tu biografía de Roblox; se refleja al instante en <code>/config</code>, <code>/roblox</code> y <code>/tycoon</code>.</span>
                             </div>
                         </div>
                     </div>
                     <div class="v2-separator"></div>
                     <div class="v2-btn-row">
-                        <button class="v2-btn blurple" onclick="openAccountPopover()">🔑 Conectar Cuentas (Web / OAuth 2.0)</button>
+                        <button class="v2-btn blurple" onclick="openAccountPopover()">🌐 Panel Web (Conectar)</button>
                         <button class="v2-btn green" onclick="checkAccountStatus()">🔄 Actualizar Estado</button>
                     </div>
                 `;
@@ -3461,34 +3509,34 @@
             tycoon: [
                 {
                     num: 'CATEGORÍA 1 · /TYCOON',
-                    title: '🏗️ Mi Estudio y Producción (3D Isométrico Roblox Cartoon)',
-                    desc: 'Escena 3D isométrica estilo Roblox Studio con pasto verde, pinos low-poly, plataforma de cemento limpia (sin bordes neón cibernéticos), Dropper 1 con chimenea, cinta en L con bloques TIX 3D, Bóveda Colectora, botones circulares pisables y carga real de tu PJ 3D de cuerpo completo + accesorios equipados.',
-                    offers: 'Render 3D Skia (@napi-rs/canvas) con PJ 3D + Colector en 1 clic + Racha Diaria (🔥) + Rebirth en Nivel 6.',
-                    benefit: 'Farmeás Tix y Cristales en un Tycoon 3D colorido, limpio y fiel a Roblox Studio.',
+                    title: '🏗️ Mi Estudio y Producción (3D Isométrico Roblox)',
+                    desc: 'Escena 3D isométrica de tu estudio con pasto verde, pinos low-poly, plataforma de cemento limpia, 6 Estaciones evolutivas (25% de Hallazgo en Cimientos para +1 🧩) y Colector de Tix con Bono de Vaciado Crítico (+15% 🧩 al 100%) más evento de Calibración Láser en el Upgrader Nv.4.',
+                    offers: 'Colector en 1 clic + Hallazgo en Cimientos + Calibración Láser + Racha Diaria + Rebirth (+35% y +1 🧩).',
+                    benefit: 'Farmeás Tix, Vóxeles y Fragmentos de Llave directamente en /tycoon sin comandos sueltos.',
                     access: '🟢 Disponible ejecutando /tycoon.'
                 },
                 {
                     num: 'CATEGORÍA 2 · /TYCOON',
-                    title: '🎒 Tienda, Ítems y Taller UGC (Vitrina 2×4)',
-                    desc: 'Renderiza una cuadrícula visual 2×4 con 8 tarjetas de ítems ilustradas a medida (Bloxy Cola, Casco BC, Espada Linked, Katana Darkheart, Alas Cuánticas, Halo Celestial, Valkyrie). Permite comprar con Tix o Cristales, equipar 3 ítems y crear UGC.',
-                    offers: 'Ilustración vectorial única por ítem + etiqueta de rareza + Taller UGC con 70% de regalías.',
-                    benefit: 'Identificás cada ítem visualmente por su tarjeta ilustrada antes de comprarlo o equiparlo.',
+                    title: '👤 Mi Perfil, Forja de Llaves e Inventario UGC',
+                    desc: 'Panel Components V2 en texto claro con tus estadísticas generales y saldos en vivo: Tix, 💠 Vóxeles, 🧩 Fragmentos de Llave (x/4) y 🗝️ Llaves Maestras. Incluye el botón interactivo de Forja (4 🧩 → 1 🗝️) con evento Presión Crítica (Enfriamiento Seguro vs Sobrecargar Prensa) y Taller UGC.',
+                    offers: 'Forja de Llaves Maestras + Evento Presión Crítica + Equipamiento + Taller UGC (70% regalías).',
+                    benefit: 'Combinás fragmentos en Llaves Maestras o fabricás prendas UGC que otros compran en la Tienda.',
                     access: '🟢 Disponible en la Categoría 2 de /tycoon.'
                 },
                 {
                     num: 'CATEGORÍA 3 · /TYCOON',
-                    title: '👑 Cofres, Limiteds e Intercambios P2P',
-                    desc: 'Vitrina visual con el Cofre de Ascensión en 3D a la izquierda y una cuadrícula 2×3 de 6 tarjetas Limited y Limited U seriadas (#01/15) a la derecha, junto con el mercado de intercambio P2P entre jugadores.',
-                    offers: 'Apertura de Cofres con llaves de Rebirth + reclamo de Limited U seriados + Trading P2P.',
-                    benefit: 'Conseguís ítems exclusivos abriendo cofres o comerciando copias seriadas con otros usuarios.',
+                    title: '🛒 Tienda Unificada, 3 Cofres y Mercado P2P',
+                    desc: 'Catálogo unificado (Clásicos Tix, Reliquias Limited U seriadas #01/15, creaciones UGC de la comunidad y Artefactos en 💠 Vóxeles) junto a la bóveda con 3 Cofres por Cerraduras (Estándar 1 🗝️, Reforzado 2 🗝️ y Vóxel 3 🗝️) y selector de Multiplicador de Riesgo (Cobro x1.0, Sobrecargar x1.5, Jackpot x2.5).',
+                    offers: 'Tienda Unificada + 3 Cofres por Cerraduras paso a paso + Multiplicador del Tycoon + Mercado P2P.',
+                    benefit: 'Todo el comercio, apertura estratégica de cofres y Limiteds está ordenado en un único lugar.',
                     access: '🟢 Disponible en la Categoría 3 de /tycoon.'
                 },
                 {
                     num: 'CATEGORÍA 4 · /TYCOON',
-                    title: '💠 Misiones Semanales, Pociones y Ranking',
-                    desc: 'Tablero visual dividido simétricamente entre tus 4 Misiones Semanales (con barras de progreso y recompensa en Cristales Kortex + Tix) y el Top 5 de Estudios Globales, además de Pociones y ventajas Nitro/YouTube.',
-                    offers: '4 Misiones Semanales renovables + Laboratorio de Pociones (30m) + Ranking Top 5 en vivo.',
-                    benefit: 'Ganás la moneda premium (Cristales Kortex 💠) de forma 100% gratuita completando misiones.',
+                    title: '🏆 Misiones Semanales, Laboratorio y Top 5',
+                    desc: '4 Misiones Semanales recompensadas con Vóxeles (💠) + Bono de completitud 4/4 (+30 💠 Vóxeles y +1 🗝️ Llave Maestra), Laboratorio de Pociones (Velocidad 450 Tix, Elixir Mega 850 Tix y Tónico del Prospector 600 Tix que duplica drops de 🧩) y Ranking Top 5.',
+                    offers: '4 Misiones Semanales + Bono 4/4 + Tónico del Prospector (2x drop 🧩) + Ranking Top 5.',
+                    benefit: 'Ganás Vóxeles (💠) gratis en misiones, potenciás la caída de llaves y subís al Top 5 (con VIP administrado en /config).',
                     access: '🟢 Disponible en la Categoría 4 de /tycoon.'
                 }
             ]
@@ -3496,10 +3544,10 @@
 
         let currentTycoonPreviewSec = 'sec_studio';
         const TYCOON_PREVIEW_CAPTIONS = {
-            sec_studio: '<strong>/tycoon — Categoría 1 (Mi Estudio 3D Roblox):</strong> Plataforma isométrica 3D cartoon/low-poly (sin neón cibernético), PJ 3D con assets equipados, Cinta en L y Bóveda Colectora',
-            sec_shop: '<strong>/tycoon — Categoría 2 (Vitrina 2×4 de Ítems):</strong> 8 tarjetas de ítems con ilustraciones vectoriales propias, rareza, bono % y Taller UGC',
-            sec_vault: '<strong>/tycoon — Categoría 3 (Cofres 3D y Limiteds):</strong> Cofre de Ascensión 3D + cuadrícula 2×3 de reliquias Limited y Limited U seriadas (#01/15)',
-            sec_perks: '<strong>/tycoon — Categoría 4 (Misiones y Top 5):</strong> 4 Misiones Semanales con barras de progreso para ganar Cristales Kortex + Ranking Top 5'
+            sec_studio: '<strong>/tycoon — Categoría 1 (Mi Estudio y Producción):</strong> Mapa isométrico 3D, Colector 100% con Vaciado Crítico (+15% 🧩), 6 Estaciones, Calibración Láser y HUD de Tix / Vóxeles / Llaves',
+            sec_shop: '<strong>/tycoon — Categoría 2 (Mi Perfil, Forja y UGC):</strong> Components V2 con saldos de Tix, 💠 Vóxeles, 🧩 Fragmentos x/4, 🗝️ Llaves, Forja con Presión Crítica y Taller UGC',
+            sec_vault: '<strong>/tycoon — Categoría 3 (Tienda Unificada, Cofres y P2P):</strong> Clásicos + Limited U + UGC + Vóxeles, 3 Cofres por Cerraduras (📦 1 🗝️, 🛡️ 2 🗝️, 💠 3 🗝️) y Multiplicador de Riesgo',
+            sec_perks: '<strong>/tycoon — Categoría 4 (Misiones, Laboratorio y Top 5):</strong> 4 Misiones en 💠 Vóxeles (+30 💠 y 1 🗝️ al 4/4), Laboratorio con Tónico del Prospector y Ranking Top 5'
         };
 
         const TYCOON_PREVIEW_MAP = {
@@ -3563,55 +3611,224 @@
         }
 
         // ==========================================================
-        // 4. PERSISTENCIA DE CUENTAS, SESIONES E HISTORIAL (DISCORD + ROBLOX)
+        // 4. PERSISTENCIA EN COOKIES + LOCALSTORAGE Y SYNC SUPABASE
         // ==========================================================
+        const SUPABASE_URL = 'https://gpgxlasblqxyyynapwow.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ3hsYXNibHF4eXl5bmFwd293Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NzQzNjcsImV4cCI6MjEwNDQ1MDM2N30.j9l4L-EPdNqLNIKU9T6arNNtQkXnlpmcw8QsLZ2DIlI';
+
         const LOCAL_BACKUP_KEY = 'kortex_account_backup_v2';
+        const PENDING_ROBLOX_KEY = 'kortex_pending_roblox_v2';
+        const COOKIE_ID_NAME = 'kortex_discord_id';
+        const COOKIE_SESSION_NAME = 'kortex_session_v2';
+        const COOKIE_PENDING_ROBLOX = 'kortex_pending_roblox';
+        const SESSION_COOKIE_MAX_AGE = 31536000; // 365 días para conservar sesiones y registros web
+
         let currentDiscordName = null;
         let currentRobloxName = null;
 
-        function getActiveDiscordId() {
-            return localStorage.getItem('kortex_discord_id') || '';
+        function setKortexCookie(name, value, maxAgeSeconds = SESSION_COOKIE_MAX_AGE) {
+            try {
+                const encoded = encodeURIComponent(String(value || ''));
+                const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.cookie = `${name}=${encoded}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=Lax${secureFlag}`;
+            } catch {}
         }
 
-        function setActiveDiscordId(id) {
-            if (!id || id === 'default_session') return;
-            localStorage.setItem('kortex_discord_id', String(id));
+        function getKortexCookie(name) {
+            try {
+                const prefix = `${name}=`;
+                const parts = document.cookie ? document.cookie.split('; ') : [];
+                for (let i = 0; i < parts.length; i++) {
+                    if (parts[i].startsWith(prefix)) {
+                        return decodeURIComponent(parts[i].slice(prefix.length));
+                    }
+                }
+            } catch {}
+            return '';
+        }
+
+        function deleteKortexCookie(name) {
+            try {
+                const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax${secureFlag}`;
+            } catch {}
+        }
+
+        async function callSupabaseRpc(fnName, params = {}) {
+            const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params || {})
+            });
+            const data = await resp.json().catch(() => null);
+            if (!resp.ok) {
+                throw new Error(data?.message || `Error RPC (${resp.status})`);
+            }
+            return data;
         }
 
         function readLocalAccountBackup() {
+            let parsed = null;
             try {
-                const raw = localStorage.getItem(LOCAL_BACKUP_KEY);
-                return raw ? JSON.parse(raw) : null;
-            } catch {
-                return null;
+                const rawLocal = localStorage.getItem(LOCAL_BACKUP_KEY);
+                if (rawLocal) parsed = JSON.parse(rawLocal);
+            } catch {}
+            if (!parsed) {
+                try {
+                    const rawCookie = getKortexCookie(COOKIE_SESSION_NAME);
+                    if (rawCookie) {
+                        parsed = JSON.parse(rawCookie);
+                        if (parsed) {
+                            localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(parsed));
+                        }
+                    }
+                } catch {}
             }
+            return parsed;
+        }
+
+        function getActiveDiscordId() {
+            const fromLocal = localStorage.getItem('kortex_discord_id') || '';
+            const fromCookie = getKortexCookie(COOKIE_ID_NAME) || '';
+            const fromBackup = readLocalAccountBackup()?.discordId || '';
+            const id = fromLocal || fromCookie || fromBackup || '';
+            if (id && id !== 'default_session' && !id.startsWith('guest_')) {
+                if (!fromLocal) {
+                    try { localStorage.setItem('kortex_discord_id', id); } catch {}
+                }
+                if (!fromCookie) {
+                    setKortexCookie(COOKIE_ID_NAME, id);
+                }
+                return id;
+            }
+            return '';
+        }
+
+        function setActiveDiscordId(id) {
+            const clean = String(id || '').trim();
+            if (!clean || clean === 'default_session' || clean.startsWith('guest_')) return;
+            try { localStorage.setItem('kortex_discord_id', clean); } catch {}
+            setKortexCookie(COOKIE_ID_NAME, clean);
         }
 
         function saveLocalAccountBackup(partial) {
             try {
                 const prev = readLocalAccountBackup() || {};
+                const discordId = partial.discordId || prev.discordId || getActiveDiscordId() || '';
                 const discordConfig = partial.discordConfig !== undefined ? partial.discordConfig : (prev.discordConfig || null);
                 const linkedAccount = partial.linkedAccount !== undefined ? partial.linkedAccount : (prev.linkedAccount || null);
+                const tycoonSummary = partial.tycoonSummary !== undefined ? partial.tycoonSummary : (prev.tycoonSummary || null);
                 const hasActive = Boolean((discordConfig && discordConfig.oauth_verified) || (linkedAccount && linkedAccount.roblox_user_id));
 
-                // Si el usuario ya sacó todas sus cuentas, no guardar ningún dato ni historial en localStorage
                 if (!hasActive) {
-                    localStorage.removeItem(LOCAL_BACKUP_KEY);
+                    clearStoredSessionOnly();
                     return null;
                 }
 
+                const history = Array.isArray(partial.history) ? partial.history : (prev.history || []);
+                const stats = partial.stats || prev.stats || { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 };
                 const next = {
-                    discordId: partial.discordId || prev.discordId || getActiveDiscordId() || 'default_session',
+                    discordId: discordId || 'default_session',
                     discordConfig,
                     linkedAccount,
-                    history: Array.isArray(partial.history) ? partial.history : (prev.history || []),
-                    stats: partial.stats || prev.stats || { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 },
+                    tycoonSummary,
+                    history,
+                    stats,
                     savedAt: new Date().toISOString()
                 };
-                localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(next));
+
+                if (discordId && discordId !== 'default_session' && !discordId.startsWith('guest_')) {
+                    setActiveDiscordId(discordId);
+                }
+
+                try { localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(next)); } catch {}
+
+                // Versión compacta en Cookie (< 3.5 KB) para garantizar persistencia entre sesiones incluso si se limpia cache
+                const compactForCookie = {
+                    discordId: next.discordId,
+                    discordConfig: next.discordConfig ? {
+                        discord_id: next.discordConfig.discord_id,
+                        discord_username: next.discordConfig.discord_username,
+                        discord_avatar: next.discordConfig.discord_avatar,
+                        oauth_verified: true,
+                        lang: next.discordConfig.lang || 'es'
+                    } : null,
+                    linkedAccount: next.linkedAccount ? {
+                        roblox_user_id: next.linkedAccount.roblox_user_id,
+                        roblox_username: next.linkedAccount.roblox_username,
+                        display_name: next.linkedAccount.display_name,
+                        avatar_url: next.linkedAccount.avatar_url,
+                        auth_method: next.linkedAccount.auth_method || 'bio_verified'
+                    } : null,
+                    tycoonSummary: next.tycoonSummary || null,
+                    stats: next.stats,
+                    history: next.history.slice(0, 5),
+                    savedAt: next.savedAt
+                };
+                setKortexCookie(COOKIE_SESSION_NAME, JSON.stringify(compactForCookie));
                 return next;
             } catch {
                 return null;
+            }
+        }
+
+        function clearStoredSessionOnly() {
+            try {
+                localStorage.removeItem(LOCAL_BACKUP_KEY);
+                localStorage.removeItem('kortex_discord_id');
+                localStorage.removeItem('kortex_session_id');
+            } catch {}
+            deleteKortexCookie(COOKIE_SESSION_NAME);
+            deleteKortexCookie(COOKIE_ID_NAME);
+        }
+
+        function readPendingRobloxVerify() {
+            let pending = null;
+            try {
+                const rawLocal = localStorage.getItem(PENDING_ROBLOX_KEY);
+                if (rawLocal) pending = JSON.parse(rawLocal);
+            } catch {}
+            if (!pending) {
+                try {
+                    const rawCookie = getKortexCookie(COOKIE_PENDING_ROBLOX);
+                    if (rawCookie) pending = JSON.parse(rawCookie);
+                } catch {}
+            }
+            if (pending && pending.expiresAt && Date.now() > Number(pending.expiresAt)) {
+                clearPendingRobloxVerify();
+                return null;
+            }
+            return pending;
+        }
+
+        function savePendingRobloxVerify(pending) {
+            if (!pending) return;
+            try { localStorage.setItem(PENDING_ROBLOX_KEY, JSON.stringify(pending)); } catch {}
+            setKortexCookie(COOKIE_PENDING_ROBLOX, JSON.stringify(pending), 1800);
+        }
+
+        function clearPendingRobloxVerify() {
+            try { localStorage.removeItem(PENDING_ROBLOX_KEY); } catch {}
+            deleteKortexCookie(COOKIE_PENDING_ROBLOX);
+        }
+
+        function restorePendingRobloxUI() {
+            const pending = readPendingRobloxVerify();
+            const step2 = document.getElementById('roblox-step2-verify');
+            const labelEl = document.getElementById('roblox-verify-target-label');
+            const badgeEl = document.getElementById('roblox-verify-code-badge');
+            const inputEl = document.getElementById('quick-roblox-input');
+            if (pending && pending.userId && pending.code) {
+                if (inputEl && !inputEl.value) inputEl.value = pending.username || String(pending.userId);
+                if (labelEl) labelEl.textContent = `@${pending.username} (ID ${pending.userId})`;
+                if (badgeEl) badgeEl.textContent = pending.code;
+                if (step2) step2.style.display = 'block';
+            } else if (step2) {
+                step2.style.display = 'none';
             }
         }
 
@@ -3641,21 +3858,25 @@
             const username = (cfg && cfg.discord_username) || session?.username || null;
             const avatarUrl = (cfg && cfg.discord_avatar) || session?.avatar || null;
 
-            if (isVerified && username) {
-                currentDiscordName = username;
+            if (isVerified && (username || cfg?.discord_id)) {
+                currentDiscordName = username || `ID ${cfg.discord_id}`;
                 if (dTitle) dTitle.textContent = `Discord: @${currentDiscordName}`;
-                if (dSub) dSub.textContent = '🟢 Sesión activa verificada (/config o OAuth 2.0)';
-                if (btnLogin) btnLogin.textContent = '🔐 Reconectar con Autenticador OAuth 2.0';
+                if (dSub) dSub.textContent = '🟢 Sincronizada (/config + Cookie persistente)';
+                if (btnLogin) btnLogin.innerHTML = '<span>🔄 Renovar clave en /config</span>';
                 if (btnDisconnect) btnDisconnect.classList.add('visible');
-                if (avatarUrl) {
+                if (avatarUrl && /^https?:\/\//i.test(avatarUrl)) {
                     if (navAvatar) navAvatar.innerHTML = `<img src="${avatarUrl}" alt="Discord" referrerPolicy="no-referrer">`;
                     if (popAvatar) popAvatar.innerHTML = `<img src="${avatarUrl}" alt="Discord" referrerPolicy="no-referrer">`;
+                } else {
+                    const initial = String(currentDiscordName).charAt(0).toUpperCase() || 'D';
+                    if (navAvatar) navAvatar.textContent = initial;
+                    if (popAvatar) popAvatar.textContent = initial;
                 }
             } else {
                 currentDiscordName = null;
                 if (dTitle) dTitle.textContent = 'Cuenta de Discord';
-                if (dSub) dSub.textContent = 'Verificación con comando /config o Autenticador OAuth 2.0';
-                if (btnLogin) btnLogin.textContent = '🔐 Autenticador OAuth 2.0 (Discord)';
+                if (dSub) dSub.textContent = 'Sincronización directa con /config (código KTX)';
+                if (btnLogin) btnLogin.innerHTML = '<span>🤖 Cómo conectar desde /config</span><span style="background:#23A55A;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">1 CLIC</span>';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'D';
                 if (popAvatar) popAvatar.textContent = 'D';
@@ -3677,20 +3898,22 @@
                 if (rTitle) rTitle.textContent = `Roblox: @${acc.roblox_username} (ID ${acc.roblox_user_id})`;
                 if (rSub) {
                     rSub.textContent = isOAuth
-                        ? '🟢 Conectada con Autenticador OAuth 2.0'
-                        : '🟢 Verificada con código en biografía de Roblox';
+                        ? '🟢 Sincronizada desde Discord OAuth 2.0'
+                        : '🟢 Verificada y sincronizada (Discord ↔ Web)';
                 }
-                if (btnLogin) btnLogin.textContent = '🔐 Reconectar con Autenticador OAuth 2.0';
+                if (btnLogin) btnLogin.innerHTML = '<span>🔄 Sincronizar estado ahora</span>';
                 if (btnDisconnect) btnDisconnect.classList.add('visible');
-                if (acc.avatar_url) {
+                if (acc.avatar_url && /^https?:\/\//i.test(acc.avatar_url)) {
                     if (navAvatar) navAvatar.innerHTML = `<img src="${acc.avatar_url}" alt="Roblox" referrerPolicy="no-referrer">`;
                     if (popAvatar) popAvatar.innerHTML = `<img src="${acc.avatar_url}" alt="Roblox" referrerPolicy="no-referrer">`;
                 }
+                const step2 = document.getElementById('roblox-step2-verify');
+                if (step2) step2.style.display = 'none';
             } else {
                 currentRobloxName = null;
                 if (rTitle) rTitle.textContent = 'Cuenta de Roblox';
-                if (rSub) rSub.textContent = 'Verificación con código en biografía o Autenticador OAuth 2.0';
-                if (btnLogin) btnLogin.textContent = '🔐 Autenticador OAuth 2.0 (Roblox)';
+                if (rSub) rSub.textContent = 'Sincronizada con Discord y verificación en biografía';
+                if (btnLogin) btnLogin.innerHTML = '<span>🔄 Sincronizar cuenta desde Discord / Web</span><span style="background:#0284C7;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">SYNC</span>';
                 if (btnDisconnect) btnDisconnect.classList.remove('visible');
                 if (navAvatar) navAvatar.textContent = 'R';
                 if (popAvatar) popAvatar.textContent = 'R';
@@ -3709,13 +3932,14 @@
             }
         }
 
-        function renderAccountHistoryUI(historyList, stats, hasActiveOverride = null) {
+        function renderAccountHistoryUI(historyList, stats, hasActiveOverride = null, tycoonSummary = null) {
             const wlEl = document.getElementById('stat-wishlist-count');
             const robuxEl = document.getElementById('stat-robux-count');
             const gamesEl = document.getElementById('stat-games-count');
             const codesEl = document.getElementById('stat-codes-count');
             const listEl = document.getElementById('account-history-list');
             const badgeEl = document.getElementById('history-active-badge');
+            const tyBox = document.getElementById('history-tycoon-box');
 
             const isAnyAccountActive = hasActiveOverride !== null
                 ? Boolean(hasActiveOverride)
@@ -3724,10 +3948,10 @@
             if (badgeEl) {
                 if (isAnyAccountActive) {
                     badgeEl.style.color = '#23A55A';
-                    badgeEl.textContent = '● Guardando en tu cuenta activa';
+                    badgeEl.textContent = '● Sesión y cookie sincronizadas';
                 } else {
                     badgeEl.style.color = 'var(--text-muted)';
-                    badgeEl.textContent = '○ Sin cuenta activa (no guarda datos)';
+                    badgeEl.textContent = '○ Sin cuenta activa';
                 }
             }
 
@@ -3736,10 +3960,11 @@
                 if (robuxEl) robuxEl.textContent = '0';
                 if (gamesEl) gamesEl.textContent = '0 / 3';
                 if (codesEl) codesEl.textContent = '0';
+                if (tyBox) tyBox.style.display = 'none';
                 if (listEl) {
                     listEl.innerHTML = `
                         <div class="history-item">
-                            <div class="history-item-detail">No hay ninguna cuenta activa en este momento. El historial solo registra y conserva datos mientras estás dentro de tu cuenta de Discord o Roblox.</div>
+                            <div class="history-item-detail">No hay ninguna cuenta activa en este momento. Vinculá tu cuenta de Discord (<code>/config</code>) o Roblox para guardar tu sesión en cookie persistente.</div>
                         </div>
                     `;
                 }
@@ -3751,12 +3976,30 @@
             if (gamesEl) gamesEl.textContent = `${stats?.gameSubsCount || 0} / 3`;
             if (codesEl) codesEl.textContent = `${stats?.redeemedCodesCount || 0}`;
 
+            if (tyBox) {
+                if (tycoonSummary) {
+                    tyBox.style.display = 'flex';
+                    const lvEl = document.getElementById('tycoon-stat-level');
+                    const tixEl = document.getElementById('tycoon-stat-tix');
+                    const voxEl = document.getElementById('tycoon-stat-voxeles');
+                    const fragEl = document.getElementById('tycoon-stat-fragments');
+                    const keysEl = document.getElementById('tycoon-stat-keys');
+                    if (lvEl) lvEl.textContent = `Nivel ${tycoonSummary.studio_stage || 1}/6 · Rebirth x${tycoonSummary.rebirth_count || 0}`;
+                    if (tixEl) tixEl.textContent = `${Number(tycoonSummary.tix_balance || 0).toLocaleString('es-AR')} Tix`;
+                    if (voxEl) voxEl.textContent = `${Number(tycoonSummary.voxeles || 0).toLocaleString('es-AR')} Vóxeles`;
+                    if (fragEl) fragEl.textContent = `${tycoonSummary.key_fragments || 0}/4 Frag.`;
+                    if (keysEl) keysEl.textContent = `${tycoonSummary.master_keys || 0} Llaves`;
+                } else {
+                    tyBox.style.display = 'none';
+                }
+            }
+
             if (!listEl) return;
             const items = Array.isArray(historyList) ? historyList : [];
             if (items.length === 0) {
                 listEl.innerHTML = `
                     <div class="history-item">
-                        <div class="history-item-detail">Cuenta activa detectada. Tus acciones y herramientas vinculadas a esta cuenta se irán mostrando acá.</div>
+                        <div class="history-item-detail">Cuenta activa detectada. Tus acciones en Discord y en la Web se mostrarán y conservarán acá.</div>
                     </div>
                 `;
                 return;
@@ -3773,66 +4016,76 @@
             `).join('');
         }
 
+        function applyAccountPayload(data) {
+            if (!data || typeof data !== 'object') return false;
+            const serverHasDiscord = Boolean(data.discordConfig && data.discordConfig.oauth_verified);
+            const serverHasRoblox = Boolean(data.linkedAccount && data.linkedAccount.roblox_user_id);
+            const hasAny = Boolean(data.hasActiveAccount || serverHasDiscord || serverHasRoblox);
+
+            if (data.discordId && data.discordId !== 'default_session' && !data.discordId.startsWith('guest_')) {
+                setActiveDiscordId(data.discordId);
+            }
+
+            renderRobloxAccountUI(data.linkedAccount || null);
+            renderDiscordConfigUI(data.discordConfig || null, null);
+            renderAccountHistoryUI(data.history || [], data.stats || {}, hasAny, data.tycoonSummary || null);
+
+            if (hasAny) {
+                saveLocalAccountBackup({
+                    discordId: data.discordId,
+                    discordConfig: data.discordConfig || null,
+                    linkedAccount: data.linkedAccount || null,
+                    tycoonSummary: data.tycoonSummary || null,
+                    history: data.history || [],
+                    stats: data.stats || {}
+                });
+            } else if (data.ok === true) {
+                clearStoredSessionOnly();
+            }
+            return hasAny;
+        }
+
         function clearAllSessions() {
-            localStorage.removeItem(LOCAL_BACKUP_KEY);
-            localStorage.removeItem('kortex_discord_id');
-            localStorage.removeItem('kortex_session_id');
+            clearStoredSessionOnly();
+            clearPendingRobloxVerify();
             currentDiscordName = null;
             currentRobloxName = null;
             renderDiscordConfigUI(null, null);
             renderRobloxAccountUI(null);
-            renderAccountHistoryUI([], {}, false);
+            renderAccountHistoryUI([], {}, false, null);
         }
 
-        /**
-         * En GitHub Pages, las sesiones y configuraciones se gestionan directamente en Discord (/config).
-         */
         async function checkAccountStatus() {
             const backup = readLocalAccountBackup();
             const discordId = getActiveDiscordId() || backup?.discordId || '';
+
+            restorePendingRobloxUI();
 
             if (!discordId || discordId === 'default_session') {
                 currentDiscordName = null;
                 currentRobloxName = null;
                 renderDiscordConfigUI(null, null);
                 renderRobloxAccountUI(null);
-                renderAccountHistoryUI([], {}, false);
+                renderAccountHistoryUI([], {}, false, null);
                 return;
             }
 
+            // Hidratación inmediata desde cookie/localStorage para evitar parpadeos al recargar
             if (backup && (backup.discordConfig?.oauth_verified || backup.linkedAccount?.roblox_user_id)) {
                 renderDiscordConfigUI(backup.discordConfig || null, null);
                 renderRobloxAccountUI(backup.linkedAccount || null);
-                renderAccountHistoryUI(backup.history || [], backup.stats || {}, true);
+                renderAccountHistoryUI(backup.history || [], backup.stats || {}, true, backup.tycoonSummary || null);
             }
-        }
-                        saveLocalAccountBackup(restoredData);
-                        return;
-                    }
-                }
 
-                if (data.discordId && data.discordId !== 'default_session' && !data.discordId.startsWith('guest_')) {
-                    setActiveDiscordId(data.discordId);
-                }
-
-                renderRobloxAccountUI(data.linkedAccount || null);
-                renderDiscordConfigUI(data.discordConfig || null, data.discordSession || null);
-                renderAccountHistoryUI(data.history || [], data.stats || {}, serverHasDiscord || serverHasRoblox);
-
-                if (serverHasDiscord || serverHasRoblox) {
-                    saveLocalAccountBackup({
-                        discordId: data.discordId,
-                        discordConfig: data.discordConfig,
-                        linkedAccount: data.linkedAccount,
-                        history: data.history,
-                        stats: data.stats
-                    });
-                } else {
-                    localStorage.removeItem(LOCAL_BACKUP_KEY);
-                    localStorage.removeItem('kortex_discord_id');
+            try {
+                const data = await callSupabaseRpc('kortex_web_get_account_status', {
+                    p_discord_id: discordId
+                });
+                if (data && data.ok) {
+                    applyAccountPayload(data);
                 }
             } catch {
-                // Si el servidor está reiniciando durante una actualización, mantener el estado activo en pantalla
+                // Si no hay conexión temporalmente, conservar sesión activa desde cookie/localStorage
             }
         }
 
@@ -3840,11 +4093,14 @@
             const discordId = getActiveDiscordId() || readLocalAccountBackup()?.discordId || '';
             try {
                 if (discordId && discordId !== 'default_session') {
-                    await fetch(apiUrl('/api/auth/disconnect'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ discordId, provider })
+                    const updated = await callSupabaseRpc('kortex_web_disconnect_account', {
+                        p_discord_id: discordId,
+                        p_provider: provider || 'all'
                     });
+                    if (updated && typeof updated === 'object') {
+                        applyAccountPayload(updated);
+                        return;
+                    }
                 }
             } catch {}
 
@@ -3853,8 +4109,7 @@
                 backup.discordConfig = null;
                 currentDiscordName = null;
                 if (!backup.linkedAccount?.roblox_user_id) {
-                    localStorage.removeItem(LOCAL_BACKUP_KEY);
-                    localStorage.removeItem('kortex_discord_id');
+                    clearStoredSessionOnly();
                 } else {
                     saveLocalAccountBackup(backup);
                 }
@@ -3862,9 +4117,9 @@
             } else if (provider === 'roblox') {
                 backup.linkedAccount = null;
                 currentRobloxName = null;
+                clearPendingRobloxVerify();
                 if (!backup.discordConfig?.oauth_verified) {
-                    localStorage.removeItem(LOCAL_BACKUP_KEY);
-                    localStorage.removeItem('kortex_discord_id');
+                    clearStoredSessionOnly();
                 } else {
                     saveLocalAccountBackup(backup);
                 }
@@ -3875,91 +4130,268 @@
                 (backup.discordConfig && backup.discordConfig.oauth_verified) ||
                 (backup.linkedAccount && backup.linkedAccount.roblox_user_id)
             );
-            renderAccountHistoryUI(stillHasActive ? (backup.history || []) : [], backup.stats || {}, stillHasActive);
+            renderAccountHistoryUI(stillHasActive ? (backup.history || []) : [], backup.stats || {}, stillHasActive, backup.tycoonSummary || null);
         }
 
-        let discordWebAutoPollTimer = null;
+        async function quickVerifyDiscordWeb(actionMode = 'verify', overrideId = '', overrideCode = '') {
+            const inputEl = document.getElementById('quick-discord-input');
+            const codeEl = document.getElementById('quick-discord-code');
+            const dFeedback = document.getElementById('discord-feedback');
 
-        function stopDiscordWebAutoPoll() {
-            if (discordWebAutoPollTimer) {
-                clearInterval(discordWebAutoPollTimer);
-                discordWebAutoPollTimer = null;
+            const rawId = String(overrideId || inputEl?.value || getActiveDiscordId() || '').trim();
+            const rawCode = String(overrideCode || codeEl?.value || '').trim();
+
+            if (!rawCode) {
+                if (dFeedback) {
+                    dFeedback.style.color = '#F0B232';
+                    dFeedback.innerHTML = '💡 Pegá tu clave <code>KTX-XXXXXX</code> obtenida al ejecutar <code>/config</code> en Discord (apartado <strong>1. Cuenta de Discord</strong>).';
+                }
+                if (codeEl) codeEl.focus();
+                return false;
+            }
+
+            if (dFeedback) {
+                dFeedback.style.color = '#38BDF8';
+                dFeedback.textContent = '⏳ Verificando clave KTX y sincronizando cuenta con Supabase...';
+            }
+
+            try {
+                const data = await callSupabaseRpc('kortex_web_verify_discord', {
+                    p_discord_id: rawId,
+                    p_code: rawCode
+                });
+
+                if (!data || !data.ok) {
+                    if (dFeedback) {
+                        dFeedback.style.color = '#F23F43';
+                        dFeedback.textContent = data?.message || '❌ Código inválido o expirado. Ejecutá /config en Discord para ver tu código vigente.';
+                    }
+                    return false;
+                }
+
+                applyAccountPayload(data);
+                if (codeEl) codeEl.value = '';
+                if (dFeedback) {
+                    const dName = data.discordConfig?.discord_username || data.discordId;
+                    const rMsg = data.linkedAccount?.roblox_username ? ` y Roblox @${data.linkedAccount.roblox_username}` : '';
+                    dFeedback.style.color = '#23A55A';
+                    dFeedback.innerHTML = `✅ Sesión conectada como <strong>@${dName}</strong>${rMsg}. Guardada de forma persistente en cookie.`;
+                }
+                return true;
+            } catch (err) {
+                if (dFeedback) {
+                    dFeedback.style.color = '#F23F43';
+                    dFeedback.textContent = `❌ No se pudo conectar con Supabase (${err.message}). Reintentá en unos segundos.`;
+                }
+                return false;
             }
         }
 
-        function startDiscordWebAutoPoll() {
-            stopDiscordWebAutoPoll();
-            discordWebAutoPollTimer = setInterval(() => {
-                const step2Box = document.getElementById('discord-step2-verify');
-                if (!step2Box || step2Box.style.display === 'none') {
-                    stopDiscordWebAutoPoll();
-                    return;
+        async function fetchRobloxJsonWithFallback(urls) {
+            let lastErr = null;
+            for (const url of urls) {
+                try {
+                    const resp = await fetch(url, { cache: 'no-store' });
+                    if (resp.ok) return await resp.json();
+                    lastErr = new Error(`HTTP ${resp.status}`);
+                } catch (e) {
+                    lastErr = e;
                 }
-                quickVerifyDiscordWeb('poll');
-            }, 2200);
+            }
+            throw lastErr || new Error('Sin respuesta de Roblox API');
         }
 
-        async function quickVerifyDiscordWeb(actionMode = 'verify') {
-            const inputEl = document.getElementById('quick-discord-input');
-            const codeEl = document.getElementById('quick-discord-code');
-            const step2Box = document.getElementById('discord-step2-verify');
-            const dFeedback = document.getElementById('discord-feedback');
+        async function quickVerifyRobloxWeb(actionMode = 'start') {
+            const inputEl = document.getElementById('quick-roblox-input');
+            const step2 = document.getElementById('roblox-step2-verify');
+            const labelEl = document.getElementById('roblox-verify-target-label');
+            const badgeEl = document.getElementById('roblox-verify-code-badge');
+            const rFeedback = document.getElementById('roblox-feedback');
 
-            if (!apiUrl('')) {
-                if (dFeedback) {
-                    dFeedback.style.color = '#38BDF8';
-                    dFeedback.innerHTML = '⚡ Kortex funciona de forma integrada en Discord. Abrí Discord y ejecutá <code>/config</code> para gestionar tu cuenta.';
+            if (actionMode === 'cancel') {
+                clearPendingRobloxVerify();
+                if (step2) step2.style.display = 'none';
+                if (rFeedback) {
+                    rFeedback.style.color = 'var(--text-muted)';
+                    rFeedback.textContent = 'Verificación cancelada.';
                 }
                 return;
             }
 
-        async function quickVerifyRobloxWeb(actionMode = 'start') {
-            const rFeedback = document.getElementById('roblox-feedback');
+            if (actionMode === 'verify') {
+                const pending = readPendingRobloxVerify();
+                if (!pending || !pending.userId || !pending.code) {
+                    if (rFeedback) {
+                        rFeedback.style.color = '#F0B232';
+                        rFeedback.textContent = '⚠️ Primero escribí tu usuario o ID de Roblox y generá tu código.';
+                    }
+                    return;
+                }
+
+                if (rFeedback) {
+                    rFeedback.style.color = '#38BDF8';
+                    rFeedback.textContent = `⏳ Revisando la biografía pública de @${pending.username}...`;
+                }
+
+                try {
+                    const profile = await fetchRobloxJsonWithFallback([
+                        `https://users.roproxy.com/v1/users/${pending.userId}?t=${Date.now()}`,
+                        `https://users.roblox.com/v1/users/${pending.userId}`
+                    ]);
+                    const bio = String(profile?.description || '').toUpperCase();
+                    if (!bio.includes(pending.code.toUpperCase())) {
+                        if (rFeedback) {
+                            rFeedback.style.color = '#F23F43';
+                            rFeedback.innerHTML = `❌ Todavía no aparece <code>${pending.code}</code> en la biografía "Acerca de" de <strong>@${pending.username}</strong>. Guardala en Roblox y volvé a pulsar Comprobar.`;
+                        }
+                        return;
+                    }
+
+                    const data = await callSupabaseRpc('kortex_web_link_roblox', {
+                        p_discord_id: getActiveDiscordId() || '',
+                        p_roblox_user_id: Number(pending.userId),
+                        p_roblox_username: profile.name || pending.username,
+                        p_display_name: profile.displayName || pending.displayName || pending.username,
+                        p_avatar_url: pending.avatarUrl || '',
+                        p_auth_method: 'bio_verified'
+                    });
+
+                    clearPendingRobloxVerify();
+                    if (step2) step2.style.display = 'none';
+
+                    if (data && data.ok) {
+                        applyAccountPayload(data);
+                        if (rFeedback) {
+                            rFeedback.style.color = '#23A55A';
+                            rFeedback.innerHTML = `✅ Cuenta <strong>@${profile.name || pending.username}</strong> verificada, sincronizada con Discord y guardada en tu cookie.`;
+                        }
+                    } else {
+                        throw new Error(data?.message || 'Error guardando vínculo');
+                    }
+                } catch (err) {
+                    if (rFeedback) {
+                        rFeedback.style.color = '#F0B232';
+                        rFeedback.innerHTML = `⚠️ No se pudo leer el perfil público desde el navegador (${err.message}). También podés vincular al instante desde Discord con <code>/config</code> y tocar Sincronizar.`;
+                    }
+                }
+                return;
+            }
+
+            // actionMode === 'start'
+            const rawInput = String(inputEl?.value || '').trim().replace(/^@+/, '');
+            if (!rawInput) {
+                if (rFeedback) {
+                    rFeedback.style.color = '#F0B232';
+                    rFeedback.textContent = '💡 Escribí tu @Usuario o ID numérico de Roblox primero.';
+                }
+                if (inputEl) inputEl.focus();
+                return;
+            }
+
             if (rFeedback) {
                 rFeedback.style.color = '#38BDF8';
-                rFeedback.innerHTML = '⚡ Para conectar tu cuenta de Roblox, usá el comando <code>/config</code> en Discord (opción 2. Cuenta de Roblox).';
+                rFeedback.textContent = `🔍 Buscando a "${rawInput}" en Roblox...`;
+            }
+
+            try {
+                let userObj = null;
+                if (/^\d{1,15}$/.test(rawInput)) {
+                    const prof = await fetchRobloxJsonWithFallback([
+                        `https://users.roproxy.com/v1/users/${rawInput}`,
+                        `https://users.roblox.com/v1/users/${rawInput}`
+                    ]);
+                    if (prof && prof.id) {
+                        userObj = { id: prof.id, name: prof.name, displayName: prof.displayName };
+                    }
+                } else {
+                    const lookupResp = await fetch('https://users.roproxy.com/v1/usernames/users', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ usernames: [rawInput], excludeBannedUsers: false })
+                    });
+                    const lookupData = await lookupResp.json().catch(() => null);
+                    if (lookupResp.ok && Array.isArray(lookupData?.data) && lookupData.data[0]?.id) {
+                        userObj = lookupData.data[0];
+                    }
+                }
+
+                if (!userObj || !userObj.id) {
+                    if (rFeedback) {
+                        rFeedback.style.color = '#F23F43';
+                        rFeedback.textContent = `❌ No encontramos la cuenta "${rawInput}" en Roblox. Revisá el nombre o probá con tu ID numérico.`;
+                    }
+                    return;
+                }
+
+                let avatarUrl = '';
+                try {
+                    const thumbData = await fetchRobloxJsonWithFallback([
+                        `https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds=${userObj.id}&size=150x150&format=Png&isCircular=false`
+                    ]);
+                    avatarUrl = thumbData?.data?.[0]?.imageUrl || '';
+                } catch {}
+
+                const code = `KORTEX-${Math.floor(1000 + Math.random() * 9000)}`;
+                const pending = {
+                    userId: Number(userObj.id),
+                    username: userObj.name,
+                    displayName: userObj.displayName || userObj.name,
+                    avatarUrl,
+                    code,
+                    createdAt: Date.now(),
+                    expiresAt: Date.now() + 30 * 60 * 1000
+                };
+                savePendingRobloxVerify(pending);
+                restorePendingRobloxUI();
+
+                if (rFeedback) {
+                    rFeedback.style.color = '#38BDF8';
+                    rFeedback.innerHTML = `🔑 Código generado para <strong>@${pending.username}</strong>. Pegalo en tu biografía de Roblox y tocá <strong>Comprobar Biografía</strong> (queda guardado en cookie si recargás).`;
+                }
+            } catch (err) {
+                if (rFeedback) {
+                    rFeedback.style.color = '#F0B232';
+                    rFeedback.innerHTML = `⚠️ Error consultando Roblox (${err.message}). Ejecutá <code>/config</code> en Discord → <strong>Vincular Roblox</strong> y luego tocá Sincronizar arriba.`;
+                }
             }
         }
 
         async function startOAuthPopup(provider) {
-            const isRoblox = provider === 'roblox';
-            const feedbackEl = document.getElementById(isRoblox ? 'roblox-feedback' : 'discord-feedback');
-            if (feedbackEl) {
-                feedbackEl.style.color = '#38BDF8';
-                feedbackEl.innerHTML = `⚡ Kortex funciona de forma 100% nativa en Discord. Usá el comando <code>/config</code> para gestionar tu cuenta de ${isRoblox ? 'Roblox' : 'Discord'}.`;
+            openAccountPopover('accounts');
+            if (provider === 'roblox') {
+                const rFeedback = document.getElementById('roblox-feedback');
+                const discordId = getActiveDiscordId();
+                if (discordId) {
+                    if (rFeedback) {
+                        rFeedback.style.color = '#38BDF8';
+                        rFeedback.textContent = '🔄 Sincronizando vínculo Roblox ↔ Discord...';
+                    }
+                    await checkAccountStatus();
+                    const updatedBackup = readLocalAccountBackup();
+                    if (updatedBackup?.linkedAccount?.roblox_user_id) {
+                        if (rFeedback) {
+                            rFeedback.style.color = '#23A55A';
+                            rFeedback.textContent = `✅ Sincronizado con @${updatedBackup.linkedAccount.roblox_username}.`;
+                        }
+                        return;
+                    }
+                }
+                const inp = document.getElementById('quick-roblox-input');
+                if (inp) inp.focus();
+                if (rFeedback) {
+                    rFeedback.style.color = '#38BDF8';
+                    rFeedback.innerHTML = '💡 Ingresá tu usuario de Roblox acá abajo para verificarlo por biografía, o vinculalo desde <code>/config</code> en Discord y volvé a sincronizar.';
+                }
+            } else {
+                const codeInp = document.getElementById('quick-discord-code');
+                const dFeedback = document.getElementById('discord-feedback');
+                if (codeInp) codeInp.focus();
+                if (dFeedback) {
+                    dFeedback.style.color = '#38BDF8';
+                    dFeedback.innerHTML = '🤖 Abrí Discord, ejecutá <code>/config</code> → <strong>1. Cuentas y Datos Guardados</strong> y tocá <strong>Panel Web</strong> (auto-conecta en 1 clic) o pegá tu clave <code>KTX-XXXXXX</code> abajo.';
+                }
             }
         }
-
-        window.addEventListener('message', (event) => {
-            const msg = event.data;
-            if (!msg || typeof msg !== 'object') return;
-
-            if (msg.type === 'KORTEX_OAUTH_SUCCESS') {
-                if (msg.discordId) {
-                    setActiveDiscordId(msg.discordId);
-                }
-                saveLocalAccountBackup({
-                    discordId: msg.discordId,
-                    discordConfig: msg.discordConfig,
-                    linkedAccount: msg.linkedAccount,
-                    history: msg.history
-                });
-                if (msg.provider === 'discord') {
-                    const dFeedback = document.getElementById('discord-feedback');
-                    if (dFeedback) {
-                        dFeedback.style.color = '#23A55A';
-                        dFeedback.textContent = `Cuenta de Discord conectada y guardada (@${msg.discordUsername}).`;
-                    }
-                } else if (msg.provider === 'roblox') {
-                    const rFeedback = document.getElementById('roblox-feedback');
-                    if (rFeedback) {
-                        rFeedback.style.color = '#23A55A';
-                        rFeedback.textContent = `Cuenta de Roblox conectada y guardada (@${msg.linkedAccount?.roblox_username}).`;
-                    }
-                }
-                checkAccountStatus();
-            }
-        });
 
         // Inicialización
         renderDiscordSim();
@@ -3967,24 +4399,40 @@
         switchCategory('economy');
         syncCanvasImagesWithApiBase();
 
-        (function initFromQuery() {
+        (async function initFromQuery() {
             const params = new URLSearchParams(window.location.search);
-            const qDiscordId = params.get('discord_id');
+            const qDiscordId = params.get('discord_id') || '';
+            const qCode = params.get('code') || '';
             const notice = params.get('oauth_notice');
-            if (qDiscordId) {
-                setActiveDiscordId(qDiscordId);
+
+            if (qDiscordId || qCode || window.location.hash === '#cuenta') {
                 openAccountPopover('accounts');
             }
-            if (window.location.hash === '#cuenta') {
-                openAccountPopover('accounts');
+
+            if (qDiscordId && /^\d{15,22}$/.test(qDiscordId.trim())) {
+                setActiveDiscordId(qDiscordId.trim());
+                const idInp = document.getElementById('quick-discord-input');
+                if (idInp) idInp.value = qDiscordId.trim();
             }
-            checkAccountStatus();
+
+            if (qCode) {
+                const codeInp = document.getElementById('quick-discord-code');
+                if (codeInp) codeInp.value = qCode.trim();
+                await quickVerifyDiscordWeb('verify', qDiscordId.trim(), qCode.trim());
+                try {
+                    const cleanUrl = window.location.pathname + (window.location.hash || '#cuenta');
+                    window.history.replaceState({}, document.title, cleanUrl);
+                } catch {}
+            } else {
+                await checkAccountStatus();
+            }
+
             if (notice === 'roblox_missing') {
                 openAccountPopover('accounts');
                 const rFeedback = document.getElementById('roblox-feedback');
                 if (rFeedback) {
                     rFeedback.style.color = '#F0B232';
-                    rFeedback.textContent = 'Para usar Roblox OAuth 2.0, configurá las credenciales de aplicación de Roblox o vinculá por Nombre/ID arriba.';
+                    rFeedback.textContent = 'Para vincular Roblox en la web, escribí tu usuario arriba y colocá el código en tu biografía, o vinculalo desde /config.';
                 }
             }
         })();

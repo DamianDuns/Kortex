@@ -764,7 +764,7 @@ async function restaurarRespaldoCliente(discordId, clientBackup = {}) {
  */
 async function obtenerHistorialYEstadoCuenta(discordId) {
     const key = String(discordId || 'default_session').trim();
-    const linkedAccount = await obtenerCuentaVinculada(key).catch(() => null);
+    const linkedAccount = await obtenerCuentaVinculada(key, { forceRemote: true }).catch(() => null);
     const discordConfig = obtenerConfigDiscord(key);
     const tieneCuentaActiva = Boolean((discordConfig && discordConfig.oauth_verified) || (linkedAccount && linkedAccount.roblox_user_id));
 
@@ -950,12 +950,39 @@ async function resolverUsuarioRoblox(input) {
 /**
  * Obtiene la cuenta vinculada de un usuario de Discord desde RAM, Snapshot de Memoria o Supabase Remoto.
  */
-async function obtenerCuentaVinculada(discordId) {
+async function obtenerCuentaVinculada(discordId, { forceRemote = false } = {}) {
     if (!discordId) return null;
     const key = String(discordId);
+    const cached = fastLinkCache.get(key);
+
+    if (forceRemote) {
+        try {
+            const client = supabase.realClient || supabase;
+            const { data, error } = await client
+                .from('user_links')
+                .select('*')
+                .eq('discord_id', key)
+                .maybeSingle();
+
+            if (!error) {
+                if (data && data.roblox_user_id) {
+                    const merged = { ...cached, ...data };
+                    fastLinkCache.set(key, merged);
+                    guardarLinksEnDisco();
+                    return merged;
+                }
+                if (!data && cached) {
+                    fastLinkCache.delete(key);
+                    guardarLinksEnDisco();
+                    return null;
+                }
+            }
+        } catch {
+            // Continuar con caché local si hay fallo de red temporal
+        }
+    }
 
     // 1. Caché ultra-rápida en RAM
-    const cached = fastLinkCache.get(key);
     if (cached && cached.roblox_user_id) {
         return cached;
     }
@@ -1078,13 +1105,13 @@ function guardarConfigDiscord(discordId, partialConfig) {
  * Verifica el estado de la sesión de Discord preservando siempre la sesión guardada
  * cuando el bot se actualiza o cuando el access_token temporal caduca.
  */
-async function verificarAutorizacionDiscordOAuth(discordId, { checkRemoteRevocation = false } = {}) {
+async function verificarAutorizacionDiscordOAuth(discordId, { checkRemoteRevocation = false, forceRemote = false } = {}) {
     const key = String(discordId || '').trim();
     if (!key || key === 'default_session') return obtenerConfigDiscord('');
     let current = discordConfigCache.get(key);
 
-    // Si no está en RAM con sesión verificada, consultar Supabase directamente
-    if (!current || !current.oauth_verified) {
+    // Consultar Supabase si no está verificado en RAM o si se solicita sincronización fresca (web <-> bot)
+    if (forceRemote || !current || !current.oauth_verified) {
         try {
             const { data, error } = await supabase.from('discord_configs').select('*').eq('discord_id', key).maybeSingle();
             if (!error && data && data.discord_id) {
@@ -2507,10 +2534,10 @@ async function confirmarVerificacionCodigoRoblox(discordId, codeInput = '') {
  * Verifica el perfil de Roblox vinculado preservando siempre la cuenta guardada
  * aunque el access_token temporal de OAuth2 haya expirado tras actualizar el bot.
  */
-async function verificarAutorizacionRobloxOAuth(discordId) {
+async function verificarAutorizacionRobloxOAuth(discordId, options = {}) {
     const key = String(discordId || '');
     if (!key) return null;
-    const cuenta = await obtenerCuentaVinculada(key).catch(() => null);
+    const cuenta = await obtenerCuentaVinculada(key, options).catch(() => null);
     if (!cuenta || !cuenta.roblox_user_id) return null;
 
     if ((cuenta.auth_method === 'oauth' || cuenta.roblox_oauth_verified) && cuenta.roblox_access_token) {
@@ -3310,12 +3337,14 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
     // =========================================================
     // CATEGORÍA 1: CUENTAS Y DATOS GUARDADOS (USUARIOS)
     // =========================================================
-    const cfg = await verificarAutorizacionDiscordOAuth(uid);
-    const cuentaRoblox = await verificarAutorizacionRobloxOAuth(uid).catch(() => null);
+    const cfg = await verificarAutorizacionDiscordOAuth(uid, { forceRemote: true });
+    const cuentaRoblox = await verificarAutorizacionRobloxOAuth(uid, { forceRemote: true }).catch(() => null);
     const pendingRoblox = obtenerVerificacionPendienteRoblox(uid);
     const webDiscordChallenge = generarCodigoVinculacionDiscord(uid, discordUser);
+    await persistirConfigDiscordEnSupabase(uid, obtenerConfigDiscord(uid)).catch(() => {});
     const resumen = await obtenerHistorialYEstadoCuenta(uid).catch(() => null);
     const baseAppUrl = obtenerUrlBasePublica();
+    const webDashboardUrl = `${baseAppUrl}?discord_id=${encodeURIComponent(uid)}${webDiscordChallenge?.code ? `&code=${encodeURIComponent(webDiscordChallenge.code)}` : ''}#cuenta`;
 
     const tieneDiscord = Boolean(cfg && cfg.oauth_verified);
     const tieneRoblox = Boolean(cuentaRoblox && cuentaRoblox.roblox_user_id);
@@ -3483,10 +3512,14 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             ? `• 🎯 **Seguimiento:** \`${wishlistCount}/${maxWishlist}\` objetos activos`
             : `• 🎯 **Seguimiento:** Sin objetos en monitoreo`);
 
+    const tyStg = Number(tycoonProfile?.studio_stage ?? tycoonProfile?.studio_level ?? 1);
+    const tyReb = Number(tycoonProfile?.rebirth_count ?? tycoonProfile?.rebirths ?? 0);
+    const tyTix = Number(tycoonProfile?.tix_balance ?? tycoonProfile?.tix ?? 0);
+    const tyVox = Number(tycoonProfile?.crystal_balance ?? tycoonProfile?.kortex_crystals ?? 0);
     const tycoonLine = tycoonProfile
         ? (isEn
-            ? `• 🏭 **Tycoon:** Level \`${tycoonProfile.studio_level || 1}/6\` • Rebirth \`x${tycoonProfile.rebirths || 0}\` • \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\` • 💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``
-            : `• 🏭 **Tycoon:** Nivel \`${tycoonProfile.studio_level || 1}/6\` • Rebirth \`x${tycoonProfile.rebirths || 0}\` • \`${Number(tycoonProfile.tix || 0).toLocaleString('en-US')} Tix\` • 💠 \`${Number(tycoonProfile.kortex_crystals || 0).toLocaleString('en-US')}\``)
+            ? `• 🏭 **Tycoon:** Stage \`${tyStg}/6\` • Rebirth \`x${tyReb}\` • \`${tyTix.toLocaleString('en-US')} Tix\` • 💠 \`${tyVox.toLocaleString('en-US')} Voxels\``
+            : `• 🏭 **Tycoon:** Nivel \`${tyStg}/6\` • Rebirth \`x${tyReb}\` • \`${tyTix.toLocaleString('en-US')} Tix\` • 💠 \`${tyVox.toLocaleString('en-US')} Vóxeles\``)
         : (isEn
             ? `• 🏭 **Tycoon:** Not started`
             : `• 🏭 **Tycoon:** Sin iniciar`);
@@ -3531,7 +3564,7 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             .setLabel(isEn ? 'Web Dashboard' : 'Panel Web')
             .setEmoji('🌐')
             .setStyle(ButtonStyle.Link)
-            .setURL(baseAppUrl)
+            .setURL(webDashboardUrl)
     ];
 
     container.addActionRowComponents(new ActionRowBuilder().addComponents(filaBotonesInferior));

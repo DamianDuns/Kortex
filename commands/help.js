@@ -169,9 +169,9 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '### 🎮 `/roblox` o mención `@Kortex`\n' +
                 '> Acceso directo al conjunto de herramientas de Roblox: Economía y Precios, Avatares 3D y 2D, Servidores y Juegos, y Estado de Servidores en vivo.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Tu Estudio Tycoon en 3D: Colector de Tix, Vóxeles, Misiones Semanales, Tienda, Taller UGC con 70% de regalías, Bóveda de Limiteds y Comercio P2P.\n\n' +
+                '> Tu Estudio Tycoon interactivo: Bóveda de Tix, `💠` Vóxeles, `🧩` Fragmentos de Llave y `🗝️` Llaves Maestras, Forja con Presión Crítica, Tienda Unificada, 3 Cofres por Cerraduras con Multiplicador de Riesgo, Misiones Semanales y Taller UGC.\n\n' +
                 '### ⚙️ `/config`\n' +
-                '> Vinculá tus cuentas de Discord y Roblox, configurá tu prefijo personalizado de comandos, idioma y preferencias de uso.\n\n' +
+                '> Vinculá tus cuentas de Discord y Roblox (sincronizadas con la web), configurá tu prefijo personalizado, idioma, región y administración VIP.\n\n' +
                 '### 🏓 `/ping`\n' +
                 '> Medición de latencia y velocidad de respuesta con Discord en tiempo real, tiempo activo del bot y consumo de memoria.'
         },
@@ -180,22 +180,24 @@ const SECCIONES_PRINCIPALES_HELP = {
             color: 0x22C55E,
             contenido:
                 '### 🏗️ 1. Mi Estudio y Producción\n' +
-                '> Controlá tu Bóveda Colectora en vivo, construí las 6 Estaciones del Estudio, reclamá tu Racha Diaria y ascendé con Rebirth.\n\n' +
-                '### 👤 2. Mi Perfil e Inventario\n' +
-                '> Consultá tu ficha de estadísticas generales del Tycoon, equipá los objetos de tu inventario y diseñá tus propios objetos UGC.\n\n' +
-                '### 🛒 3. Tienda, Cofres e Intercambios\n' +
-                '> Tienda unificada de ítems clásicos, Limiteds numerados y artefactos de Vóxeles, junto con Cofres de Ascensión e Intercambios P2P.\n\n' +
+                '> Controlá tu Colector de Tix (`⚡` Vaciado Crítico 15% `+1 🧩`), construí las 6 Estaciones (`25%` Hallazgo en Cimientos), resolvé eventos del Láser, reclamá tu Racha Diaria y ascendé con Rebirth.\n\n' +
+                '### 👤 2. Mi Perfil, Inventario y Forja\n' +
+                '> Panel Components V2 con tus saldos (`Tix`, `💠 Vóxeles`, `🧩 Fragmentos x/4`, `🗝️ Llaves Maestras`), Forja con evento **Presión Crítica**, equipamiento de ítems y Taller UGC (70% regalías).\n\n' +
+                '### 🛒 3. Tienda Unificada, Cofres de Cerraduras y P2P\n' +
+                '> Tienda de ítems clásicos, Limited U seriados y artefactos de Vóxeles, junto con 3 **Cofres de Cerraduras** (`📦` Estándar, `🛡️` Reforzado, `💠` Vóxel) + **Multiplicador de Riesgo** (`x1.0` / `x1.5` / `x2.5`) e Intercambios P2P.\n\n' +
                 '### 🏆 4. Misiones, Laboratorio y Ranking\n' +
-                '> Completá misiones semanales para ganar Vóxeles gratis, activá elixires de laboratorio y consultá el Top 5 de estudios.'
+                '> Completá 4 Misiones Semanales (Bono 4/4: `+30 💠` + `+1 🗝️`), activá pociones incluyendo `🧪 Tónico del Prospector` (`x2` drops) y consultá el Top 5.'
         },
         cmd_config: {
             titulo: '⚙️ Comando `/config` — Configuración',
             color: 0x5865F2,
             contenido:
                 '### 🔗 1. Cuentas y Datos Guardados\n' +
-                '> Vinculá tus cuentas de Discord y Roblox, generá tu código para iniciar sesión en la web y consultá tu resumen guardado.\n\n' +
-                '### ⚡ 2. Prefijo, Idioma y Preferencias\n' +
-                '> Personalizá tu prefijo de comandos para el chat, cambiá el idioma entre Español e Inglés y configurá tus alertas por mensaje directo.'
+                '> Vinculá tus cuentas de Discord y Roblox con sincronización web persistente, generá tu código `KTX-XXXXXX` y consultá tu resumen guardado.\n\n' +
+                '### 🌐 2. Idioma y Preferencias\n' +
+                '> Configurá tu prefijo personalizado, alterná el idioma entre Español e Inglés, elegí categoría inicial, región de precios y alertas por MD.\n\n' +
+                '### 🛡️ 3. Administración del Bot (Propietario)\n' +
+                '> Gestión de Usuarios/Roles VIP de `/tycoon`, Semáforo de Concurrencia, Purga de Caché y Modo Mantenimiento.'
         }
     },
     en: {
@@ -206,9 +208,9 @@ const SECCIONES_PRINCIPALES_HELP = {
                 '### 🎮 `/roblox` or mention `@Kortex`\n' +
                 '> Direct access to the Roblox toolkit: Economy & Pricing, 3D/2D Avatars, Games & Servers, and Live Server Status.\n\n' +
                 '### 🏭 `/tycoon`\n' +
-                '> Your 3D Tycoon Studio: Tix Collector, Voxels, Weekly Quests, Shop, UGC Workshop with 70% royalties, Limiteds Vault, and P2P Trading.\n\n' +
+                '> Interactive Tycoon Studio: Tix Vault, `💠` Voxels, `🧩` Key Fragments & `🗝️` Master Keys, Critical Pressure Forge, Unified Shop, 3 Lock Chests with Risk Multiplier, Weekly Quests, and UGC Workshop.\n\n' +
                 '### ⚙️ `/config`\n' +
-                '> Link your Discord and Roblox accounts, set your custom command prefix, language, and preferences.\n\n' +
+                '> Link Discord and Roblox accounts (with web sync), customize your prefix, language, pricing region, and VIP admin controls.\n\n' +
                 '### 🏓 `/ping`\n' +
                 '> Real-time latency and Discord response time measurement, bot uptime, and memory usage.'
         },
@@ -217,22 +219,24 @@ const SECCIONES_PRINCIPALES_HELP = {
             color: 0x22C55E,
             contenido:
                 '### 🏗️ 1. My Studio & Production\n' +
-                '> Manage your live Collector Vault, build all 6 Studio Stations, claim your Daily Streak, and ascend via Rebirth.\n\n' +
-                '### 👤 2. My Profile & Inventory\n' +
-                '> View your general Tycoon statistics card, equip your owned items, and publish custom UGC objects.\n\n' +
-                '### 🛒 3. Shop, Chests & P2P Trades\n' +
-                '> Unified shop for classic items, serialized Limiteds, and Voxel artifacts, plus Ascension Chests and P2P Trading.\n\n' +
+                '> Manage your Collector Vault (`⚡` Critical Vent 15% `+1 🧩`), build 6 Studio Stations (`25%` Foundation drop), calibrate Laser events, claim Daily Streak, and Rebirth.\n\n' +
+                '### 👤 2. My Profile, Inventory & Forge\n' +
+                '> Components V2 stats view (`Tix`, `💠 Voxels`, `🧩 Key Fragments x/4`, `🗝️ Master Keys`), Master Key Forge with **Critical Pressure** event, item equipping, and UGC Workshop (70% royalties).\n\n' +
+                '### 🛒 3. Unified Shop, Lock Chests & P2P Trades\n' +
+                '> Buy classic gear, serialized Limited U items, and Voxel artifacts, unlock 3 **Lock Chests** (`📦` Standard, `🛡️` Reinforced, `💠` Voxel) with the **Risk Multiplier** (`x1.0` / `x1.5` / `x2.5`), and trade P2P.\n\n' +
                 '### 🏆 4. Quests, Lab & Leaderboard\n' +
-                '> Complete weekly quests to earn free Voxels, activate laboratory potions, and check the Top 5 studio leaderboard.'
+                '> Complete 4 Weekly Quests (4/4 Bonus: `+30 💠` + `+1 🗝️`), activate potions including `🧪 Prospector Tonic` (`2x` drops), and check the Top 5 leaderboard.'
         },
         cmd_config: {
             titulo: '⚙️ Command `/config` — Settings',
             color: 0x5865F2,
             contenido:
                 '### 🔗 1. Accounts & Saved Data\n' +
-                '> Link your Discord and Roblox accounts, generate your web login code, and inspect your saved summary.\n\n' +
-                '### ⚡ 2. Prefix, Language & Preferences\n' +
-                '> Customize your chat command prefix, toggle between Spanish and English, and configure personal DM notifications.'
+                '> Link your Discord and Roblox accounts with persistent web sync, generate your `KTX-XXXXXX` web code, and inspect your saved summary.\n\n' +
+                '### 🌐 2. Language & Preferences\n' +
+                '> Set your custom chat command prefix, switch between Spanish and English, choose default category/region, and manage DM alerts.\n\n' +
+                '### 🛡️ 3. Bot Administration (Owner)\n' +
+                '> Manage `/tycoon` VIP users & roles, Concurrency Semaphore, Cache Purge, and Maintenance Mode.'
         }
     }
 };
@@ -314,13 +318,13 @@ function construirPanelHelp(mainCategory = 'cmd_overview', robloxSubCategory = '
             new StringSelectMenuOptionBuilder()
                 .setLabel(
                     isEn
-                        ? 'Command /tycoon — 3rd-Person Tycoon Studio'
-                        : 'Comando /tycoon — Estudio Roblox Tycoon'
+                        ? 'Command /tycoon — Interactive Tycoon Studio'
+                        : 'Comando /tycoon — Estudio Kortex Tycoon'
                 )
                 .setDescription(
                     isEn
-                        ? 'Collector Pad, Normal Shop, UGC Workshop, Limited U & P2P Trading'
-                        : 'Colector de Tix, Tienda, Taller UGC, Limited U y Trading P2P'
+                        ? 'Tix Collector, Voxels, Master Keys, Lock Chests, Shop & P2P Trading'
+                        : 'Colector Tix, Vóxeles, Llaves Maestras, Cofres, Tienda y Trading P2P'
                 )
                 .setValue('cmd_tycoon')
                 .setEmoji('🏭')
