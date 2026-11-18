@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="./supabase-config.js"></script>
     <style>
         :root {
             --bg-base: #080A0F;
@@ -162,6 +163,46 @@
         .top-account-zone {
             position: relative;
             flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .top-invite-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.48rem;
+            min-height: 42px;
+            padding: 0.44rem 0.95rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #5865F2 0%, #4752C4 100%);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 14px rgba(88, 101, 242, 0.32);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+        }
+
+        .top-invite-btn:hover {
+            filter: brightness(1.07);
+            box-shadow: 0 6px 20px rgba(88, 101, 242, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .top-invite-btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .top-invite-btn {
+                display: none;
+            }
         }
 
         .top-profile-bar {
@@ -208,11 +249,25 @@
 
         .top-profile-avatar.discord {
             background: var(--brand-blurple);
+            order: 1;
             z-index: 2;
         }
 
         .top-profile-avatar.roblox {
             background: var(--brand-emerald);
+            order: 2;
+            margin-left: -7px;
+            z-index: 1;
+        }
+
+        .top-avatar-pair.roblox-primary .top-profile-avatar.roblox {
+            order: 1;
+            margin-left: 0;
+            z-index: 2;
+        }
+
+        .top-avatar-pair.roblox-primary .top-profile-avatar.discord {
+            order: 2;
             margin-left: -7px;
             z-index: 1;
         }
@@ -433,19 +488,136 @@
             display: flex;
         }
 
-        .popover-account-card {
+        .auth-flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .remembered-profile-card {
+            background: rgba(13, 18, 30, 0.88);
+            border: 1px solid rgba(88, 101, 242, 0.32);
+            border-radius: 13px;
+            padding: 0.85rem 0.95rem;
+            display: none;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .remembered-profile-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .remembered-profile-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .auth-method-shell {
             background: rgba(9, 12, 19, 0.78);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 14px;
             padding: 1.05rem;
             display: flex;
             flex-direction: column;
-            gap: 0.8rem;
-            transition: border-color 0.15s ease;
+            gap: 0.85rem;
         }
 
-        .popover-account-card:hover {
-            border-color: rgba(255, 255, 255, 0.15);
+        .auth-method-kicker {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .auth-method-switcher {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.35rem;
+            background: #0B0E17;
+            border: 1px solid rgba(255, 255, 255, 0.075);
+            border-radius: 10px;
+            padding: 0.24rem;
+        }
+
+        .auth-method-tab {
+            background: transparent;
+            border: none;
+            border-radius: 7px;
+            min-height: 38px;
+            padding: 0.45rem 0.7rem;
+            font-family: var(--font-sans);
+            font-size: 0.81rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            white-space: nowrap;
+            transition: background 0.14s ease, color 0.14s ease;
+        }
+
+        .auth-method-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .auth-method-tab.active.discord {
+            background: rgba(88, 101, 242, 0.22);
+            color: #EEF2FF;
+            box-shadow: inset 0 0 0 1px rgba(88, 101, 242, 0.45);
+        }
+
+        .auth-method-tab.active.roblox {
+            background: rgba(35, 165, 90, 0.2);
+            color: #ECFDF5;
+            box-shadow: inset 0 0 0 1px rgba(35, 165, 90, 0.45);
+        }
+
+        .auth-method-panel {
+            display: none;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .auth-method-panel.active {
+            display: flex;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 0.73rem;
+            color: var(--text-muted);
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .unified-profile-card {
+            background: rgba(9, 12, 19, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 14px;
+            padding: 1.05rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+        }
+
+        .unified-hairline {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.07);
+            width: 100%;
         }
 
         .popover-account-row {
@@ -458,7 +630,7 @@
         .popover-account-id {
             display: flex;
             align-items: center;
-            gap: 0.8rem;
+            gap: 0.78rem;
             min-width: 0;
         }
 
@@ -475,19 +647,35 @@
             overflow: hidden;
         }
 
-        .popover-avatar-lg.discord {
+        .popover-avatar-sm {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 0.84rem;
+            color: #fff;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .popover-avatar-lg.discord,
+        .popover-avatar-sm.discord {
             background: rgba(88, 101, 242, 0.2);
             border: 1px solid rgba(88, 101, 242, 0.45);
             color: #A5B4FC;
         }
 
-        .popover-avatar-lg.roblox {
+        .popover-avatar-lg.roblox,
+        .popover-avatar-sm.roblox {
             background: rgba(35, 165, 90, 0.18);
             border: 1px solid rgba(35, 165, 90, 0.45);
             color: #6EE7B7;
         }
 
-        .popover-avatar-lg img {
+        .popover-avatar-lg img,
+        .popover-avatar-sm img {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -508,7 +696,7 @@
 
         .popover-account-text span {
             display: block;
-            font-size: 0.77rem;
+            font-size: 0.76rem;
             color: var(--text-secondary);
             line-height: 1.38;
             margin-top: 0.1rem;
@@ -522,18 +710,20 @@
         .popover-btn {
             flex: 1;
             min-height: 40px;
-            padding: 0.58rem 0.9rem;
+            padding: 0.56rem 0.9rem;
             border-radius: 10px;
             font-size: 0.83rem;
             font-weight: 700;
             font-family: var(--font-sans);
             color: #fff;
             border: none;
+            text-decoration: none;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.45rem;
+            white-space: nowrap;
             transition: background 0.15s ease, transform 0.1s ease;
         }
 
@@ -557,44 +747,52 @@
             background: var(--brand-emerald-hover);
         }
 
-        .popover-btn-ghost {
+        .popover-subtle-btn {
             background: rgba(255, 255, 255, 0.05);
             color: var(--text-secondary);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 0 0.75rem;
-            font-size: 0.76rem;
+            border-radius: 9px;
+            min-height: 34px;
+            padding: 0 0.72rem;
+            font-size: 0.75rem;
             font-weight: 600;
             font-family: var(--font-sans);
             cursor: pointer;
             white-space: nowrap;
-            display: none;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.14s ease;
+            transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
         }
 
-        .popover-btn-ghost.visible {
-            display: inline-flex;
+        .popover-subtle-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
-        .popover-btn-ghost:hover {
+        .popover-subtle-btn.danger:hover {
             color: #F23F43;
             border-color: rgba(242, 63, 67, 0.45);
             background: rgba(242, 63, 67, 0.1);
         }
 
-        /* Quick Username / ID Link inside Roblox Card */
+        .companion-actions-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+        }
+
         .popover-quick-box {
-            padding-top: 0.65rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
             display: flex;
             flex-direction: column;
-            gap: 0.42rem;
+            gap: 0.45rem;
         }
 
         .popover-quick-label {
-            font-size: 0.74rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
             font-weight: 600;
         }
@@ -607,28 +805,30 @@
         .popover-quick-input {
             flex: 1;
             min-width: 0;
+            min-height: 40px;
             background: #141926;
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            padding: 0.46rem 0.7rem;
+            padding: 0.48rem 0.72rem;
             color: var(--text-primary);
             font-family: var(--font-sans);
-            font-size: 0.8rem;
+            font-size: 0.81rem;
             outline: none;
             transition: border-color 0.15s ease;
         }
 
         .popover-quick-input:focus {
-            border-color: var(--brand-emerald);
+            border-color: var(--brand-blurple);
         }
 
         .popover-quick-submit {
+            min-height: 40px;
             background: #1F273B;
             color: var(--text-primary);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 8px;
-            padding: 0 0.85rem;
-            font-size: 0.78rem;
+            padding: 0 0.9rem;
+            font-size: 0.79rem;
             font-weight: 700;
             font-family: var(--font-sans);
             cursor: pointer;
@@ -641,11 +841,21 @@
             border-color: rgba(255, 255, 255, 0.22);
         }
 
-        /* Verification Bot Inbox / DM Security Box inside Quick Roblox Link */
+        .popover-quick-submit.primary-emerald {
+            background: var(--brand-emerald);
+            border-color: transparent;
+            color: #FFFFFF;
+        }
+
+        .popover-quick-submit.primary-emerald:hover {
+            background: var(--brand-emerald-hover);
+        }
+
+        /* Verification Step 2 inside Roblox Flow */
         .verifier-bot-inbox {
-            margin-top: 0.35rem;
+            margin-top: 0.25rem;
             background: #0D1320;
-            border: 1px solid rgba(88, 101, 242, 0.42);
+            border: 1px solid rgba(88, 101, 242, 0.36);
             border-radius: 11px;
             padding: 0.75rem 0.85rem;
             display: flex;
@@ -661,22 +871,19 @@
         }
 
         .verifier-bot-badge {
-            font-size: 0.73rem;
+            font-size: 0.74rem;
             font-weight: 700;
-            color: #A5B4FC;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
+            color: #C7D2FE;
         }
 
         .verifier-bot-cancel {
             background: transparent;
             border: none;
             color: var(--text-muted);
-            font-size: 0.72rem;
+            font-size: 0.73rem;
             font-weight: 600;
             cursor: pointer;
-            padding: 0;
+            padding: 0.2rem 0.35rem;
             font-family: var(--font-sans);
         }
 
@@ -694,7 +901,7 @@
             line-height: 1.45;
             display: flex;
             flex-direction: column;
-            gap: 0.35rem;
+            gap: 0.38rem;
         }
 
         .verifier-code-row {
@@ -702,7 +909,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 0.5rem;
-            padding-top: 0.2rem;
+            padding-top: 0.15rem;
         }
 
         .verifier-code-pill {
@@ -722,11 +929,13 @@
             color: #C7D2FE;
             border: 1px solid rgba(88, 101, 242, 0.4);
             border-radius: 6px;
-            padding: 0.24rem 0.55rem;
-            font-size: 0.72rem;
+            min-height: 30px;
+            padding: 0.24rem 0.6rem;
+            font-size: 0.73rem;
             font-weight: 700;
             font-family: var(--font-sans);
             cursor: pointer;
+            white-space: nowrap;
             transition: background 0.14s ease;
         }
 
@@ -737,7 +946,7 @@
         .popover-feedback {
             font-size: 0.75rem;
             color: var(--text-muted);
-            line-height: 1.42;
+            line-height: 1.44;
         }
 
         /* Account Status & History Pane Styles */
@@ -1995,108 +2204,207 @@
 
     <div class="account-backdrop" id="account-backdrop" onclick="closeAccountPopover()"></div>
 
-    <!-- FLOATING ACCOUNT, STATUS & HISTORY PANEL (Root level so it is never trapped or blurred) -->
-    <div class="account-popover" id="account-popover" role="dialog" aria-label="Centro de Cuentas, Estado e Historial">
+    <!-- FLOATING UNIFIED ACCOUNT, STATUS & HISTORY PANEL -->
+    <div class="account-popover" id="account-popover" role="dialog" aria-label="Centro de Cuenta Unificada e Historial">
         <div class="popover-header">
             <div>
-                <div class="popover-header-title">Cuentas, Estado e Historial</div>
-                <div class="popover-header-sub">Tu sesión e historial se guardan de forma persistente</div>
+                <div class="popover-header-title">Tu Perfil Kortex</div>
+                <div class="popover-header-sub" id="popover-header-subtitle">Elegí tu cuenta principal y conservá tus datos vinculados</div>
             </div>
             <div class="popover-header-actions">
-                <button type="button" class="popover-icon-btn" onclick="checkAccountStatus()" title="Sincronizar y actualizar estado">↻ Sincronizar</button>
-                <button type="button" class="popover-icon-btn" onclick="clearAllSessions()" title="Cerrar todas las sesiones y limpiar navegador">🚪 Salir</button>
-                <button type="button" class="popover-icon-btn" onclick="closeAccountPopover()" title="Cerrar panel">✕</button>
+                <button type="button" class="popover-icon-btn" onclick="checkAccountStatus(true)" title="Actualizar estado sincronizado">Actualizar</button>
+                <button type="button" class="popover-icon-btn" onclick="closeAccountPopover()" aria-label="Cerrar panel" title="Cerrar panel">✕</button>
             </div>
         </div>
 
         <div class="popover-tabs" role="tablist">
             <button type="button" class="popover-tab-btn active" id="tab-btn-accounts" onclick="switchPopoverTab('accounts')">
-                🔗 Cuentas y Conexión
+                Cuenta Principal
             </button>
             <button type="button" class="popover-tab-btn" id="tab-btn-history" onclick="switchPopoverTab('history')">
-                📋 Estado e Historial
+                Estado e Historial
             </button>
         </div>
 
-        <!-- PANE 1: CUENTAS E INICIO DE SESIÓN -->
+        <!-- PANE 1: PERFIL UNIFICADO E INICIO DE SESIÓN ORGÁNICO -->
         <div class="popover-pane active" id="popover-pane-accounts">
-            <!-- 1. Discord Verification Card (Synced with /config KTX-XXXXXX & Web Panel Link) -->
-            <div class="popover-account-card">
-                <div class="popover-account-row">
-                    <div class="popover-account-id">
-                        <div class="popover-avatar-lg discord" id="pop-discord-avatar">D</div>
-                        <div class="popover-account-text">
-                            <strong id="discord-status-title">Cuenta de Discord</strong>
-                            <span id="discord-status-sub">Sincronización directa con /config (código KTX)</span>
+            <!-- VISTA A: SIN SESIÓN ACTIVA (UN SOLO FLUJO LIMPIO A LA VEZ) -->
+            <div class="auth-flow-container" id="auth-logged-out-view">
+                <!-- Tarjeta de reanudación en 1 clic si este navegador ya tenía un perfil guardado -->
+                <div class="remembered-profile-card" id="remembered-profile-card">
+                    <div class="remembered-profile-top">
+                        <div class="popover-account-id">
+                            <div class="popover-avatar-sm discord" id="remembered-avatar">K</div>
+                            <div class="popover-account-text">
+                                <strong id="remembered-name">@Usuario</strong>
+                                <span id="remembered-meta">Perfil guardado en este navegador</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="popover-btn-row">
-                    <button type="button" class="popover-btn discord" id="btn-discord-login" onclick="startOAuthPopup('discord')" style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                        <span>🤖 Cómo conectar desde /config</span>
-                        <span style="background:#23A55A;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">1 CLIC</span>
-                    </button>
-                    <button type="button" class="popover-btn-ghost" id="btn-discord-disconnect" onclick="disconnectAccount('discord')" title="Cerrar sesión de Discord">
-                        Salir
-                    </button>
-                </div>
-                <div class="popover-quick-box">
-                    <span class="popover-quick-label">🔑 Ingresá tu clave <code>KTX-XXXXXX</code> del comando <code>/config</code> (y opcionalmente tu Discord ID):</span>
-                    <div class="popover-quick-form">
-                        <input type="text" class="popover-quick-input" id="quick-discord-input" placeholder="1. Discord ID (opcional si la clave es única)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                    <div class="remembered-profile-actions">
+                        <button type="button" class="popover-btn discord" id="btn-resume-remembered" style="min-height:36px;font-size:0.79rem;" onclick="resumeRememberedProfile()">
+                            Continuar sesión
+                        </button>
+                        <button type="button" class="popover-subtle-btn danger" onclick="forgetRememberedProfile()">
+                            Olvidar
+                        </button>
                     </div>
-                    <div id="discord-step2-verify" style="margin-top:8px;">
-                        <div class="popover-quick-form">
-                            <input type="text" class="popover-quick-input" id="quick-discord-code" placeholder="2. Clave de /config (ej: KTX-123456)" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
-                            <button type="button" class="popover-quick-submit" style="background:#16A34A;color:#FFFFFF;" onclick="quickVerifyDiscordWeb('verify')">✅ Vincular</button>
+                </div>
+
+                <!-- Selector único de método principal -->
+                <div class="auth-method-shell">
+                    <span class="auth-method-kicker">Elegí con qué cuenta principal querés entrar</span>
+                    <div class="auth-method-switcher" role="tablist" aria-label="Método de inicio de sesión">
+                        <button type="button" role="tab" aria-selected="true" class="auth-method-tab discord active" id="method-tab-discord" onclick="selectPrimaryLoginMethod('discord')">
+                            Discord
+                        </button>
+                        <button type="button" role="tab" aria-selected="false" class="auth-method-tab roblox" id="method-tab-roblox" onclick="selectPrimaryLoginMethod('roblox')">
+                            Roblox
+                        </button>
+                    </div>
+
+                    <!-- Panel Discord -->
+                    <div class="auth-method-panel active" id="login-panel-discord">
+                        <a href="#cuenta" class="popover-btn discord" id="btn-discord-oauth-direct" onclick="handleDiscordDirectOAuthClick(event)">
+                            Continuar con Discord
+                        </a>
+                        <div class="auth-divider">o con tu clave de /config</div>
+                        <div class="popover-quick-box">
+                            <div class="popover-quick-form">
+                                <input type="text" class="popover-quick-input" id="quick-discord-code" aria-label="Clave KTX-XXXXXX de /config" placeholder="Clave KTX-XXXXXX" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify')" />
+                                <button type="button" class="popover-quick-submit primary-emerald" onclick="quickVerifyDiscordWeb('verify')">Entrar</button>
+                            </div>
+                        </div>
+                        <div id="discord-feedback" class="popover-feedback">
+                            Si ya vinculaste tu cuenta de Roblox en Discord, se cargará automáticamente junto con tu progreso de <code>/tycoon</code> y Mi Lista.
                         </div>
                     </div>
-                </div>
-                <div id="discord-feedback" class="popover-feedback">
-                    Ejecutá <code>/config</code> en Discord → <strong>1. Cuentas y Datos Guardados</strong> → tocá <strong>Panel Web</strong> para entrar en 1 clic o pegá tu código <code>KTX-XXXXXX</code>. Tu sesión queda guardada en cookie persistente.
+
+                    <!-- Panel Roblox -->
+                    <div class="auth-method-panel" id="login-panel-roblox">
+                        <div class="popover-quick-box">
+                            <span class="popover-quick-label">Ingresá tu usuario, ID o URL de perfil de Roblox</span>
+                            <div class="popover-quick-form">
+                                <input type="text" class="popover-quick-input" id="quick-roblox-input" aria-label="Usuario o ID de Roblox" placeholder="@Usuario o ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
+                                <button type="button" class="popover-quick-submit primary-emerald" onclick="quickVerifyRobloxWeb('start')">Continuar</button>
+                            </div>
+                            <div id="roblox-step2-verify" class="verifier-bot-inbox" style="display:none;">
+                                <div class="verifier-bot-top">
+                                    <span class="verifier-bot-badge">Confirmar propiedad · <span id="roblox-verify-target-label"></span></span>
+                                    <button type="button" class="verifier-bot-cancel" onclick="quickVerifyRobloxWeb('cancel')">Cancelar</button>
+                                </div>
+                                <div class="verifier-bot-msg">
+                                    <span>Pegá temporalmente este código en la sección <strong>"Acerca de"</strong> de tu perfil de Roblox:</span>
+                                    <div class="verifier-code-row">
+                                        <span id="roblox-verify-code-badge" class="verifier-code-pill" style="user-select:all;">KORTEX-0000</span>
+                                        <div style="display:flex;gap:5px;align-items:center;">
+                                            <button type="button" class="verifier-copy-btn" id="btn-copy-roblox-code" onclick="copyRobloxVerifyCode()">Copiar</button>
+                                            <a id="roblox-verify-profile-link" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer" class="verifier-copy-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Abrir perfil</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="popover-quick-submit primary-emerald" style="width:100%;" onclick="quickVerifyRobloxWeb('verify')">Confirmar biografía</button>
+                            </div>
+                        </div>
+                        <div id="roblox-feedback" class="popover-feedback">
+                            Si esta cuenta de Roblox ya estaba vinculada a tu Discord, Kortex restaurará automáticamente ambas cuentas y tus datos guardados.
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 2. Roblox Verification Card (Bio Code + Auto Sync with Discord) -->
-            <div class="popover-account-card">
+            <!-- VISTA B: PERFIL UNIFICADO ACTIVO (CUENTA PRINCIPAL + VINCULADA AUTOMÁTICA) -->
+            <div class="unified-profile-card" id="auth-unified-profile-view" style="display:none;">
                 <div class="popover-account-row">
                     <div class="popover-account-id">
-                        <div class="popover-avatar-lg roblox" id="pop-roblox-avatar">R</div>
+                        <div class="popover-avatar-lg discord" id="unified-primary-avatar">D</div>
                         <div class="popover-account-text">
-                            <strong id="roblox-status-title">Cuenta de Roblox</strong>
-                            <span id="roblox-status-sub">Sincronizada con Discord y verificación en biografía</span>
+                            <strong id="unified-primary-name">@Usuario</strong>
+                            <span id="unified-primary-meta">Discord · Cuenta principal</span>
                         </div>
                     </div>
-                </div>
-                <div class="popover-btn-row">
-                    <button type="button" class="popover-btn roblox" id="btn-roblox-login" onclick="startOAuthPopup('roblox')" style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                        <span>🔄 Sincronizar cuenta desde Discord / Web</span>
-                        <span style="background:#0284C7;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">SYNC</span>
-                    </button>
-                    <button type="button" class="popover-btn-ghost" id="btn-roblox-disconnect" onclick="disconnectAccount('roblox')" title="Desvincular cuenta de Roblox">
-                        Quitar
+                    <button type="button" class="popover-subtle-btn" id="btn-unified-logout" onclick="logoutSessionLocally()">
+                        Cerrar sesión
                     </button>
                 </div>
-                <div class="popover-quick-box">
-                    <span class="popover-quick-label">🎮 Escribí tu <code>@Usuario</code> o ID numérico de Roblox para verificar y sincronizar en Discord y Web:</span>
-                    <div class="popover-quick-form">
-                        <input type="text" class="popover-quick-input" id="quick-roblox-input" placeholder="Ej: TuUsuarioRoblox o tu ID numérico" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start')" />
-                        <button type="button" class="popover-quick-submit" onclick="quickVerifyRobloxWeb('start')">🔑 Generar Código</button>
-                    </div>
-                    <div id="roblox-step2-verify" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.12);">
-                        <div style="font-size:11px;color:#E2E8F0;line-height:1.45;margin-bottom:6px;">
-                            Pegá este código en la biografía <strong>"Acerca de" (About)</strong> de tu perfil de Roblox <strong id="roblox-verify-target-label"></strong> y tocá comprobar:
-                            <div id="roblox-verify-code-badge" style="margin-top:5px;padding:6px 10px;background:#0F172A;border:1px solid #38BDF8;border-radius:6px;font-family:monospace;font-weight:800;font-size:13px;color:#38BDF8;text-align:center;letter-spacing:0.6px;user-select:all;">KORTEX-0000</div>
-                        </div>
-                        <div style="display:flex;gap:6px;">
-                            <button type="button" class="popover-quick-submit" style="flex:1;background:#16A34A;color:#FFFFFF;padding:8px 12px;" onclick="quickVerifyRobloxWeb('verify')">✅ Comprobar Biografía</button>
-                            <button type="button" class="popover-quick-submit" style="background:#334155;color:#E2E8F0;padding:8px 10px;" onclick="quickVerifyRobloxWeb('cancel')">Cancelar</button>
+
+                <div class="unified-hairline"></div>
+
+                <!-- Estado 1: Cuenta secundaria ya vinculada -->
+                <div id="unified-companion-connected" style="display:none;flex-direction:column;gap:0.65rem;">
+                    <div class="popover-account-row">
+                        <div class="popover-account-id">
+                            <div class="popover-avatar-sm roblox" id="unified-secondary-avatar">R</div>
+                            <div class="popover-account-text">
+                                <strong id="unified-secondary-name" style="font-size:0.85rem;">@Secundaria</strong>
+                                <span id="unified-secondary-meta">Roblox · Sincronizada automáticamente</span>
+                            </div>
                         </div>
                     </div>
+                    <div class="companion-actions-row">
+                        <button type="button" class="popover-subtle-btn" id="btn-swap-primary" onclick="swapPrimaryProvider()">
+                            Usar como principal
+                        </button>
+                        <button type="button" class="popover-subtle-btn danger" id="btn-unlink-companion" onclick="unlinkCompanionAccount()">
+                            Desvincular
+                        </button>
+                    </div>
                 </div>
-                <div id="roblox-feedback" class="popover-feedback">
-                    Si ya vinculaste tu Roblox en Discord (<code>/config</code>), se carga automáticamente al conectar tu Discord ID. También podés verificarlo acá por código en biografía.
+
+                <!-- Estado 2: Cuenta secundaria pendiente de vincular por única vez -->
+                <div id="unified-companion-empty" style="display:none;flex-direction:column;gap:0.65rem;">
+                    <div class="popover-account-row">
+                        <div class="popover-account-text">
+                            <strong id="unified-companion-empty-title" style="font-size:0.84rem;">Sumar cuenta complementaria</strong>
+                            <span id="unified-companion-empty-desc">Vinculala una sola vez para que siempre inicie junto a tu cuenta principal.</span>
+                        </div>
+                        <button type="button" class="popover-subtle-btn" id="btn-toggle-companion-linker" onclick="toggleInlineCompanionLinker()">
+                            Vincular
+                        </button>
+                    </div>
+
+                    <div id="companion-inline-linker" style="display:none;flex-direction:column;gap:0.65rem;padding-top:0.35rem;">
+                        <!-- Vincular Roblox desde sesión Discord -->
+                        <div id="companion-form-roblox" style="display:none;flex-direction:column;gap:0.5rem;">
+                            <div class="popover-quick-form">
+                                <input type="text" class="popover-quick-input" id="companion-roblox-input" aria-label="Usuario o ID de Roblox para vincular" placeholder="@Usuario o ID de Roblox" onkeydown="if(event.key==='Enter')quickVerifyRobloxWeb('start','companion')" />
+                                <button type="button" class="popover-quick-submit primary-emerald" onclick="quickVerifyRobloxWeb('start','companion')">Continuar</button>
+                            </div>
+                            <div id="companion-roblox-step2" class="verifier-bot-inbox" style="display:none;">
+                                <div class="verifier-bot-top">
+                                    <span class="verifier-bot-badge">Confirmar · <span id="companion-roblox-target-label"></span></span>
+                                    <button type="button" class="verifier-bot-cancel" onclick="quickVerifyRobloxWeb('cancel','companion')">Cancelar</button>
+                                </div>
+                                <div class="verifier-bot-msg">
+                                    <span>Pegá este código en tu sección <strong>"Acerca de"</strong> en Roblox:</span>
+                                    <div class="verifier-code-row">
+                                        <span id="companion-roblox-code-badge" class="verifier-code-pill" style="user-select:all;">KORTEX-0000</span>
+                                        <div style="display:flex;gap:5px;align-items:center;">
+                                            <button type="button" class="verifier-copy-btn" id="btn-copy-companion-roblox-code" onclick="copyRobloxVerifyCode('companion')">Copiar</button>
+                                            <a id="companion-roblox-profile-link" href="https://www.roblox.com" target="_blank" rel="noopener noreferrer" class="verifier-copy-btn" style="text-decoration:none;display:inline-flex;align-items:center;">Abrir perfil</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="popover-quick-submit primary-emerald" style="width:100%;" onclick="quickVerifyRobloxWeb('verify','companion')">Confirmar biografía</button>
+                            </div>
+                        </div>
+
+                        <!-- Vincular Discord desde sesión Roblox -->
+                        <div id="companion-form-discord" style="display:none;flex-direction:column;gap:0.5rem;">
+                            <a href="#cuenta" class="popover-btn discord" id="btn-companion-discord-oauth" onclick="handleDiscordDirectOAuthClick(event)">
+                                Conectar con Discord
+                            </a>
+                            <div class="popover-quick-form">
+                                <input type="text" class="popover-quick-input" id="companion-discord-code" aria-label="Clave KTX-XXXXXX para vincular Discord" placeholder="Clave KTX-XXXXXX de /config" onkeydown="if(event.key==='Enter')quickVerifyDiscordWeb('verify','','','companion')" />
+                                <button type="button" class="popover-quick-submit primary-emerald" onclick="quickVerifyDiscordWeb('verify','','','companion')">Vincular</button>
+                            </div>
+                        </div>
+
+                        <div id="companion-feedback" class="popover-feedback"></div>
+                    </div>
                 </div>
+
+                <div id="unified-status-feedback" class="popover-feedback" style="display:none;"></div>
             </div>
         </div>
 
@@ -2123,32 +2431,35 @@
 
             <div class="history-list-box" id="history-tycoon-box" style="display:none;margin-bottom:0.75rem;border-color:rgba(56,189,248,0.32);background:rgba(15,23,42,0.75);">
                 <div class="history-list-title">
-                    <span>🏭 Progreso Sincronizado /tycoon</span>
+                    <span>Progreso Sincronizado /tycoon</span>
                     <span id="tycoon-stat-level" style="font-size:0.73rem;color:#38BDF8;font-weight:700;">Nivel 1/6</span>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:0.65rem;font-size:0.78rem;color:#E2E8F0;padding-top:0.2rem;">
-                    <span>🎟️ <strong id="tycoon-stat-tix">0 Tix</strong></span>
-                    <span>💠 <strong id="tycoon-stat-voxeles" style="color:#38BDF8;">0 Vóxeles</strong></span>
-                    <span>🧩 <strong id="tycoon-stat-fragments">0/4 Frag.</strong></span>
-                    <span>🗝️ <strong id="tycoon-stat-keys" style="color:#4ADE80;">0 Llaves</strong></span>
+                    <span><strong id="tycoon-stat-tix">0 Tix</strong></span>
+                    <span>·</span>
+                    <span><strong id="tycoon-stat-voxeles" style="color:#38BDF8;">0 Vóxeles</strong></span>
+                    <span>·</span>
+                    <span><strong id="tycoon-stat-fragments">0/4 Frag.</strong></span>
+                    <span>·</span>
+                    <span><strong id="tycoon-stat-keys" style="color:#4ADE80;">0 Llaves</strong></span>
                 </div>
             </div>
 
             <div class="history-list-box">
                 <div class="history-list-title">
-                    <span>📋 Historial de tu Cuenta Activa</span>
-                    <span id="history-active-badge" style="font-size: 0.71rem; color: var(--text-muted); font-weight: 600;">○ Sin cuenta activa</span>
+                    <span>Historial de Actividad</span>
+                    <span id="history-active-badge" style="font-size: 0.71rem; color: var(--text-muted); font-weight: 600;">Sin sesión activa</span>
                 </div>
                 <div class="history-list-items" id="account-history-list">
                     <div class="history-item">
-                        <div class="history-item-detail">El historial sincronizado se conserva automáticamente en tu cookie de sesión y en Discord mientras tu cuenta esté conectada.</div>
+                        <div class="history-item-detail">Tu historial y datos sincronizados aparecen automáticamente al entrar con tu cuenta principal.</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="popover-footer-note">
-            Sesión persistente protegida mediante cookies de navegador + sincronización en vivo con Discord (/config) y Roblox.
+            Cerrar sesión solo desconecta este navegador; el vínculo entre tus cuentas de Discord y Roblox se conserva intacto.
         </div>
     </div>
 
@@ -2162,20 +2473,33 @@
 
             <nav class="nav-links">
                 <a href="#comandos">Comandos</a>
+                <a href="#sincronizacion">Sincronización</a>
                 <a href="#herramientas">Herramientas</a>
-                <a href="#mecanicas">Rendimiento y Moderación</a>
+                <a href="#mecanicas">Rendimiento</a>
                 <a href="#vistas-previas">Vistas Previas</a>
             </nav>
 
             <div class="top-account-zone" id="top-account-zone">
+                <a href="https://discord.com/oauth2/authorize?client_id=1041724988690018364&permissions=274878286912&integration_type=0&scope=bot+applications.commands"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="top-invite-btn"
+                   id="top-invite-bot-btn"
+                   data-kortex-invite
+                   aria-label="Invitar Kortex a tu servidor de Discord">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/>
+                    </svg>
+                    <span>Invitar Bot</span>
+                </a>
                 <a href="#cuenta" class="top-profile-bar" id="top-profile-summary" onclick="toggleAccountPopover(event)" aria-expanded="false">
-                    <span class="top-avatar-pair">
+                    <span class="top-avatar-pair" id="nav-avatar-pair">
                         <span class="top-profile-avatar discord" id="nav-discord-avatar">D</span>
                         <span class="top-profile-avatar roblox" id="nav-roblox-avatar">R</span>
                     </span>
                     <span class="top-profile-info">
-                        <span class="top-profile-title">Cuentas y Conexión</span>
-                        <span class="top-profile-status" id="nav-combined-status">Iniciar sesión (Discord / Roblox)</span>
+                        <span class="top-profile-title" id="nav-profile-title">Iniciar sesión</span>
+                        <span class="top-profile-status" id="nav-combined-status">Discord o Roblox</span>
                     </span>
                     <span class="top-profile-caret">▾</span>
                 </a>
@@ -2184,10 +2508,12 @@
 
         <!-- Mobile & Tablet Quick Navigation Strip -->
         <nav class="mobile-nav-strip" aria-label="Navegación móvil">
+            <a href="https://discord.com/oauth2/authorize?client_id=1041724988690018364&permissions=274878286912&integration_type=0&scope=bot+applications.commands" target="_blank" rel="noopener noreferrer" data-kortex-invite style="color:#818CF8;font-weight:700;">➕ Invitar Bot</a>
             <a href="#comandos">01. Comandos</a>
-            <a href="#herramientas">02. Herramientas</a>
-            <a href="#mecanicas">03. Rendimiento y Moderación</a>
-            <a href="#vistas-previas">04. Vistas Previas</a>
+            <a href="#sincronizacion">02. Sincronización</a>
+            <a href="#herramientas">03. Herramientas</a>
+            <a href="#mecanicas">04. Rendimiento</a>
+            <a href="#vistas-previas">05. Vistas Previas</a>
         </nav>
     </header>
 
@@ -2201,7 +2527,18 @@
                     Kortex integra paneles interactivos directamente en Discord: <strong>20 herramientas simétricas</strong> en <code>/roblox</code> (4 categorías × 5), el ecosistema <strong>/tycoon</strong> de <strong>4 categorías</strong> con <strong>Vóxeles</strong> y <strong>Llaves Maestras</strong>, gestión sincronizada de cuentas en <code>/config</code> y un motor ligero sin sobrecarga de RAM.
                 </p>
                 <div class="hero-actions">
-                    <a href="#comandos" class="btn btn-primary">Explorar Comandos</a>
+                    <a href="https://discord.com/oauth2/authorize?client_id=1041724988690018364&permissions=274878286912&integration_type=0&scope=bot+applications.commands"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="btn btn-primary"
+                       id="hero-invite-bot-btn"
+                       data-kortex-invite>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/>
+                        </svg>
+                        <span>Invitar Kortex a Discord</span>
+                    </a>
+                    <a href="#comandos" class="btn btn-secondary">Explorar Comandos</a>
                     <button type="button" class="btn btn-secondary" onclick="openAccountPopover()">Cuentas y Sincronización</button>
                     <a href="#vistas-previas" class="btn btn-secondary">Ver Vistas Previas</a>
                 </div>
@@ -2259,7 +2596,7 @@
                         <span class="cmd-scope">4 Categorías Simétricas · 20 Herramientas (5×4)</span>
                     </div>
                     <p class="cmd-doc-desc">
-                        Abre el panel interactivo principal de Roblox. Organizado simétricamente en cuatro categorías de 5 herramientas cada una, con vinculación de cuenta OAuth 2.0.
+                        Abre el panel interactivo principal de Roblox. Organizado simétricamente en cuatro categorías de 5 herramientas cada una, con sincronización directa de cuenta entre <code>/config</code> y la Web.
                     </p>
                     <div class="cmd-cat-list">
                         <div class="cmd-cat-item">
@@ -2358,10 +2695,57 @@
             </div>
         </section>
 
-        <!-- 02. CATÁLOGO DE LAS 20 HERRAMIENTAS DE /ROBLOX + 4 CATEGORÍAS DE /TYCOON -->
+        <!-- 02. PERFIL UNIFICADO Y SINCRONIZACIÓN AUTOMÁTICA BOT ↔ WEB -->
+        <section id="sincronizacion" class="section">
+            <div class="section-header" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+                <div>
+                    <h2>02. Perfil Unificado: Elegí tu Cuenta Principal y Sincronizá Todo</h2>
+                    <p>
+                        Iniciá sesión eligiendo <strong>Discord</strong> o <strong>Roblox</strong> como cuenta principal. Si ambas cuentas ya están vinculadas en Kortex, la segunda cuenta, tu Mi Lista y tu progreso de <code>/tycoon</code> se restauran de inmediato sin volver a verificar nada.
+                    </p>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="openAccountPopover('accounts')">Abrir Tu Perfil Kortex</button>
+            </div>
+
+            <div class="mechanics-grid">
+                <article class="mechanic-card">
+                    <span class="mechanic-num">01 · CUENTA PRINCIPAL A ELECCIÓN</span>
+                    <h3>Entrá con Discord o con Roblox</h3>
+                    <p>
+                        Elegí un único método limpio al iniciar sesión: acceso directo con Discord, tu enlace o clave personal <code>KTX-XXXXXX</code> desde <code>/config</code>, o verificación rápida de propiedad con tu perfil público de Roblox.
+                    </p>
+                </article>
+
+                <article class="mechanic-card">
+                    <span class="mechanic-num">02 · VINCULACIÓN AUTOMÁTICA EN AMBOS SENTIDOS</span>
+                    <h3>Una Sola Vinculación Carga Todo tu Ecosistema</h3>
+                    <p>
+                        Tanto si entrás por Discord como si entrás por Roblox, Kortex detecta tu cuenta compañera vinculada y recupera al instante ambos perfiles, tus objetos seguidos, Robux pendientes y tu estudio de <code>/tycoon</code>.
+                    </p>
+                </article>
+
+                <article class="mechanic-card">
+                    <span class="mechanic-num">03 · CAMBIO DE PRINCIPAL EN 1 CLIC</span>
+                    <h3>Alterná qué Identidad Encabeza tu Sesión</h3>
+                    <p>
+                        Dentro de tu tarjeta unificada podés marcar cualquiera de tus dos cuentas como <strong>Cuenta principal</strong> en un clic, o vincular la cuenta complementaria desde el mismo panel sin formularios duplicados.
+                    </p>
+                </article>
+
+                <article class="mechanic-card">
+                    <span class="mechanic-num">04 · CIERRE DE SESIÓN NO DESTRUCTIVO</span>
+                    <h3>Reanudación Rápida sin Perder Vínculos</h3>
+                    <p>
+                        Cerrar sesión en el navegador nunca borra el enlace entre tu Discord y tu Roblox en el bot, y recuerda tu perfil localmente para que puedas volver a entrar en <strong>1 clic</strong> cuando regreses.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- 03. CATÁLOGO DE LAS 20 HERRAMIENTAS DE /ROBLOX + 4 CATEGORÍAS DE /TYCOON -->
         <section id="herramientas" class="section">
             <div class="section-header">
-                <h2>02. Catálogo Simétrico: 20 Herramientas en /roblox + 4 Categorías en /tycoon</h2>
+                <h2>03. Catálogo Simétrico: 20 Herramientas en /roblox + 4 Categorías en /tycoon</h2>
                 <p>Seleccioná una categoría para consultar qué ofrece cada herramienta y cómo funciona dentro de Discord.</p>
             </div>
 
@@ -2386,10 +2770,10 @@
             <div id="tools-container" class="tools-grid"></div>
         </section>
 
-        <!-- 03. ARQUITECTURA DE CONCURRENCIA LIGERA, ESCUDO ANTI-SPAM Y OPTIMIZACIÓN REAL DE RAM -->
+        <!-- 04. ARQUITECTURA DE CONCURRENCIA LIGERA, ESCUDO ANTI-SPAM Y OPTIMIZACIÓN REAL DE RAM -->
         <section id="mecanicas" class="section">
             <div class="section-header">
-                <h2>03. Motor de Concurrencia Ligera, Escudo Anti-Spam y Ahorro Real de RAM</h2>
+                <h2>04. Motor de Concurrencia Ligera, Escudo Anti-Spam y Ahorro Real de RAM</h2>
                 <p>
                     En lugar de pantallas de carga artificiales por filas que editan el mensaje varias veces (lo cual consume más memoria y cuota de Discord API), Kortex utiliza <strong>Ejecución Directa en 1 Paso</strong> combinada con un <strong>Semáforo de Concurrencia GPU/Canvas</strong>, <strong>Escudo Anti-Spam por Usuario</strong> y <strong>Purga Selectiva de Cachés por TTL</strong>.
                 </p>
@@ -2492,10 +2876,10 @@
             </div>
         </section>
 
-        <!-- 04. VISTAS PREVIAS DE TARJETAS Y GRÁFICAS EN VIVO -->
+        <!-- 05. VISTAS PREVIAS DE TARJETAS Y GRÁFICAS EN VIVO -->
         <section id="vistas-previas" class="section">
             <div class="section-header">
-                <h2>04. Vistas Previas en Vivo: Las 4 Categorías de /tycoon y Herramientas de /roblox</h2>
+                <h2>05. Vistas Previas en Vivo: Las 4 Categorías de /tycoon y Herramientas de /roblox</h2>
                 <p>Muestras actualizadas de los paneles Components V2 y el motor gráfico de Kortex. Usá los botones de <code>/tycoon</code> para alternar entre sus 4 categorías.</p>
             </div>
 
@@ -2552,7 +2936,8 @@
 
         <footer>
             <span>Kortex — Documentación Oficial del Bot para Discord</span>
-            <div style="display: flex; gap: 1.5rem;">
+            <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
+                <a href="https://discord.com/oauth2/authorize?client_id=1041724988690018364&permissions=274878286912&integration_type=0&scope=bot+applications.commands" target="_blank" rel="noopener noreferrer" data-kortex-invite>➕ Invitar Bot a Discord</a>
                 <a href="privacy.html">Política de Privacidad</a>
                 <a href="terms.html">Términos de Servicio</a>
             </div>
@@ -2563,7 +2948,14 @@
         // =========================================================================
         // [CONFIGURACIÓN PÚBLICA — WEB OFICIAL EN GITHUB PAGES]
         // =========================================================================
+        const KORTEX_DISCORD_CLIENT_ID = '1041724988690018364';
+        const KORTEX_BOT_PERMISSIONS = '274878286912';
+        const KORTEX_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${KORTEX_DISCORD_CLIENT_ID}&permissions=${KORTEX_BOT_PERMISSIONS}&integration_type=0&scope=bot+applications.commands`;
         const KORTEX_BACKEND_URL = '';
+
+        document.querySelectorAll('[data-kortex-invite]').forEach((el) => {
+            el.setAttribute('href', KORTEX_INVITE_URL);
+        });
 
         function resolveApiBase() {
             return '';
@@ -2673,8 +3065,8 @@
                     },
                     {
                         title: '4. Purga Selectiva de Cachés por TTL y Cgroup Linux',
-                        detail: 'Limpia únicamente respuestas HTTP expiradas y buffers temporales cuando falta memoria real (>86%), respetando sesiones OAuth',
-                        cmd: 'cache.purge_expired --http-pool --preserve-oauth-sessions'
+                        detail: 'Limpia únicamente respuestas HTTP expiradas y buffers temporales cuando falta memoria real (>86%), preservando tus sesiones sincronizadas',
+                        cmd: 'cache.purge_expired --http-pool --preserve-active-sessions'
                     }
                 ]
             },
@@ -3063,7 +3455,7 @@
                     if (sub === 'sub_account') {
                         detailHtml = `
                             <div class="v2-section-list">
-                                <div class="v2-section-row"><div class="v2-section-text"><strong>🔐 Vinculación Rápida de Roblox (/config y Web)</strong><span>Verificá tu cuenta con código en biografía o OAuth 2.0 y sincronizala al instante entre Discord y la Web.</span></div></div>
+                                <div class="v2-section-row"><div class="v2-section-text"><strong>🔐 Vinculación Rápida y Sincronización (/config ↔ Web)</strong><span>Verificá tu cuenta con código temporal en biografía (KORTEX-XXXX) y sincronizala al instante con Discord mediante /config.</span></div></div>
                             </div>
                         `;
                     } else {
@@ -3611,26 +4003,263 @@
         }
 
         // ==========================================================
-        // 4. PERSISTENCIA EN COOKIES + LOCALSTORAGE Y SYNC SUPABASE
+        // 4. MOTOR DE SESIÓN UNIFICADA, CLIENTE SUPABASE Y TIEMPO REAL
         // ==========================================================
-        const SUPABASE_URL = 'https://gpgxlasblqxyyynapwow.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ3hsYXNibHF4eXl5bmFwd293Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NzQzNjcsImV4cCI6MjEwNDQ1MDM2N30.j9l4L-EPdNqLNIKU9T6arNNtQkXnlpmcw8QsLZ2DIlI';
-
         const LOCAL_BACKUP_KEY = 'kortex_account_backup_v2';
+        const REMEMBERED_PROFILE_KEY = 'kortex_remembered_profile_v2';
+        const PRIMARY_PROVIDER_KEY = 'kortex_primary_provider_v2';
         const PENDING_ROBLOX_KEY = 'kortex_pending_roblox_v2';
         const COOKIE_ID_NAME = 'kortex_discord_id';
         const COOKIE_SESSION_NAME = 'kortex_session_v2';
         const COOKIE_PENDING_ROBLOX = 'kortex_pending_roblox';
-        const SESSION_COOKIE_MAX_AGE = 31536000; // 365 días para conservar sesiones y registros web
+        const SESSION_COOKIE_MAX_AGE = 31536000;
 
         let currentDiscordName = null;
         let currentRobloxName = null;
+        let selectedLoginMethod = 'discord';
+        let kortexSupabaseClient = null;
+        let kortexSupabaseClientKeySig = '';
+        let supabaseSdkLoadPromise = null;
+        let activeRealtimeSessionId = '';
+        let activeSupabaseSignalChannel = null;
+        let activeSupabaseBroadcastChannel = null;
+        let activeLocalEventSource = null;
+        let realtimeRefreshTimer = null;
+        let isRefreshingFromRealtime = false;
+        const authBroadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('kortex_auth_sync') : null;
+
+        function resolveSupabaseRuntimeConfig() {
+            const cfg = (typeof window !== 'undefined' && window.__KORTEX_SUPABASE_CONFIG__) || {};
+            const supabaseUrl = String(cfg.supabaseUrl || cfg.url || '').trim().replace(/\/+$/, '');
+            const supabaseKey = String(cfg.supabaseKey || cfg.key || '').trim();
+            const isConfigured = Boolean(/^https?:\/\/[^/\s]+/i.test(supabaseUrl) && supabaseKey);
+            return {
+                supabaseUrl: isConfigured ? supabaseUrl : '',
+                supabaseKey: isConfigured ? supabaseKey : '',
+                isConfigured
+            };
+        }
+
+        async function hydrateRuntimeSupabaseConfigFromServer() {
+            const existing = resolveSupabaseRuntimeConfig();
+            if (existing.isConfigured) return existing;
+            const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
+            if (isStaticGhPages || !/^https?:$/i.test(window.location.protocol)) {
+                return existing;
+            }
+            try {
+                const resp = await fetch('/api/supabase-config', { cache: 'no-store' });
+                if (resp.ok) {
+                    const json = await resp.json().catch(() => null);
+                    if (json && json.supabaseUrl && json.supabaseKey) {
+                        window.__KORTEX_SUPABASE_CONFIG__ = {
+                            supabaseUrl: json.supabaseUrl,
+                            supabaseKey: json.supabaseKey,
+                            realtimeEnabled: Boolean(json.realtimeEnabled)
+                        };
+                    }
+                }
+            } catch {}
+            return resolveSupabaseRuntimeConfig();
+        }
+
+        function loadSupabaseUmdSdk() {
+            if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+                return Promise.resolve(window.supabase);
+            }
+            if (supabaseSdkLoadPromise) return supabaseSdkLoadPromise;
+
+            const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
+            const sources = isStaticGhPages
+                ? ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js']
+                : ['/vendor/supabase.js', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'];
+
+            supabaseSdkLoadPromise = new Promise((resolve) => {
+                let idx = 0;
+                const tryNext = () => {
+                    if (window.supabase && typeof window.supabase.createClient === 'function') {
+                        resolve(window.supabase);
+                        return;
+                    }
+                    if (idx >= sources.length) {
+                        resolve(null);
+                        return;
+                    }
+                    const script = document.createElement('script');
+                    script.src = sources[idx++];
+                    script.async = true;
+                    script.onload = () => {
+                        if (window.supabase && typeof window.supabase.createClient === 'function') {
+                            resolve(window.supabase);
+                        } else {
+                            tryNext();
+                        }
+                    };
+                    script.onerror = () => tryNext();
+                    document.head.appendChild(script);
+                };
+                tryNext();
+            });
+            return supabaseSdkLoadPromise;
+        }
+
+        async function getOrInitSupabaseClient() {
+            const cfg = resolveSupabaseRuntimeConfig();
+            if (!cfg.isConfigured) return null;
+
+            const sig = `${cfg.supabaseUrl}::${cfg.supabaseKey.slice(0, 16)}`;
+            if (kortexSupabaseClient && kortexSupabaseClientKeySig === sig) {
+                return kortexSupabaseClient;
+            }
+
+            const sdk = await loadSupabaseUmdSdk();
+            if (!sdk || typeof sdk.createClient !== 'function') return null;
+
+            kortexSupabaseClient = sdk.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: false
+                },
+                realtime: {
+                    params: {
+                        eventsPerSecond: 10
+                    }
+                }
+            });
+            kortexSupabaseClientKeySig = sig;
+            window.kortexSupabase = kortexSupabaseClient;
+            return kortexSupabaseClient;
+        }
+
+        function teardownRealtimeSubscriptions() {
+            activeRealtimeSessionId = '';
+            if (realtimeRefreshTimer) {
+                clearTimeout(realtimeRefreshTimer);
+                realtimeRefreshTimer = null;
+            }
+            if (activeLocalEventSource) {
+                try { activeLocalEventSource.close(); } catch {}
+                activeLocalEventSource = null;
+            }
+            if (kortexSupabaseClient) {
+                if (activeSupabaseSignalChannel) {
+                    try { kortexSupabaseClient.removeChannel(activeSupabaseSignalChannel); } catch {}
+                    activeSupabaseSignalChannel = null;
+                }
+                if (activeSupabaseBroadcastChannel) {
+                    try { kortexSupabaseClient.removeChannel(activeSupabaseBroadcastChannel); } catch {}
+                    activeSupabaseBroadcastChannel = null;
+                }
+            } else {
+                activeSupabaseSignalChannel = null;
+                activeSupabaseBroadcastChannel = null;
+            }
+        }
+
+        function scheduleRealtimeAccountRefresh() {
+            const targetId = getActiveDiscordId();
+            if (!targetId || targetId === 'default_session') return;
+            if (realtimeRefreshTimer) {
+                clearTimeout(realtimeRefreshTimer);
+            }
+            realtimeRefreshTimer = setTimeout(async () => {
+                realtimeRefreshTimer = null;
+                if (isRefreshingFromRealtime) return;
+                isRefreshingFromRealtime = true;
+                try {
+                    const fresh = await callSupabaseRpc('kortex_web_get_account_status', {
+                        p_discord_id: targetId
+                    });
+                    if (fresh && fresh.ok) {
+                        applyAccountPayload(fresh, { allowClearOnEmpty: false, fromRealtime: true });
+                    }
+                } catch {
+                    // Conservar sesión local si hay microcorte de red
+                } finally {
+                    isRefreshingFromRealtime = false;
+                }
+            }, 160);
+        }
+
+        async function syncRealtimeSubscriptionForSession(rawSessionId) {
+            const sessionId = String(rawSessionId || '').trim();
+            if (!sessionId || sessionId === 'default_session' || sessionId.startsWith('guest_')) {
+                teardownRealtimeSubscriptions();
+                return;
+            }
+            if (activeRealtimeSessionId === sessionId && (activeLocalEventSource || activeSupabaseSignalChannel)) {
+                return;
+            }
+
+            teardownRealtimeSubscriptions();
+            activeRealtimeSessionId = sessionId;
+
+            // 1. Canal local SSE en vivo cuando corre sobre el servidor HTTP de Kortex
+            const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
+            if (!isStaticGhPages && /^https?:$/i.test(window.location.protocol) && typeof EventSource !== 'undefined') {
+                try {
+                    const sse = new EventSource(`/api/realtime/events?discord_id=${encodeURIComponent(sessionId)}`);
+                    sse.addEventListener('account_sync', (ev) => {
+                        try {
+                            const data = ev?.data ? JSON.parse(ev.data) : null;
+                            if (!data || !data.discordId || data.discordId === sessionId) {
+                                scheduleRealtimeAccountRefresh();
+                            }
+                        } catch {
+                            scheduleRealtimeAccountRefresh();
+                        }
+                    });
+                    activeLocalEventSource = sse;
+                } catch {}
+            }
+
+            // 2. Canal oficial Supabase Realtime (WebSockets: postgres_changes + broadcast)
+            const client = await getOrInitSupabaseClient();
+            if (!client || activeRealtimeSessionId !== sessionId) return;
+
+            try {
+                const signalChannel = client
+                    .channel(`kortex-signals-${sessionId}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'kortex_realtime_signals',
+                            filter: `discord_id=eq.${sessionId}`
+                        },
+                        () => scheduleRealtimeAccountRefresh()
+                    )
+                    .subscribe();
+                activeSupabaseSignalChannel = signalChannel;
+
+                const broadcastChannel = client
+                    .channel('kortex-realtime-sync')
+                    .on('broadcast', { event: 'account_sync' }, (envelope) => {
+                        const p = envelope?.payload || envelope;
+                        if (p && p.discordId === sessionId) {
+                            scheduleRealtimeAccountRefresh();
+                        }
+                    })
+                    .subscribe();
+                activeSupabaseBroadcastChannel = broadcastChannel;
+            } catch {}
+        }
+
+        window.addEventListener('beforeunload', () => {
+            teardownRealtimeSubscriptions();
+        });
 
         function setKortexCookie(name, value, maxAgeSeconds = SESSION_COOKIE_MAX_AGE) {
             try {
                 const encoded = encodeURIComponent(String(value || ''));
-                const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-                document.cookie = `${name}=${encoded}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=Lax${secureFlag}`;
+                const inCrossOriginFrame = (function() {
+                    try { return window.self !== window.top; } catch { return true; }
+                })();
+                const isHttps = window.location.protocol === 'https:';
+                const sameSitePolicy = (inCrossOriginFrame && isHttps) ? 'SameSite=None; Secure' : (isHttps ? 'SameSite=Lax; Secure' : 'SameSite=Lax');
+                document.cookie = `${name}=${encoded}; Max-Age=${maxAgeSeconds}; Path=/; ${sameSitePolicy}`;
             } catch {}
         }
 
@@ -3649,17 +4278,133 @@
 
         function deleteKortexCookie(name) {
             try {
-                const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-                document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax${secureFlag}`;
+                const isHttps = window.location.protocol === 'https:';
+                document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax${isHttps ? '; Secure' : ''}`;
+                if (isHttps) {
+                    document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`;
+                }
             } catch {}
         }
 
-        async function callSupabaseRpc(fnName, params = {}) {
-            const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
+        function getPrimaryProvider() {
+            try {
+                const saved = localStorage.getItem(PRIMARY_PROVIDER_KEY);
+                if (saved === 'discord' || saved === 'roblox') return saved;
+            } catch {}
+            const backup = readLocalAccountBackup();
+            if (backup?.primaryProvider === 'discord' || backup?.primaryProvider === 'roblox') {
+                return backup.primaryProvider;
+            }
+            return 'discord';
+        }
+
+        function setPrimaryProvider(provider) {
+            const clean = provider === 'roblox' ? 'roblox' : 'discord';
+            try { localStorage.setItem(PRIMARY_PROVIDER_KEY, clean); } catch {}
+            return clean;
+        }
+
+        function buildSupabaseDiscordOAuthUrl() {
+            const { supabaseUrl } = resolveSupabaseRuntimeConfig();
+            if (!supabaseUrl) return '#cuenta';
+            const redirectTarget = `${window.location.origin}${window.location.pathname}`;
+            return `${supabaseUrl}/auth/v1/authorize?provider=discord&redirect_to=${encodeURIComponent(redirectTarget)}&scopes=${encodeURIComponent('identify')}`;
+        }
+
+        function syncDiscordOAuthLinks() {
+            const { isConfigured } = resolveSupabaseRuntimeConfig();
+            const url = buildSupabaseDiscordOAuthUrl();
+            const inIframe = (function() {
+                try { return window.self !== window.top; } catch { return true; }
+            })();
+            for (const btnId of ['btn-discord-oauth-direct', 'btn-companion-discord-oauth']) {
+                const el = document.getElementById(btnId);
+                if (!el) continue;
+                el.href = url;
+                if (isConfigured && inIframe) {
+                    el.setAttribute('target', '_blank');
+                    el.setAttribute('rel', 'noopener noreferrer');
+                } else {
+                    el.removeAttribute('target');
+                    el.removeAttribute('rel');
+                }
+            }
+        }
+
+        function handleDiscordDirectOAuthClick(e) {
+            const { isConfigured } = resolveSupabaseRuntimeConfig();
+            if (!isConfigured) {
+                if (e) e.preventDefault();
+                const isComp = e?.currentTarget?.id === 'btn-companion-discord-oauth';
+                const fb = document.getElementById(isComp ? 'companion-feedback' : 'discord-feedback');
+                const codeInp = document.getElementById(isComp ? 'companion-discord-code' : 'quick-discord-code');
+                if (fb) {
+                    fb.style.color = '#38BDF8';
+                    fb.innerHTML = 'Usá tu clave instantánea <code>KTX-XXXXXX</code> generada con <code>/config</code> en Discord para vincular tu sesión.';
+                }
+                if (codeInp) codeInp.focus();
+                return false;
+            }
+
+            setPrimaryProvider(readLocalAccountBackup()?.linkedAccount?.roblox_user_id && !readLocalAccountBackup()?.discordConfig?.oauth_verified ? getPrimaryProvider() : 'discord');
+            syncDiscordOAuthLinks();
+            const inIframe = (function() {
+                try { return window.self !== window.top; } catch { return true; }
+            })();
+            if (inIframe) {
+                const fb = document.getElementById('discord-feedback');
+                if (fb) {
+                    fb.style.color = '#38BDF8';
+                    fb.innerHTML = 'Se abrió la autorización de Discord en una pestaña nueva. También podés pegar acá tu clave <code>KTX-XXXXXX</code> de <code>/config</code> al instante.';
+                }
+                return true;
+            }
+            if (e) e.preventDefault();
+            window.location.href = buildSupabaseDiscordOAuthUrl();
+            return false;
+        }
+
+        function selectPrimaryLoginMethod(method) {
+            selectedLoginMethod = method === 'roblox' ? 'roblox' : 'discord';
+            const tabDiscord = document.getElementById('method-tab-discord');
+            const tabRoblox = document.getElementById('method-tab-roblox');
+            const panelDiscord = document.getElementById('login-panel-discord');
+            const panelRoblox = document.getElementById('login-panel-roblox');
+
+            if (tabDiscord) {
+                const isD = selectedLoginMethod === 'discord';
+                tabDiscord.classList.toggle('active', isD);
+                tabDiscord.setAttribute('aria-selected', String(isD));
+            }
+            if (tabRoblox) {
+                const isR = selectedLoginMethod === 'roblox';
+                tabRoblox.classList.toggle('active', isR);
+                tabRoblox.setAttribute('aria-selected', String(isR));
+            }
+            if (panelDiscord) panelDiscord.classList.toggle('active', selectedLoginMethod === 'discord');
+            if (panelRoblox) panelRoblox.classList.toggle('active', selectedLoginMethod === 'roblox');
+        }
+
+        async function callRemoteSupabaseRpc(fnName, params = {}) {
+            const { supabaseUrl, supabaseKey, isConfigured } = resolveSupabaseRuntimeConfig();
+            if (!isConfigured) {
+                throw new Error('Cliente de Supabase no configurado');
+            }
+
+            const sdkClient = await getOrInitSupabaseClient();
+            if (sdkClient && typeof sdkClient.rpc === 'function') {
+                const { data, error } = await sdkClient.rpc(fnName, params || {});
+                if (error) {
+                    throw new Error(error.message || 'Error RPC en Supabase');
+                }
+                return data;
+            }
+
+            const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/${fnName}`, {
                 method: 'POST',
                 headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(params || {})
@@ -3669,6 +4414,98 @@
                 throw new Error(data?.message || `Error RPC (${resp.status})`);
             }
             return data;
+        }
+
+        function mergeAccountPayloads(baseData, extraData) {
+            if (!baseData && !extraData) return null;
+            if (!baseData) return extraData;
+            if (!extraData) return baseData;
+            const dCfg = (baseData.discordConfig && baseData.discordConfig.oauth_verified)
+                ? baseData.discordConfig
+                : ((extraData.discordConfig && extraData.discordConfig.oauth_verified)
+                    ? extraData.discordConfig
+                    : (baseData.discordConfig || extraData.discordConfig || null));
+            const lAcc = (baseData.linkedAccount && baseData.linkedAccount.roblox_user_id)
+                ? baseData.linkedAccount
+                : ((extraData.linkedAccount && extraData.linkedAccount.roblox_user_id)
+                    ? extraData.linkedAccount
+                    : null);
+            const tycoon = baseData.tycoonSummary || extraData.tycoonSummary || null;
+            const bStats = baseData.stats || {};
+            const eStats = extraData.stats || {};
+            const stats = {
+                wishlistCount: Math.max(Number(bStats.wishlistCount || 0), Number(eStats.wishlistCount || 0)),
+                pendingRobuxCount: Math.max(Number(bStats.pendingRobuxCount || 0), Number(eStats.pendingRobuxCount || 0)),
+                redeemedCodesCount: Math.max(Number(bStats.redeemedCodesCount || 0), Number(eStats.redeemedCodesCount || 0)),
+                gameSubsCount: Math.max(Number(bStats.gameSubsCount || 0), Number(eStats.gameSubsCount || 0))
+            };
+            const history = (Array.isArray(baseData.history) && baseData.history.length > 0)
+                ? baseData.history
+                : (Array.isArray(extraData.history) ? extraData.history : []);
+            const resolvedDiscordId = isDiscordSnowflake(baseData.discordId)
+                ? baseData.discordId
+                : (isDiscordSnowflake(extraData.discordId) ? extraData.discordId : (baseData.discordId || extraData.discordId || ''));
+            return {
+                ok: Boolean(baseData.ok || extraData.ok),
+                discordId: resolvedDiscordId,
+                hasActiveAccount: Boolean((dCfg && dCfg.oauth_verified) || (lAcc && lAcc.roblox_user_id)),
+                discordConfig: dCfg,
+                linkedAccount: lAcc,
+                tycoonSummary: tycoon,
+                stats,
+                history
+            };
+        }
+
+        async function callSupabaseRpc(fnName, params = {}) {
+            const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
+            let localData = null;
+
+            if (!isStaticGhPages && /^https?:$/i.test(window.location.protocol)) {
+                try {
+                    const localResp = await fetch(`/api/rpc/${encodeURIComponent(fnName)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(params || {})
+                    });
+                    if (localResp.ok) {
+                        localData = await localResp.json();
+                    }
+                } catch {}
+            }
+
+            // Para lectura de estado en entorno híbrido, combinamos local + Supabase si faltan datos complementarios
+            if (fnName === 'kortex_web_get_account_status') {
+                const localComplete = Boolean(
+                    localData &&
+                    localData.ok &&
+                    localData.discordConfig?.oauth_verified &&
+                    localData.linkedAccount?.roblox_user_id
+                );
+                if (localComplete) return localData;
+                try {
+                    const remoteData = await callRemoteSupabaseRpc(fnName, params);
+                    return mergeAccountPayloads(localData, remoteData);
+                } catch {
+                    if (localData) return localData;
+                    throw new Error('Sin conexión con el servidor de cuentas');
+                }
+            }
+
+            // Si el backend local resolvió satisfactoriamente la acción (ej: código KTX local o vínculo local), devolverlo
+            if (localData && localData.ok) {
+                return localData;
+            }
+
+            // Si falló localmente (ej: código KTX generado en el bot en vivo sobre Supabase), consultar Supabase en vivo
+            try {
+                const remoteData = await callRemoteSupabaseRpc(fnName, params);
+                if (remoteData && remoteData.ok) return remoteData;
+                return localData || remoteData;
+            } catch (err) {
+                if (localData) return localData;
+                throw err;
+            }
         }
 
         function readLocalAccountBackup() {
@@ -3691,6 +4528,103 @@
             return parsed;
         }
 
+        function readRememberedProfile() {
+            try {
+                const raw = localStorage.getItem(REMEMBERED_PROFILE_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch {
+                return null;
+            }
+        }
+
+        function saveRememberedProfileFromBackup(snapshot) {
+            if (!snapshot) return;
+            const hasD = Boolean(snapshot.discordConfig && snapshot.discordConfig.oauth_verified);
+            const hasR = Boolean(snapshot.linkedAccount && snapshot.linkedAccount.roblox_user_id);
+            if (!hasD && !hasR) return;
+            try {
+                localStorage.setItem(REMEMBERED_PROFILE_KEY, JSON.stringify({
+                    discordId: snapshot.discordId,
+                    primaryProvider: snapshot.primaryProvider || getPrimaryProvider(),
+                    discordConfig: snapshot.discordConfig || null,
+                    linkedAccount: snapshot.linkedAccount || null,
+                    tycoonSummary: snapshot.tycoonSummary || null,
+                    stats: snapshot.stats || {},
+                    history: (snapshot.history || []).slice(0, 8),
+                    savedAt: new Date().toISOString()
+                }));
+            } catch {}
+        }
+
+        function forgetRememberedProfile() {
+            try { localStorage.removeItem(REMEMBERED_PROFILE_KEY); } catch {}
+            renderRememberedProfileCard();
+        }
+
+        function renderRememberedProfileCard() {
+            const card = document.getElementById('remembered-profile-card');
+            if (!card) return;
+            const activeBackup = readLocalAccountBackup();
+            const isLoggedIn = Boolean(
+                (activeBackup?.discordConfig && activeBackup.discordConfig.oauth_verified) ||
+                (activeBackup?.linkedAccount && activeBackup.linkedAccount.roblox_user_id)
+            );
+            const rem = readRememberedProfile();
+            if (isLoggedIn || !rem || (!rem.discordConfig?.oauth_verified && !rem.linkedAccount?.roblox_user_id)) {
+                card.style.display = 'none';
+                return;
+            }
+
+            const hasD = Boolean(rem.discordConfig && rem.discordConfig.oauth_verified);
+            const hasR = Boolean(rem.linkedAccount && rem.linkedAccount.roblox_user_id);
+            const pref = (rem.primaryProvider === 'roblox' && hasR) || (!hasD && hasR) ? 'roblox' : 'discord';
+
+            const dName = rem.discordConfig?.discord_username || (isDiscordSnowflake(rem.discordId) ? `ID ${rem.discordId}` : 'Discord');
+            const rName = rem.linkedAccount?.roblox_username || 'Roblox';
+            const avatarEl = document.getElementById('remembered-avatar');
+            const nameEl = document.getElementById('remembered-name');
+            const metaEl = document.getElementById('remembered-meta');
+
+            const primaryName = pref === 'roblox' ? rName : dName;
+            const primaryAvatar = pref === 'roblox' ? rem.linkedAccount?.avatar_url : rem.discordConfig?.discord_avatar;
+
+            const resumeBtn = document.getElementById('btn-resume-remembered');
+            if (resumeBtn) {
+                resumeBtn.className = `popover-btn ${pref}`;
+            }
+            if (avatarEl) {
+                avatarEl.className = `popover-avatar-sm ${pref}`;
+                if (primaryAvatar && /^https?:\/\//i.test(primaryAvatar)) {
+                    avatarEl.innerHTML = `<img src="${primaryAvatar}" alt="${primaryName}" referrerPolicy="no-referrer">`;
+                } else {
+                    avatarEl.textContent = String(primaryName || 'K').charAt(0).toUpperCase();
+                }
+            }
+            if (nameEl) nameEl.textContent = `@${primaryName}`;
+            if (metaEl) {
+                metaEl.textContent = (hasD && hasR)
+                    ? `Vinculada con @${pref === 'roblox' ? dName : rName}`
+                    : `Sesión anterior guardada (${pref === 'roblox' ? 'Roblox' : 'Discord'})`;
+            }
+            card.style.height = 'auto';
+            card.style.display = 'flex';
+        }
+
+        async function resumeRememberedProfile() {
+            const rem = readRememberedProfile();
+            if (!rem) return;
+            setPrimaryProvider(rem.primaryProvider || 'discord');
+            if (rem.discordId) setActiveDiscordId(rem.discordId);
+            saveLocalAccountBackup(rem);
+            renderUnifiedSessionUI(rem);
+            renderAccountHistoryUI(rem.history || [], rem.stats || {}, true, rem.tycoonSummary || null);
+            await checkAccountStatus(false);
+        }
+
+        function isDiscordSnowflake(id) {
+            return /^\d{15,22}$/.test(String(id || '').trim());
+        }
+
         function getActiveDiscordId() {
             const fromLocal = localStorage.getItem('kortex_discord_id') || '';
             const fromCookie = getKortexCookie(COOKIE_ID_NAME) || '';
@@ -3708,11 +4642,17 @@
             return '';
         }
 
+        function getRealDiscordId() {
+            const id = getActiveDiscordId();
+            return isDiscordSnowflake(id) ? id : '';
+        }
+
         function setActiveDiscordId(id) {
             const clean = String(id || '').trim();
             if (!clean || clean === 'default_session' || clean.startsWith('guest_')) return;
             try { localStorage.setItem('kortex_discord_id', clean); } catch {}
             setKortexCookie(COOKIE_ID_NAME, clean);
+            syncRealtimeSubscriptionForSession(clean);
         }
 
         function saveLocalAccountBackup(partial) {
@@ -3722,17 +4662,27 @@
                 const discordConfig = partial.discordConfig !== undefined ? partial.discordConfig : (prev.discordConfig || null);
                 const linkedAccount = partial.linkedAccount !== undefined ? partial.linkedAccount : (prev.linkedAccount || null);
                 const tycoonSummary = partial.tycoonSummary !== undefined ? partial.tycoonSummary : (prev.tycoonSummary || null);
-                const hasActive = Boolean((discordConfig && discordConfig.oauth_verified) || (linkedAccount && linkedAccount.roblox_user_id));
+                const hasDiscord = Boolean(discordConfig && discordConfig.oauth_verified);
+                const hasRoblox = Boolean(linkedAccount && linkedAccount.roblox_user_id);
+                const hasActive = Boolean(hasDiscord || hasRoblox);
 
                 if (!hasActive) {
                     clearStoredSessionOnly();
                     return null;
                 }
 
-                const history = Array.isArray(partial.history) ? partial.history : (prev.history || []);
+                let primaryProvider = partial.primaryProvider || prev.primaryProvider || getPrimaryProvider();
+                if (primaryProvider === 'roblox' && !hasRoblox && hasDiscord) primaryProvider = 'discord';
+                if (primaryProvider === 'discord' && !hasDiscord && hasRoblox) primaryProvider = 'roblox';
+                setPrimaryProvider(primaryProvider);
+
+                const history = (Array.isArray(partial.history) && partial.history.length > 0)
+                    ? partial.history
+                    : (prev.history || []);
                 const stats = partial.stats || prev.stats || { wishlistCount: 0, pendingRobuxCount: 0, redeemedCodesCount: 0, gameSubsCount: 0 };
                 const next = {
                     discordId: discordId || 'default_session',
+                    primaryProvider,
                     discordConfig,
                     linkedAccount,
                     tycoonSummary,
@@ -3746,10 +4696,11 @@
                 }
 
                 try { localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(next)); } catch {}
+                saveRememberedProfileFromBackup(next);
 
-                // Versión compacta en Cookie (< 3.5 KB) para garantizar persistencia entre sesiones incluso si se limpia cache
                 const compactForCookie = {
                     discordId: next.discordId,
+                    primaryProvider: next.primaryProvider,
                     discordConfig: next.discordConfig ? {
                         discord_id: next.discordConfig.discord_id,
                         discord_username: next.discordConfig.discord_username,
@@ -3770,6 +4721,9 @@
                     savedAt: next.savedAt
                 };
                 setKortexCookie(COOKIE_SESSION_NAME, JSON.stringify(compactForCookie));
+                if (authBroadcast) {
+                    try { authBroadcast.postMessage({ type: 'KORTEX_SESSION_UPDATED' }); } catch {}
+                }
                 return next;
             } catch {
                 return null;
@@ -3777,6 +4731,7 @@
         }
 
         function clearStoredSessionOnly() {
+            teardownRealtimeSubscriptions();
             try {
                 localStorage.removeItem(LOCAL_BACKUP_KEY);
                 localStorage.removeItem('kortex_discord_id');
@@ -3818,107 +4773,268 @@
 
         function restorePendingRobloxUI() {
             const pending = readPendingRobloxVerify();
-            const step2 = document.getElementById('roblox-step2-verify');
-            const labelEl = document.getElementById('roblox-verify-target-label');
-            const badgeEl = document.getElementById('roblox-verify-code-badge');
-            const inputEl = document.getElementById('quick-roblox-input');
-            if (pending && pending.userId && pending.code) {
-                if (inputEl && !inputEl.value) inputEl.value = pending.username || String(pending.userId);
-                if (labelEl) labelEl.textContent = `@${pending.username} (ID ${pending.userId})`;
-                if (badgeEl) badgeEl.textContent = pending.code;
-                if (step2) step2.style.display = 'block';
-            } else if (step2) {
-                step2.style.display = 'none';
+            const targets = [
+                {
+                    box: document.getElementById('roblox-step2-verify'),
+                    label: document.getElementById('roblox-verify-target-label'),
+                    badge: document.getElementById('roblox-verify-code-badge'),
+                    link: document.getElementById('roblox-verify-profile-link'),
+                    input: document.getElementById('quick-roblox-input')
+                },
+                {
+                    box: document.getElementById('companion-roblox-step2'),
+                    label: document.getElementById('companion-roblox-target-label'),
+                    badge: document.getElementById('companion-roblox-code-badge'),
+                    link: document.getElementById('companion-roblox-profile-link'),
+                    input: document.getElementById('companion-roblox-input')
+                }
+            ];
+
+            for (const t of targets) {
+                if (pending && pending.userId && pending.code) {
+                    if (t.input && !t.input.value) t.input.value = pending.username || String(pending.userId);
+                    if (t.label) t.label.textContent = `@${pending.username}`;
+                    if (t.badge) t.badge.textContent = pending.code;
+                    if (t.link) t.link.href = `https://www.roblox.com/users/${encodeURIComponent(pending.userId)}/profile`;
+                    if (t.box) t.box.style.display = 'flex';
+                } else if (t.box) {
+                    t.box.style.display = 'none';
+                }
             }
         }
 
-        function updateCombinedTopStatus() {
-            const el = document.getElementById('nav-combined-status');
+        async function copyRobloxVerifyCode(mode = 'login') {
+            const pending = readPendingRobloxVerify();
+            const badgeId = mode === 'companion' ? 'companion-roblox-code-badge' : 'roblox-verify-code-badge';
+            const btnId = mode === 'companion' ? 'btn-copy-companion-roblox-code' : 'btn-copy-roblox-code';
+            const badgeEl = document.getElementById(badgeId);
+            const copyBtn = document.getElementById(btnId);
+            const codeText = String(pending?.code || badgeEl?.textContent || '').trim();
+            if (!codeText) return;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(codeText);
+                }
+                if (copyBtn) {
+                    copyBtn.textContent = 'Copiado';
+                    setTimeout(() => { copyBtn.textContent = 'Copiar'; }, 1800);
+                }
+            } catch {}
+        }
+
+        function setAvatarElement(el, url, fallbackLetter) {
             if (!el) return;
+            if (url && /^https?:\/\//i.test(url)) {
+                el.innerHTML = `<img src="${url}" alt="Avatar" referrerPolicy="no-referrer">`;
+            } else {
+                el.textContent = String(fallbackLetter || 'K').charAt(0).toUpperCase();
+            }
+        }
+
+        function updateCombinedTopStatus(effectivePrimary = 'discord') {
+            const titleEl = document.getElementById('nav-profile-title');
+            const subEl = document.getElementById('nav-combined-status');
+            const pairEl = document.getElementById('nav-avatar-pair');
+
+            if (pairEl) {
+                pairEl.classList.toggle('roblox-primary', effectivePrimary === 'roblox');
+            }
+
             if (currentDiscordName && currentRobloxName) {
-                el.textContent = `@${currentDiscordName} · @${currentRobloxName}`;
+                const pName = effectivePrimary === 'roblox' ? currentRobloxName : currentDiscordName;
+                const sName = effectivePrimary === 'roblox' ? currentDiscordName : currentRobloxName;
+                if (titleEl) titleEl.textContent = `@${pName}`;
+                if (subEl) subEl.textContent = `Vinculada con @${sName}`;
             } else if (currentDiscordName) {
-                el.textContent = `Discord: @${currentDiscordName} · Roblox: Conectar`;
+                if (titleEl) titleEl.textContent = `@${currentDiscordName}`;
+                if (subEl) subEl.textContent = 'Discord principal · +Roblox';
             } else if (currentRobloxName) {
-                el.textContent = `Roblox: @${currentRobloxName} · Discord: Conectar`;
+                if (titleEl) titleEl.textContent = `@${currentRobloxName}`;
+                if (subEl) subEl.textContent = 'Roblox principal · +Discord';
             } else {
-                el.textContent = 'Iniciar sesión (Discord / Roblox)';
+                if (titleEl) titleEl.textContent = 'Iniciar sesión';
+                if (subEl) subEl.textContent = 'Discord o Roblox';
             }
         }
 
-        function renderDiscordConfigUI(cfg, session) {
-            const dTitle = document.getElementById('discord-status-title');
-            const dSub = document.getElementById('discord-status-sub');
-            const navAvatar = document.getElementById('nav-discord-avatar');
-            const popAvatar = document.getElementById('pop-discord-avatar');
-            const btnLogin = document.getElementById('btn-discord-login');
-            const btnDisconnect = document.getElementById('btn-discord-disconnect');
+        function renderUnifiedSessionUI(state = null) {
+            const cfg = state?.discordConfig || null;
+            const acc = state?.linkedAccount || null;
+            const hasDiscord = Boolean(cfg && cfg.oauth_verified && (cfg.discord_username || cfg.discord_id));
+            const hasRoblox = Boolean(acc && acc.roblox_user_id);
+            const hasAny = Boolean(hasDiscord || hasRoblox);
 
-            const isVerified = Boolean((cfg && cfg.oauth_verified) || session);
-            const username = (cfg && cfg.discord_username) || session?.username || null;
-            const avatarUrl = (cfg && cfg.discord_avatar) || session?.avatar || null;
+            const loggedOutView = document.getElementById('auth-logged-out-view');
+            const unifiedView = document.getElementById('auth-unified-profile-view');
+            const headerSub = document.getElementById('popover-header-subtitle');
+            const navDiscordAvatar = document.getElementById('nav-discord-avatar');
+            const navRobloxAvatar = document.getElementById('nav-roblox-avatar');
 
-            if (isVerified && (username || cfg?.discord_id)) {
-                currentDiscordName = username || `ID ${cfg.discord_id}`;
-                if (dTitle) dTitle.textContent = `Discord: @${currentDiscordName}`;
-                if (dSub) dSub.textContent = '🟢 Sincronizada (/config + Cookie persistente)';
-                if (btnLogin) btnLogin.innerHTML = '<span>🔄 Renovar clave en /config</span>';
-                if (btnDisconnect) btnDisconnect.classList.add('visible');
-                if (avatarUrl && /^https?:\/\//i.test(avatarUrl)) {
-                    if (navAvatar) navAvatar.innerHTML = `<img src="${avatarUrl}" alt="Discord" referrerPolicy="no-referrer">`;
-                    if (popAvatar) popAvatar.innerHTML = `<img src="${avatarUrl}" alt="Discord" referrerPolicy="no-referrer">`;
+            currentDiscordName = hasDiscord ? (cfg.discord_username || `ID ${cfg.discord_id}`) : null;
+            currentRobloxName = hasRoblox ? (acc.roblox_username || `ID ${acc.roblox_user_id}`) : null;
+
+            setAvatarElement(navDiscordAvatar, hasDiscord ? cfg.discord_avatar : '', currentDiscordName || 'D');
+            setAvatarElement(navRobloxAvatar, hasRoblox ? acc.avatar_url : '', currentRobloxName || 'R');
+
+            syncDiscordOAuthLinks();
+
+            if (!hasAny) {
+                if (loggedOutView) loggedOutView.style.display = 'flex';
+                if (unifiedView) unifiedView.style.display = 'none';
+                if (headerSub) headerSub.textContent = 'Elegí tu cuenta principal y conservá tus datos vinculados';
+                updateCombinedTopStatus(selectedLoginMethod);
+                renderRememberedProfileCard();
+                return;
+            }
+
+            if (loggedOutView) loggedOutView.style.display = 'none';
+            if (unifiedView) unifiedView.style.display = 'flex';
+            renderRememberedProfileCard();
+
+            let primary = state?.primaryProvider || getPrimaryProvider();
+            if (primary === 'roblox' && !hasRoblox) primary = 'discord';
+            if (primary === 'discord' && !hasDiscord) primary = 'roblox';
+
+            if (headerSub) {
+                headerSub.textContent = (hasDiscord && hasRoblox)
+                    ? 'Tus dos cuentas están unificadas y sincronizadas'
+                    : 'Sesión activa guardada en este navegador';
+            }
+
+            const pAvatar = document.getElementById('unified-primary-avatar');
+            const pName = document.getElementById('unified-primary-name');
+            const pMeta = document.getElementById('unified-primary-meta');
+
+            if (primary === 'roblox') {
+                if (pAvatar) pAvatar.className = 'popover-avatar-lg roblox';
+                setAvatarElement(pAvatar, acc?.avatar_url, currentRobloxName || 'R');
+                if (pName) pName.textContent = `@${currentRobloxName}`;
+                if (pMeta) pMeta.textContent = `Roblox · Cuenta principal (ID ${acc.roblox_user_id})`;
+            } else {
+                if (pAvatar) pAvatar.className = 'popover-avatar-lg discord';
+                setAvatarElement(pAvatar, cfg?.discord_avatar, currentDiscordName || 'D');
+                if (pName) pName.textContent = `@${currentDiscordName}`;
+                if (pMeta) pMeta.textContent = 'Discord · Cuenta principal';
+            }
+
+            const compConnected = document.getElementById('unified-companion-connected');
+            const compEmpty = document.getElementById('unified-companion-empty');
+
+            if (hasDiscord && hasRoblox) {
+                if (compConnected) compConnected.style.display = 'flex';
+                if (compEmpty) compEmpty.style.display = 'none';
+
+                const sAvatar = document.getElementById('unified-secondary-avatar');
+                const sName = document.getElementById('unified-secondary-name');
+                const sMeta = document.getElementById('unified-secondary-meta');
+                const secondaryIsRoblox = primary === 'discord';
+
+                if (secondaryIsRoblox) {
+                    if (sAvatar) sAvatar.className = 'popover-avatar-sm roblox';
+                    setAvatarElement(sAvatar, acc?.avatar_url, currentRobloxName || 'R');
+                    if (sName) sName.textContent = `@${currentRobloxName}`;
+                    if (sMeta) sMeta.textContent = 'Roblox · Vinculada automáticamente a tu perfil';
                 } else {
-                    const initial = String(currentDiscordName).charAt(0).toUpperCase() || 'D';
-                    if (navAvatar) navAvatar.textContent = initial;
-                    if (popAvatar) popAvatar.textContent = initial;
+                    if (sAvatar) sAvatar.className = 'popover-avatar-sm discord';
+                    setAvatarElement(sAvatar, cfg?.discord_avatar, currentDiscordName || 'D');
+                    if (sName) sName.textContent = `@${currentDiscordName}`;
+                    if (sMeta) sMeta.textContent = 'Discord · Vinculada automáticamente a tu perfil';
                 }
             } else {
-                currentDiscordName = null;
-                if (dTitle) dTitle.textContent = 'Cuenta de Discord';
-                if (dSub) dSub.textContent = 'Sincronización directa con /config (código KTX)';
-                if (btnLogin) btnLogin.innerHTML = '<span>🤖 Cómo conectar desde /config</span><span style="background:#23A55A;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">1 CLIC</span>';
-                if (btnDisconnect) btnDisconnect.classList.remove('visible');
-                if (navAvatar) navAvatar.textContent = 'D';
-                if (popAvatar) popAvatar.textContent = 'D';
+                if (compConnected) compConnected.style.display = 'none';
+                if (compEmpty) compEmpty.style.display = 'flex';
+
+                const emptyTitle = document.getElementById('unified-companion-empty-title');
+                const emptyDesc = document.getElementById('unified-companion-empty-desc');
+                const toggleBtn = document.getElementById('btn-toggle-companion-linker');
+                const formRoblox = document.getElementById('companion-form-roblox');
+                const formDiscord = document.getElementById('companion-form-discord');
+
+                if (hasDiscord && !hasRoblox) {
+                    if (emptyTitle) emptyTitle.textContent = 'Cuenta de Roblox no vinculada';
+                    if (emptyDesc) emptyDesc.textContent = 'Vinculala una sola vez y cargará siempre junto a tu Discord.';
+                    if (toggleBtn && document.getElementById('companion-inline-linker')?.style.display === 'none') {
+                        toggleBtn.textContent = '+ Vincular Roblox';
+                    }
+                    if (formRoblox) formRoblox.style.display = 'flex';
+                    if (formDiscord) formDiscord.style.display = 'none';
+                } else {
+                    if (emptyTitle) emptyTitle.textContent = 'Cuenta de Discord no vinculada';
+                    if (emptyDesc) emptyDesc.textContent = 'Conectala para unificar tu Mi Lista, alertas y saldo de /tycoon.';
+                    if (toggleBtn && document.getElementById('companion-inline-linker')?.style.display === 'none') {
+                        toggleBtn.textContent = '+ Vincular Discord';
+                    }
+                    if (formRoblox) formRoblox.style.display = 'none';
+                    if (formDiscord) formDiscord.style.display = 'flex';
+                }
             }
-            updateCombinedTopStatus();
+
+            updateCombinedTopStatus(primary);
         }
 
-        function renderRobloxAccountUI(acc) {
-            const rTitle = document.getElementById('roblox-status-title');
-            const rSub = document.getElementById('roblox-status-sub');
-            const navAvatar = document.getElementById('nav-roblox-avatar');
-            const popAvatar = document.getElementById('pop-roblox-avatar');
-            const btnLogin = document.getElementById('btn-roblox-login');
-            const btnDisconnect = document.getElementById('btn-roblox-disconnect');
-
-            if (acc && acc.roblox_user_id) {
-                currentRobloxName = acc.roblox_username;
-                const isOAuth = acc.auth_method === 'oauth' || acc.roblox_oauth_verified;
-                if (rTitle) rTitle.textContent = `Roblox: @${acc.roblox_username} (ID ${acc.roblox_user_id})`;
-                if (rSub) {
-                    rSub.textContent = isOAuth
-                        ? '🟢 Sincronizada desde Discord OAuth 2.0'
-                        : '🟢 Verificada y sincronizada (Discord ↔ Web)';
+        function toggleInlineCompanionLinker(forceOpen = null) {
+            const box = document.getElementById('companion-inline-linker');
+            const btn = document.getElementById('btn-toggle-companion-linker');
+            if (!box) return;
+            const shouldOpen = forceOpen !== null ? Boolean(forceOpen) : box.style.display === 'none';
+            box.style.display = shouldOpen ? 'flex' : 'none';
+            if (btn) {
+                if (shouldOpen) {
+                    btn.textContent = 'Cerrar';
+                } else {
+                    btn.textContent = currentDiscordName && !currentRobloxName ? '+ Vincular Roblox' : '+ Vincular Discord';
                 }
-                if (btnLogin) btnLogin.innerHTML = '<span>🔄 Sincronizar estado ahora</span>';
-                if (btnDisconnect) btnDisconnect.classList.add('visible');
-                if (acc.avatar_url && /^https?:\/\//i.test(acc.avatar_url)) {
-                    if (navAvatar) navAvatar.innerHTML = `<img src="${acc.avatar_url}" alt="Roblox" referrerPolicy="no-referrer">`;
-                    if (popAvatar) popAvatar.innerHTML = `<img src="${acc.avatar_url}" alt="Roblox" referrerPolicy="no-referrer">`;
-                }
-                const step2 = document.getElementById('roblox-step2-verify');
-                if (step2) step2.style.display = 'none';
-            } else {
-                currentRobloxName = null;
-                if (rTitle) rTitle.textContent = 'Cuenta de Roblox';
-                if (rSub) rSub.textContent = 'Sincronizada con Discord y verificación en biografía';
-                if (btnLogin) btnLogin.innerHTML = '<span>🔄 Sincronizar cuenta desde Discord / Web</span><span style="background:#0284C7;color:#FFFFFF;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;">SYNC</span>';
-                if (btnDisconnect) btnDisconnect.classList.remove('visible');
-                if (navAvatar) navAvatar.textContent = 'R';
-                if (popAvatar) popAvatar.textContent = 'R';
             }
-            updateCombinedTopStatus();
+        }
+
+        function swapPrimaryProvider() {
+            const backup = readLocalAccountBackup();
+            if (!backup || !backup.discordConfig?.oauth_verified || !backup.linkedAccount?.roblox_user_id) return;
+            const nextPrimary = getPrimaryProvider() === 'roblox' ? 'discord' : 'roblox';
+            setPrimaryProvider(nextPrimary);
+            const updated = saveLocalAccountBackup({ ...backup, primaryProvider: nextPrimary }) || { ...backup, primaryProvider: nextPrimary };
+            renderUnifiedSessionUI(updated);
+            const statusFb = document.getElementById('unified-status-feedback');
+            if (statusFb) {
+                statusFb.style.display = 'block';
+                statusFb.style.color = '#23A55A';
+                statusFb.textContent = nextPrimary === 'roblox'
+                    ? `Ahora @${currentRobloxName} es tu cuenta principal.`
+                    : `Ahora @${currentDiscordName} es tu cuenta principal.`;
+            }
+        }
+
+        function logoutSessionLocally() {
+            const current = readLocalAccountBackup();
+            if (current) {
+                saveRememberedProfileFromBackup(current);
+            }
+            clearStoredSessionOnly();
+            clearPendingRobloxVerify();
+            currentDiscordName = null;
+            currentRobloxName = null;
+            const dFb = document.getElementById('discord-feedback');
+            if (dFb) {
+                dFb.style.color = 'var(--text-muted)';
+                dFb.innerHTML = 'Si ya vinculaste tu cuenta de Roblox en Discord, se cargará automáticamente junto con tu progreso de <code>/tycoon</code> y Mi Lista.';
+            }
+            const rFb = document.getElementById('roblox-feedback');
+            if (rFb) {
+                rFb.style.color = 'var(--text-muted)';
+                rFb.textContent = 'Si esta cuenta de Roblox ya estaba vinculada a tu Discord, Kortex restaurará automáticamente ambas cuentas y tus datos guardados.';
+            }
+            const uFb = document.getElementById('unified-status-feedback');
+            if (uFb) uFb.style.display = 'none';
+            renderUnifiedSessionUI(null);
+            renderAccountHistoryUI([], {}, false, null);
+        }
+
+        async function unlinkCompanionAccount() {
+            const backup = readLocalAccountBackup();
+            if (!backup) return;
+            const primary = getPrimaryProvider();
+            const providerToUnlink = primary === 'roblox' ? 'discord' : 'roblox';
+            await disconnectAccount(providerToUnlink);
         }
 
         function formatHistoryTime(isoStr) {
@@ -3948,10 +5064,10 @@
             if (badgeEl) {
                 if (isAnyAccountActive) {
                     badgeEl.style.color = '#23A55A';
-                    badgeEl.textContent = '● Sesión y cookie sincronizadas';
+                    badgeEl.textContent = 'Sesión sincronizada';
                 } else {
                     badgeEl.style.color = 'var(--text-muted)';
-                    badgeEl.textContent = '○ Sin cuenta activa';
+                    badgeEl.textContent = 'Sin sesión activa';
                 }
             }
 
@@ -3964,7 +5080,7 @@
                 if (listEl) {
                     listEl.innerHTML = `
                         <div class="history-item">
-                            <div class="history-item-detail">No hay ninguna cuenta activa en este momento. Vinculá tu cuenta de Discord (<code>/config</code>) o Roblox para guardar tu sesión en cookie persistente.</div>
+                            <div class="history-item-detail">Entrá con tu cuenta principal de Discord o Roblox para consultar tus estadísticas sincronizadas y tu estudio de <code>/tycoon</code>.</div>
                         </div>
                     `;
                 }
@@ -3999,7 +5115,7 @@
             if (items.length === 0) {
                 listEl.innerHTML = `
                     <div class="history-item">
-                        <div class="history-item-detail">Cuenta activa detectada. Tus acciones en Discord y en la Web se mostrarán y conservarán acá.</div>
+                        <div class="history-item-detail">Tu perfil está conectado. Tus próximas acciones en Discord y en la Web quedarán registradas acá.</div>
                     </div>
                 `;
                 return;
@@ -4016,46 +5132,59 @@
             `).join('');
         }
 
-        function applyAccountPayload(data) {
+        function applyAccountPayload(data, options = {}) {
             if (!data || typeof data !== 'object') return false;
-            const serverHasDiscord = Boolean(data.discordConfig && data.discordConfig.oauth_verified);
-            const serverHasRoblox = Boolean(data.linkedAccount && data.linkedAccount.roblox_user_id);
-            const hasAny = Boolean(data.hasActiveAccount || serverHasDiscord || serverHasRoblox);
+            const preferredPrimary = options.preferredPrimary || null;
+            const allowClearOnEmpty = Boolean(options.allowClearOnEmpty);
+            const prevBackup = readLocalAccountBackup();
 
-            if (data.discordId && data.discordId !== 'default_session' && !data.discordId.startsWith('guest_')) {
-                setActiveDiscordId(data.discordId);
+            // Si estamos refrescando en segundo plano, nunca degradar una cuenta verificada local por una respuesta parcial vacía
+            const effectivePayload = (!allowClearOnEmpty && prevBackup)
+                ? mergeAccountPayloads(data, prevBackup)
+                : data;
+
+            const serverHasDiscord = Boolean(effectivePayload.discordConfig && effectivePayload.discordConfig.oauth_verified);
+            const serverHasRoblox = Boolean(effectivePayload.linkedAccount && effectivePayload.linkedAccount.roblox_user_id);
+            const hasAny = Boolean(effectivePayload.hasActiveAccount || serverHasDiscord || serverHasRoblox);
+
+            if (effectivePayload.discordId && effectivePayload.discordId !== 'default_session' && !effectivePayload.discordId.startsWith('guest_')) {
+                setActiveDiscordId(effectivePayload.discordId);
             }
 
-            renderRobloxAccountUI(data.linkedAccount || null);
-            renderDiscordConfigUI(data.discordConfig || null, null);
-            renderAccountHistoryUI(data.history || [], data.stats || {}, hasAny, data.tycoonSummary || null);
+            if (preferredPrimary === 'discord' || preferredPrimary === 'roblox') {
+                setPrimaryProvider(preferredPrimary);
+            }
 
             if (hasAny) {
-                saveLocalAccountBackup({
-                    discordId: data.discordId,
-                    discordConfig: data.discordConfig || null,
-                    linkedAccount: data.linkedAccount || null,
-                    tycoonSummary: data.tycoonSummary || null,
-                    history: data.history || [],
-                    stats: data.stats || {}
+                const saved = saveLocalAccountBackup({
+                    discordId: effectivePayload.discordId,
+                    primaryProvider: preferredPrimary || getPrimaryProvider(),
+                    discordConfig: effectivePayload.discordConfig || null,
+                    linkedAccount: effectivePayload.linkedAccount || null,
+                    tycoonSummary: effectivePayload.tycoonSummary || null,
+                    history: effectivePayload.history || [],
+                    stats: effectivePayload.stats || {}
                 });
-            } else if (data.ok === true) {
+                renderUnifiedSessionUI(saved || effectivePayload);
+                renderAccountHistoryUI(
+                    (saved || effectivePayload).history || [],
+                    (saved || effectivePayload).stats || {},
+                    true,
+                    (saved || effectivePayload).tycoonSummary || null
+                );
+            } else if (allowClearOnEmpty) {
                 clearStoredSessionOnly();
+                renderUnifiedSessionUI(null);
+                renderAccountHistoryUI([], {}, false, null);
             }
             return hasAny;
         }
 
         function clearAllSessions() {
-            clearStoredSessionOnly();
-            clearPendingRobloxVerify();
-            currentDiscordName = null;
-            currentRobloxName = null;
-            renderDiscordConfigUI(null, null);
-            renderRobloxAccountUI(null);
-            renderAccountHistoryUI([], {}, false, null);
+            logoutSessionLocally();
         }
 
-        async function checkAccountStatus() {
+        async function checkAccountStatus(showFeedback = false) {
             const backup = readLocalAccountBackup();
             const discordId = getActiveDiscordId() || backup?.discordId || '';
 
@@ -4064,17 +5193,21 @@
             if (!discordId || discordId === 'default_session') {
                 currentDiscordName = null;
                 currentRobloxName = null;
-                renderDiscordConfigUI(null, null);
-                renderRobloxAccountUI(null);
+                renderUnifiedSessionUI(null);
                 renderAccountHistoryUI([], {}, false, null);
                 return;
             }
 
-            // Hidratación inmediata desde cookie/localStorage para evitar parpadeos al recargar
             if (backup && (backup.discordConfig?.oauth_verified || backup.linkedAccount?.roblox_user_id)) {
-                renderDiscordConfigUI(backup.discordConfig || null, null);
-                renderRobloxAccountUI(backup.linkedAccount || null);
+                renderUnifiedSessionUI(backup);
                 renderAccountHistoryUI(backup.history || [], backup.stats || {}, true, backup.tycoonSummary || null);
+            }
+
+            const statusFb = document.getElementById('unified-status-feedback');
+            if (showFeedback && statusFb) {
+                statusFb.style.display = 'block';
+                statusFb.style.color = '#38BDF8';
+                statusFb.textContent = 'Sincronizando datos con Kortex...';
             }
 
             try {
@@ -4082,108 +5215,178 @@
                     p_discord_id: discordId
                 });
                 if (data && data.ok) {
-                    applyAccountPayload(data);
+                    applyAccountPayload(data, { allowClearOnEmpty: false });
+                    if (showFeedback && statusFb) {
+                        statusFb.style.display = 'block';
+                        statusFb.style.color = '#23A55A';
+                        statusFb.textContent = 'Datos e historial actualizados.';
+                        setTimeout(() => { if (statusFb) statusFb.style.display = 'none'; }, 2400);
+                    }
                 }
             } catch {
-                // Si no hay conexión temporalmente, conservar sesión activa desde cookie/localStorage
+                if (showFeedback && statusFb) {
+                    statusFb.style.display = 'block';
+                    statusFb.style.color = 'var(--text-muted)';
+                    statusFb.textContent = 'Mostrando tu sesión activa guardada en el navegador.';
+                }
             }
         }
 
         async function disconnectAccount(provider) {
             const discordId = getActiveDiscordId() || readLocalAccountBackup()?.discordId || '';
+            if (provider === 'all') {
+                logoutSessionLocally();
+                return;
+            }
+
             try {
                 if (discordId && discordId !== 'default_session') {
-                    const updated = await callSupabaseRpc('kortex_web_disconnect_account', {
+                    await callSupabaseRpc('kortex_web_disconnect_account', {
                         p_discord_id: discordId,
-                        p_provider: provider || 'all'
+                        p_provider: provider
                     });
-                    if (updated && typeof updated === 'object') {
-                        applyAccountPayload(updated);
-                        return;
-                    }
                 }
             } catch {}
 
             const backup = readLocalAccountBackup() || {};
             if (provider === 'discord') {
                 backup.discordConfig = null;
+                backup.primaryProvider = 'roblox';
                 currentDiscordName = null;
-                if (!backup.linkedAccount?.roblox_user_id) {
-                    clearStoredSessionOnly();
-                } else {
-                    saveLocalAccountBackup(backup);
+                if (backup.linkedAccount?.roblox_user_id) {
+                    backup.discordId = `rblx_${backup.linkedAccount.roblox_user_id}`;
+                    setActiveDiscordId(backup.discordId);
+                    const next = saveLocalAccountBackup(backup);
+                    renderUnifiedSessionUI(next);
+                    renderAccountHistoryUI(next?.history || [], next?.stats || {}, true, next?.tycoonSummary || null);
+                    return;
                 }
-                renderDiscordConfigUI(null, null);
             } else if (provider === 'roblox') {
                 backup.linkedAccount = null;
+                backup.primaryProvider = 'discord';
                 currentRobloxName = null;
                 clearPendingRobloxVerify();
-                if (!backup.discordConfig?.oauth_verified) {
-                    clearStoredSessionOnly();
-                } else {
-                    saveLocalAccountBackup(backup);
+                if (backup.discordConfig?.oauth_verified) {
+                    const next = saveLocalAccountBackup(backup);
+                    renderUnifiedSessionUI(next);
+                    renderAccountHistoryUI(next?.history || [], next?.stats || {}, true, next?.tycoonSummary || null);
+                    return;
                 }
-                renderRobloxAccountUI(null);
             }
 
-            const stillHasActive = Boolean(
-                (backup.discordConfig && backup.discordConfig.oauth_verified) ||
-                (backup.linkedAccount && backup.linkedAccount.roblox_user_id)
-            );
-            renderAccountHistoryUI(stillHasActive ? (backup.history || []) : [], backup.stats || {}, stillHasActive, backup.tycoonSummary || null);
+            clearStoredSessionOnly();
+            forgetRememberedProfile();
+            renderUnifiedSessionUI(null);
+            renderAccountHistoryUI([], {}, false, null);
         }
 
-        async function quickVerifyDiscordWeb(actionMode = 'verify', overrideId = '', overrideCode = '') {
-            const inputEl = document.getElementById('quick-discord-input');
-            const codeEl = document.getElementById('quick-discord-code');
-            const dFeedback = document.getElementById('discord-feedback');
+        async function quickVerifyDiscordWeb(actionMode = 'verify', overrideId = '', overrideCode = '', uiContext = 'login') {
+            const isCompanion = uiContext === 'companion';
+            const codeEl = document.getElementById(isCompanion ? 'companion-discord-code' : 'quick-discord-code');
+            const dFeedback = document.getElementById(isCompanion ? 'companion-feedback' : 'discord-feedback');
 
-            const rawId = String(overrideId || inputEl?.value || getActiveDiscordId() || '').trim();
+            const typedId = String(overrideId || '').trim();
+            const currentSessionId = getActiveDiscordId();
+            const prevBackup = readLocalAccountBackup();
             const rawCode = String(overrideCode || codeEl?.value || '').trim();
 
             if (!rawCode) {
                 if (dFeedback) {
                     dFeedback.style.color = '#F0B232';
-                    dFeedback.innerHTML = '💡 Pegá tu clave <code>KTX-XXXXXX</code> obtenida al ejecutar <code>/config</code> en Discord (apartado <strong>1. Cuenta de Discord</strong>).';
+                    dFeedback.innerHTML = 'Pegá tu clave <code>KTX-XXXXXX</code> generada en <code>/config</code> dentro de Discord.';
                 }
                 if (codeEl) codeEl.focus();
                 return false;
             }
 
+            const rpcDiscordId = isDiscordSnowflake(typedId)
+                ? typedId
+                : (currentSessionId.startsWith('rblx_') ? currentSessionId : getRealDiscordId());
+
             if (dFeedback) {
                 dFeedback.style.color = '#38BDF8';
-                dFeedback.textContent = '⏳ Verificando clave KTX y sincronizando cuenta con Supabase...';
+                dFeedback.textContent = 'Verificando clave y cargando tu perfil unificado...';
             }
 
             try {
-                const data = await callSupabaseRpc('kortex_web_verify_discord', {
-                    p_discord_id: rawId,
+                let data = await callSupabaseRpc('kortex_web_verify_discord', {
+                    p_discord_id: rpcDiscordId,
                     p_code: rawCode
                 });
 
                 if (!data || !data.ok) {
                     if (dFeedback) {
                         dFeedback.style.color = '#F23F43';
-                        dFeedback.textContent = data?.message || '❌ Código inválido o expirado. Ejecutá /config en Discord para ver tu código vigente.';
+                        dFeedback.textContent = data?.message || 'Clave inválida o vencida. Ejecutá /config en Discord para obtener una clave vigente.';
                     }
                     return false;
                 }
 
-                applyAccountPayload(data);
-                if (codeEl) codeEl.value = '';
-                if (dFeedback) {
-                    const dName = data.discordConfig?.discord_username || data.discordId;
-                    const rMsg = data.linkedAccount?.roblox_username ? ` y Roblox @${data.linkedAccount.roblox_username}` : '';
-                    dFeedback.style.color = '#23A55A';
-                    dFeedback.innerHTML = `✅ Sesión conectada como <strong>@${dName}</strong>${rMsg}. Guardada de forma persistente en cookie.`;
+                // Si el usuario ya tenía un Roblox activo en el navegador y el servidor aún no lo tenía asociado, vincularlo automáticamente
+                if (
+                    isDiscordSnowflake(data.discordId) &&
+                    (!data.linkedAccount || !data.linkedAccount.roblox_user_id) &&
+                    prevBackup?.linkedAccount?.roblox_user_id
+                ) {
+                    try {
+                        const merged = await callSupabaseRpc('kortex_web_link_roblox', {
+                            p_discord_id: data.discordId,
+                            p_roblox_user_id: Number(prevBackup.linkedAccount.roblox_user_id),
+                            p_roblox_username: prevBackup.linkedAccount.roblox_username,
+                            p_display_name: prevBackup.linkedAccount.display_name || prevBackup.linkedAccount.roblox_username,
+                            p_avatar_url: prevBackup.linkedAccount.avatar_url || '',
+                            p_auth_method: prevBackup.linkedAccount.auth_method || 'bio_verified'
+                        });
+                        if (merged && merged.ok) data = merged;
+                    } catch {}
                 }
+
+                // Consultar también estado combinado para hidratar Roblox/Tycoon tanto local como remoto
+                if (isDiscordSnowflake(data.discordId)) {
+                    try {
+                        const fullStatus = await callSupabaseRpc('kortex_web_get_account_status', {
+                            p_discord_id: data.discordId
+                        });
+                        if (fullStatus && fullStatus.ok) {
+                            data = mergeAccountPayloads(data, fullStatus);
+                        }
+                    } catch {}
+                }
+
+                const targetPrimary = isCompanion ? getPrimaryProvider() : 'discord';
+                applyAccountPayload(data, { preferredPrimary: targetPrimary });
+                toggleInlineCompanionLinker(false);
+                if (codeEl) codeEl.value = '';
                 return true;
             } catch (err) {
                 if (dFeedback) {
                     dFeedback.style.color = '#F23F43';
-                    dFeedback.textContent = `❌ No se pudo conectar con Supabase (${err.message}). Reintentá en unos segundos.`;
+                    dFeedback.textContent = `No se pudo validar la clave (${err.message}). Reintentá en unos segundos.`;
                 }
                 return false;
+            }
+        }
+
+        async function resolveExistingDiscordOwnerForRoblox(robloxUserId) {
+            const { supabaseUrl, supabaseKey, isConfigured } = resolveSupabaseRuntimeConfig();
+            if (!isConfigured) return '';
+            try {
+                const resp = await fetch(
+                    `${supabaseUrl}/rest/v1/user_links?select=discord_id&roblox_user_id=eq.${encodeURIComponent(robloxUserId)}&limit=5`,
+                    {
+                        headers: {
+                            'apikey': supabaseKey,
+                            'Authorization': `Bearer ${supabaseKey}`
+                        }
+                    }
+                );
+                if (!resp.ok) return '';
+                const rows = await resp.json().catch(() => []);
+                if (!Array.isArray(rows)) return '';
+                const realRow = rows.find(r => isDiscordSnowflake(r?.discord_id));
+                return realRow ? String(realRow.discord_id).trim() : '';
+            } catch {
+                return '';
             }
         }
 
@@ -4201,16 +5404,14 @@
             throw lastErr || new Error('Sin respuesta de Roblox API');
         }
 
-        async function quickVerifyRobloxWeb(actionMode = 'start') {
-            const inputEl = document.getElementById('quick-roblox-input');
-            const step2 = document.getElementById('roblox-step2-verify');
-            const labelEl = document.getElementById('roblox-verify-target-label');
-            const badgeEl = document.getElementById('roblox-verify-code-badge');
-            const rFeedback = document.getElementById('roblox-feedback');
+        async function quickVerifyRobloxWeb(actionMode = 'start', uiContext = 'login') {
+            const isCompanion = uiContext === 'companion';
+            const inputEl = document.getElementById(isCompanion ? 'companion-roblox-input' : 'quick-roblox-input');
+            const rFeedback = document.getElementById(isCompanion ? 'companion-feedback' : 'roblox-feedback');
 
             if (actionMode === 'cancel') {
                 clearPendingRobloxVerify();
-                if (step2) step2.style.display = 'none';
+                restorePendingRobloxUI();
                 if (rFeedback) {
                     rFeedback.style.color = 'var(--text-muted)';
                     rFeedback.textContent = 'Verificación cancelada.';
@@ -4223,32 +5424,42 @@
                 if (!pending || !pending.userId || !pending.code) {
                     if (rFeedback) {
                         rFeedback.style.color = '#F0B232';
-                        rFeedback.textContent = '⚠️ Primero escribí tu usuario o ID de Roblox y generá tu código.';
+                        rFeedback.textContent = 'Primero ingresá tu usuario o ID de Roblox para generar tu código.';
                     }
                     return;
                 }
 
                 if (rFeedback) {
                     rFeedback.style.color = '#38BDF8';
-                    rFeedback.textContent = `⏳ Revisando la biografía pública de @${pending.username}...`;
+                    rFeedback.textContent = `Comprobando la biografía pública de @${pending.username}...`;
                 }
 
                 try {
-                    const profile = await fetchRobloxJsonWithFallback([
+                    const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
+                    const candidateUrls = [
                         `https://users.roproxy.com/v1/users/${pending.userId}?t=${Date.now()}`,
                         `https://users.roblox.com/v1/users/${pending.userId}`
-                    ]);
+                    ];
+                    if (!isStaticGhPages && /^https?:$/i.test(window.location.protocol)) {
+                        candidateUrls.unshift(`/api/roblox/profile/${encodeURIComponent(pending.userId)}?t=${Date.now()}`);
+                    }
+                    const profile = await fetchRobloxJsonWithFallback(candidateUrls);
                     const bio = String(profile?.description || '').toUpperCase();
                     if (!bio.includes(pending.code.toUpperCase())) {
                         if (rFeedback) {
                             rFeedback.style.color = '#F23F43';
-                            rFeedback.innerHTML = `❌ Todavía no aparece <code>${pending.code}</code> en la biografía "Acerca de" de <strong>@${pending.username}</strong>. Guardala en Roblox y volvé a pulsar Comprobar.`;
+                            rFeedback.innerHTML = `Todavía no encontramos <code>${pending.code}</code> en la sección "Acerca de" de <strong>@${pending.username}</strong>. Guardalo en tu perfil de Roblox y volvé a confirmar.`;
                         }
                         return;
                     }
 
-                    const data = await callSupabaseRpc('kortex_web_link_roblox', {
-                        p_discord_id: getActiveDiscordId() || '',
+                    let targetDiscordId = getRealDiscordId();
+                    if (!targetDiscordId) {
+                        targetDiscordId = await resolveExistingDiscordOwnerForRoblox(pending.userId);
+                    }
+
+                    let data = await callSupabaseRpc('kortex_web_link_roblox', {
+                        p_discord_id: targetDiscordId || '',
                         p_roblox_user_id: Number(pending.userId),
                         p_roblox_username: profile.name || pending.username,
                         p_display_name: profile.displayName || pending.displayName || pending.username,
@@ -4257,32 +5468,44 @@
                     });
 
                     clearPendingRobloxVerify();
-                    if (step2) step2.style.display = 'none';
+                    restorePendingRobloxUI();
 
                     if (data && data.ok) {
-                        applyAccountPayload(data);
-                        if (rFeedback) {
-                            rFeedback.style.color = '#23A55A';
-                            rFeedback.innerHTML = `✅ Cuenta <strong>@${profile.name || pending.username}</strong> verificada, sincronizada con Discord y guardada en tu cookie.`;
+                        const finalDiscordId = isDiscordSnowflake(data.discordId) ? data.discordId : targetDiscordId;
+                        if (isDiscordSnowflake(finalDiscordId)) {
+                            try {
+                                const fullStatus = await callSupabaseRpc('kortex_web_get_account_status', {
+                                    p_discord_id: finalDiscordId
+                                });
+                                if (fullStatus && fullStatus.ok) {
+                                    data = mergeAccountPayloads(data, fullStatus);
+                                }
+                            } catch {}
                         }
+                        const preferredPrimary = isCompanion ? getPrimaryProvider() : 'roblox';
+                        applyAccountPayload(data, { preferredPrimary });
+                        toggleInlineCompanionLinker(false);
+                        if (inputEl) inputEl.value = '';
                     } else {
                         throw new Error(data?.message || 'Error guardando vínculo');
                     }
                 } catch (err) {
                     if (rFeedback) {
                         rFeedback.style.color = '#F0B232';
-                        rFeedback.innerHTML = `⚠️ No se pudo leer el perfil público desde el navegador (${err.message}). También podés vincular al instante desde Discord con <code>/config</code> y tocar Sincronizar.`;
+                        rFeedback.innerHTML = `No se pudo leer el perfil desde este navegador (${err.message}). También podés vincularlo desde <code>/config</code> en Discord.`;
                     }
                 }
                 return;
             }
 
             // actionMode === 'start'
-            const rawInput = String(inputEl?.value || '').trim().replace(/^@+/, '');
+            const rawValue = String(inputEl?.value || '').trim();
+            const urlIdMatch = rawValue.match(/\/users\/(\d+)/i);
+            const rawInput = urlIdMatch ? urlIdMatch[1] : rawValue.replace(/^@+/, '').trim();
             if (!rawInput) {
                 if (rFeedback) {
                     rFeedback.style.color = '#F0B232';
-                    rFeedback.textContent = '💡 Escribí tu @Usuario o ID numérico de Roblox primero.';
+                    rFeedback.textContent = 'Escribí tu @Usuario, ID numérico o URL de perfil de Roblox.';
                 }
                 if (inputEl) inputEl.focus();
                 return;
@@ -4290,48 +5513,81 @@
 
             if (rFeedback) {
                 rFeedback.style.color = '#38BDF8';
-                rFeedback.textContent = `🔍 Buscando a "${rawInput}" en Roblox...`;
+                rFeedback.textContent = `Buscando a "${rawInput}" en Roblox...`;
             }
 
             try {
                 let userObj = null;
-                if (/^\d{1,15}$/.test(rawInput)) {
-                    const prof = await fetchRobloxJsonWithFallback([
-                        `https://users.roproxy.com/v1/users/${rawInput}`,
-                        `https://users.roblox.com/v1/users/${rawInput}`
-                    ]);
-                    if (prof && prof.id) {
-                        userObj = { id: prof.id, name: prof.name, displayName: prof.displayName };
-                    }
-                } else {
-                    const lookupResp = await fetch('https://users.roproxy.com/v1/usernames/users', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ usernames: [rawInput], excludeBannedUsers: false })
-                    });
-                    const lookupData = await lookupResp.json().catch(() => null);
-                    if (lookupResp.ok && Array.isArray(lookupData?.data) && lookupData.data[0]?.id) {
-                        userObj = lookupData.data[0];
+                let avatarUrl = '';
+                const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
+                if (!isStaticGhPages && /^https?:$/i.test(window.location.protocol)) {
+                    try {
+                        const localRes = await fetch(`/api/roblox/resolve?input=${encodeURIComponent(rawInput)}`);
+                        const localJson = await localRes.json().catch(() => null);
+                        if (localRes.ok && localJson && localJson.ok && localJson.id) {
+                            userObj = { id: localJson.id, name: localJson.name, displayName: localJson.displayName };
+                            avatarUrl = localJson.avatarUrl || '';
+                        }
+                    } catch {}
+                }
+
+                if (!userObj) {
+                    if (/^\d{1,15}$/.test(rawInput)) {
+                        const prof = await fetchRobloxJsonWithFallback([
+                            `https://users.roproxy.com/v1/users/${rawInput}`,
+                            `https://users.roblox.com/v1/users/${rawInput}`
+                        ]);
+                        if (prof && prof.id) {
+                            userObj = { id: prof.id, name: prof.name, displayName: prof.displayName };
+                        }
+                    } else {
+                        try {
+                            const lookupResp = await fetch('https://users.roproxy.com/v1/usernames/users', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ usernames: [rawInput], excludeBannedUsers: false })
+                            });
+                            const lookupData = await lookupResp.json().catch(() => null);
+                            if (lookupResp.ok && Array.isArray(lookupData?.data) && lookupData.data[0]?.id) {
+                                userObj = lookupData.data[0];
+                            }
+                        } catch {}
+
+                        if (!userObj && rawInput.length >= 3) {
+                            try {
+                                const searchData = await fetchRobloxJsonWithFallback([
+                                    `https://users.roproxy.com/v1/users/search?keyword=${encodeURIComponent(rawInput)}&limit=10`
+                                ]);
+                                const exact = (searchData?.data || []).find(u => String(u.name || '').toLowerCase() === rawInput.toLowerCase()) || searchData?.data?.[0];
+                                if (exact && exact.id) {
+                                    userObj = exact;
+                                }
+                            } catch {}
+                        }
                     }
                 }
 
                 if (!userObj || !userObj.id) {
                     if (rFeedback) {
                         rFeedback.style.color = '#F23F43';
-                        rFeedback.textContent = `❌ No encontramos la cuenta "${rawInput}" en Roblox. Revisá el nombre o probá con tu ID numérico.`;
+                        rFeedback.textContent = `No encontramos la cuenta "${rawInput}" en Roblox. Revisá el usuario o probá con tu ID numérico.`;
                     }
                     return;
                 }
 
-                let avatarUrl = '';
-                try {
-                    const thumbData = await fetchRobloxJsonWithFallback([
-                        `https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds=${userObj.id}&size=150x150&format=Png&isCircular=false`
-                    ]);
-                    avatarUrl = thumbData?.data?.[0]?.imageUrl || '';
-                } catch {}
+                if (!avatarUrl) {
+                    try {
+                        const thumbData = await fetchRobloxJsonWithFallback([
+                            `https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds=${userObj.id}&size=150x150&format=Png&isCircular=false`
+                        ]);
+                        avatarUrl = thumbData?.data?.[0]?.imageUrl || '';
+                    } catch {}
+                }
 
-                const code = `KORTEX-${Math.floor(1000 + Math.random() * 9000)}`;
+                const existingPending = readPendingRobloxVerify();
+                const code = (existingPending && Number(existingPending.userId) === Number(userObj.id) && existingPending.code)
+                    ? existingPending.code
+                    : `KORTEX-${Math.floor(1000 + Math.random() * 9000)}`;
                 const pending = {
                     userId: Number(userObj.id),
                     username: userObj.name,
@@ -4346,51 +5602,158 @@
 
                 if (rFeedback) {
                     rFeedback.style.color = '#38BDF8';
-                    rFeedback.innerHTML = `🔑 Código generado para <strong>@${pending.username}</strong>. Pegalo en tu biografía de Roblox y tocá <strong>Comprobar Biografía</strong> (queda guardado en cookie si recargás).`;
+                    rFeedback.innerHTML = `Código listo para <strong>@${pending.username}</strong>. Copialo en tu biografía de Roblox y pulsá <strong>Confirmar biografía</strong>.`;
                 }
             } catch (err) {
                 if (rFeedback) {
                     rFeedback.style.color = '#F0B232';
-                    rFeedback.innerHTML = `⚠️ Error consultando Roblox (${err.message}). Ejecutá <code>/config</code> en Discord → <strong>Vincular Roblox</strong> y luego tocá Sincronizar arriba.`;
+                    rFeedback.innerHTML = `Error consultando Roblox (${err.message}). También podés vincularlo desde <code>/config</code> en Discord.`;
                 }
             }
         }
 
-        async function startOAuthPopup(provider) {
-            openAccountPopover('accounts');
-            if (provider === 'roblox') {
-                const rFeedback = document.getElementById('roblox-feedback');
-                const discordId = getActiveDiscordId();
-                if (discordId) {
-                    if (rFeedback) {
-                        rFeedback.style.color = '#38BDF8';
-                        rFeedback.textContent = '🔄 Sincronizando vínculo Roblox ↔ Discord...';
-                    }
-                    await checkAccountStatus();
-                    const updatedBackup = readLocalAccountBackup();
-                    if (updatedBackup?.linkedAccount?.roblox_user_id) {
-                        if (rFeedback) {
-                            rFeedback.style.color = '#23A55A';
-                            rFeedback.textContent = `✅ Sincronizado con @${updatedBackup.linkedAccount.roblox_username}.`;
+        async function consumeSupabaseOAuthCallbackIfPresent() {
+            const rawHash = String(window.location.hash || '');
+            if (!rawHash.includes('access_token=')) return false;
+
+            const hashParams = new URLSearchParams(rawHash.replace(/^#/, ''));
+            const accessToken = hashParams.get('access_token');
+            if (!accessToken) return false;
+
+            await hydrateRuntimeSupabaseConfigFromServer();
+            const { supabaseUrl, supabaseKey, isConfigured } = resolveSupabaseRuntimeConfig();
+            if (!isConfigured) return false;
+
+            try {
+                let authUser = null;
+                const sdkClient = await getOrInitSupabaseClient();
+                if (sdkClient && sdkClient.auth && typeof sdkClient.auth.getUser === 'function') {
+                    const { data } = await sdkClient.auth.getUser(accessToken);
+                    if (data && data.user) authUser = data.user;
+                }
+                if (!authUser) {
+                    const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+                        headers: {
+                            'apikey': supabaseKey,
+                            'Authorization': `Bearer ${accessToken}`
                         }
-                        return;
-                    }
+                    });
+                    authUser = await userResp.json().catch(() => null);
+                    if (!userResp.ok || !authUser) return false;
                 }
-                const inp = document.getElementById('quick-roblox-input');
+
+                const discordIdentity = Array.isArray(authUser.identities)
+                    ? authUser.identities.find(id => id.provider === 'discord')
+                    : null;
+                const meta = discordIdentity?.identity_data || authUser.user_metadata || {};
+                const discordId = String(meta.provider_id || meta.sub || discordIdentity?.id || '').trim();
+                const username = String(meta.full_name || meta.custom_claims?.global_name || meta.name || 'UsuarioDiscord').trim();
+                const avatarUrl = String(meta.avatar_url || meta.picture || '').trim();
+
+                if (!isDiscordSnowflake(discordId)) return false;
+
+                const prevSessionId = getActiveDiscordId();
+                const prevBackup = readLocalAccountBackup();
+                let synced = null;
+
+                try {
+                    synced = await callSupabaseRpc('kortex_web_sync_discord_oauth', {
+                        p_discord_id: discordId,
+                        p_username: username,
+                        p_avatar_url: avatarUrl,
+                        p_previous_session_id: prevSessionId.startsWith('rblx_') ? prevSessionId : ''
+                    });
+                } catch {}
+
+                // Fallback si la función SQL nueva aún no fue aplicada en Supabase: hidratar estado existente + fusionar sesión local
+                const statusData = await callSupabaseRpc('kortex_web_get_account_status', {
+                    p_discord_id: discordId
+                }).catch(() => null);
+
+                let finalPayload = mergeAccountPayloads(synced, statusData) || {
+                    ok: true,
+                    discordId,
+                    hasActiveAccount: true,
+                    discordConfig: {
+                        discord_id: discordId,
+                        discord_username: username,
+                        discord_avatar: avatarUrl,
+                        oauth_verified: true,
+                        lang: 'es'
+                    },
+                    linkedAccount: null,
+                    tycoonSummary: null,
+                    stats: {},
+                    history: []
+                };
+
+                finalPayload.discordConfig = {
+                    ...(finalPayload.discordConfig || {}),
+                    discord_id: discordId,
+                    discord_username: finalPayload.discordConfig?.discord_username || username,
+                    discord_avatar: finalPayload.discordConfig?.discord_avatar || avatarUrl,
+                    oauth_verified: true
+                };
+
+                if ((!finalPayload.linkedAccount || !finalPayload.linkedAccount.roblox_user_id) && prevBackup?.linkedAccount?.roblox_user_id) {
+                    try {
+                        const mergedRoblox = await callSupabaseRpc('kortex_web_link_roblox', {
+                            p_discord_id: discordId,
+                            p_roblox_user_id: Number(prevBackup.linkedAccount.roblox_user_id),
+                            p_roblox_username: prevBackup.linkedAccount.roblox_username,
+                            p_display_name: prevBackup.linkedAccount.display_name || prevBackup.linkedAccount.roblox_username,
+                            p_avatar_url: prevBackup.linkedAccount.avatar_url || '',
+                            p_auth_method: prevBackup.linkedAccount.auth_method || 'bio_verified'
+                        });
+                        if (mergedRoblox && mergedRoblox.ok) {
+                            finalPayload = mergeAccountPayloads(finalPayload, mergedRoblox);
+                        }
+                    } catch {}
+                }
+
+                applyAccountPayload(finalPayload, { preferredPrimary: getPrimaryProvider() });
+                try {
+                    window.history.replaceState({}, document.title, `${window.location.pathname}#cuenta`);
+                } catch {}
+                openAccountPopover('accounts');
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        async function openAccountSyncGuide(provider) {
+            openAccountPopover('accounts');
+            const backup = readLocalAccountBackup();
+            const isLoggedIn = Boolean(backup?.discordConfig?.oauth_verified || backup?.linkedAccount?.roblox_user_id);
+            if (!isLoggedIn) {
+                selectPrimaryLoginMethod(provider === 'roblox' ? 'roblox' : 'discord');
+                const inp = document.getElementById(provider === 'roblox' ? 'quick-roblox-input' : 'quick-discord-code');
                 if (inp) inp.focus();
-                if (rFeedback) {
-                    rFeedback.style.color = '#38BDF8';
-                    rFeedback.innerHTML = '💡 Ingresá tu usuario de Roblox acá abajo para verificarlo por biografía, o vinculalo desde <code>/config</code> en Discord y volvé a sincronizar.';
-                }
             } else {
-                const codeInp = document.getElementById('quick-discord-code');
-                const dFeedback = document.getElementById('discord-feedback');
-                if (codeInp) codeInp.focus();
-                if (dFeedback) {
-                    dFeedback.style.color = '#38BDF8';
-                    dFeedback.innerHTML = '🤖 Abrí Discord, ejecutá <code>/config</code> → <strong>1. Cuentas y Datos Guardados</strong> y tocá <strong>Panel Web</strong> (auto-conecta en 1 clic) o pegá tu clave <code>KTX-XXXXXX</code> abajo.';
+                toggleInlineCompanionLinker(true);
+            }
+        }
+        const startOAuthPopup = openAccountSyncGuide;
+
+        // Sincronización reactiva entre pestañas (útil si Discord OAuth se completa en una pestaña nueva desde iframe)
+        window.addEventListener('storage', (ev) => {
+            if (ev.key === LOCAL_BACKUP_KEY || ev.key === PRIMARY_PROVIDER_KEY) {
+                const latest = readLocalAccountBackup();
+                renderUnifiedSessionUI(latest);
+                if (latest) {
+                    renderAccountHistoryUI(latest.history || [], latest.stats || {}, true, latest.tycoonSummary || null);
                 }
             }
+        });
+        if (authBroadcast) {
+            authBroadcast.onmessage = () => {
+                const latest = readLocalAccountBackup();
+                renderUnifiedSessionUI(latest);
+                if (latest) {
+                    renderAccountHistoryUI(latest.history || [], latest.stats || {}, true, latest.tycoonSummary || null);
+                }
+            };
         }
 
         // Inicialización
@@ -4398,42 +5761,50 @@
         renderOptimizerShowcase();
         switchCategory('economy');
         syncCanvasImagesWithApiBase();
+        syncDiscordOAuthLinks();
 
         (async function initFromQuery() {
+            await hydrateRuntimeSupabaseConfigFromServer();
+            syncDiscordOAuthLinks();
+            if (resolveSupabaseRuntimeConfig().isConfigured) {
+                getOrInitSupabaseClient().catch(() => {});
+            }
+
+            const handledOAuthHash = await consumeSupabaseOAuthCallbackIfPresent();
+            if (handledOAuthHash) return;
+
             const params = new URLSearchParams(window.location.search);
             const qDiscordId = params.get('discord_id') || '';
             const qCode = params.get('code') || '';
-            const notice = params.get('oauth_notice');
+            const notice = params.get('sync_notice') || params.get('oauth_notice');
 
             if (qDiscordId || qCode || window.location.hash === '#cuenta') {
                 openAccountPopover('accounts');
             }
 
-            if (qDiscordId && /^\d{15,22}$/.test(qDiscordId.trim())) {
+            if (qDiscordId && isDiscordSnowflake(qDiscordId) && !qCode) {
                 setActiveDiscordId(qDiscordId.trim());
-                const idInp = document.getElementById('quick-discord-input');
-                if (idInp) idInp.value = qDiscordId.trim();
             }
 
             if (qCode) {
                 const codeInp = document.getElementById('quick-discord-code');
                 if (codeInp) codeInp.value = qCode.trim();
-                await quickVerifyDiscordWeb('verify', qDiscordId.trim(), qCode.trim());
+                await quickVerifyDiscordWeb('verify', qDiscordId.trim(), qCode.trim(), 'login');
                 try {
-                    const cleanUrl = window.location.pathname + (window.location.hash || '#cuenta');
+                    const cleanUrl = window.location.pathname + '#cuenta';
                     window.history.replaceState({}, document.title, cleanUrl);
                 } catch {}
             } else {
+                const existingSessionId = getActiveDiscordId();
+                if (existingSessionId) {
+                    syncRealtimeSubscriptionForSession(existingSessionId);
+                }
                 await checkAccountStatus();
             }
 
             if (notice === 'roblox_missing') {
                 openAccountPopover('accounts');
-                const rFeedback = document.getElementById('roblox-feedback');
-                if (rFeedback) {
-                    rFeedback.style.color = '#F0B232';
-                    rFeedback.textContent = 'Para vincular Roblox en la web, escribí tu usuario arriba y colocá el código en tu biografía, o vinculalo desde /config.';
-                }
+                selectPrimaryLoginMethod('roblox');
             }
         })();
     </script>

@@ -12,6 +12,7 @@ const supabase = require('./db');
 const {
     sincronizarPersistenciaDesdeSupabase
 } = require('./src/utils/fastLink');
+const { startWebServer, stopWebServer } = require('./src/webServer');
 
 const modoDeploy = process.argv.includes('--deploy') || process.env.DEPLOY_COMMANDS === 'true';
 logger.imprimirBanner(modoDeploy);
@@ -87,9 +88,12 @@ logger.imprimirResumenCarga({
     interacciones: resumenInteracciones
 });
 
-// Sincronizar cuentas persistentes con Supabase en segundo plano al iniciar
+// Sincronizar cuentas persistentes e iniciar suscripción Realtime con Supabase en segundo plano
 sincronizarPersistenciaDesdeSupabase().then(() => {
     logger.ok('Persistencia remota con Supabase sincronizada e hidratada.');
+    if (typeof supabase.startRealtimeSync === 'function') {
+        supabase.startRealtimeSync();
+    }
 }).catch((err) => {
     logger.warn('Sincronización inicial con Supabase en background:', err.message);
 });
@@ -146,6 +150,10 @@ process.on('uncaughtException', (error) => logger.error('UNCAUGHT EXCEPTION', er
 async function apagar(signal) {
     logger.warn(`Señal ${signal} recibida. Cerrando sesión de Discord de forma segura...`);
     try {
+        if (typeof supabase.stopRealtimeSync === 'function') {
+            await supabase.stopRealtimeSync();
+        }
+        await stopWebServer();
         await client.destroy();
     } finally {
         process.exit(0);
@@ -154,10 +162,13 @@ async function apagar(signal) {
 process.once('SIGINT', () => apagar('SIGINT'));
 process.once('SIGTERM', () => apagar('SIGTERM'));
 
-// 5. Inicialización de Discord Gateway
+// 5. Inicialización del Servidor Web (0.0.0.0:3000) y Discord Gateway
 (async () => {
+    const port = Number(process.env.PORT) || 3000;
+    await startWebServer({ port, host: '0.0.0.0', client });
+
     if (!process.env.DISCORD_TOKEN) {
-        logger.warn('DISCORD_TOKEN no definido en variables de entorno.');
+        logger.warn(`DISCORD_TOKEN no definido en variables de entorno — servidor web activo en puerto ${port}.`);
         return;
     }
 

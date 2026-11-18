@@ -49,12 +49,6 @@ function obtenerUrlBasePublica(overrideUrl = '') {
             return clean;
         }
     }
-    if (process.env.PUBLIC_URL) {
-        const clean = normalizarUrlPublica(process.env.PUBLIC_URL);
-        if (clean && !/(localhost|127\.0\.0\.1|0\.0\.0\.0|railway\.app)/i.test(clean)) {
-            return clean;
-        }
-    }
     return GITHUB_PAGES_URL;
 }
 
@@ -500,6 +494,43 @@ cargarConfigsDiscordDesdeDisco();
 cargarHistorialDesdeDisco();
 sincronizarPersistenciaDesdeSupabase().catch(() => {});
 
+// Suscribir cachés en RAM a eventos en tiempo real de Supabase (Web ↔ Bot bidireccional sin reinicios)
+if (supabase.events && typeof supabase.events.on === 'function') {
+    supabase.events.on('remote_table_change', ({ table, eventType, discordId, newRow }) => {
+        const key = String(discordId || '').trim();
+        if (!key) return;
+
+        if (table === 'user_links') {
+            if (eventType === 'DELETE' || (newRow && !newRow.roblox_user_id)) {
+                fastLinkCache.delete(key);
+            } else if (newRow && newRow.roblox_user_id) {
+                const prev = fastLinkCache.get(key) || {};
+                fastLinkCache.set(key, { ...prev, ...newRow, discord_id: key });
+            }
+            guardarLinksEnDisco();
+        } else if (table === 'discord_configs') {
+            if (eventType === 'DELETE') {
+                discordConfigCache.delete(key);
+            } else if (newRow && typeof newRow === 'object') {
+                const prev = discordConfigCache.get(key) || {};
+                const merged = { ...prev, ...newRow, discord_id: key };
+                discordConfigCache.set(key, merged);
+                for (const fn of accountChangeListeners) {
+                    try { fn(key, merged); } catch {}
+                }
+            }
+            guardarConfigsDiscordEnDisco();
+        } else if (table === 'account_history') {
+            if (eventType === 'DELETE') {
+                accountHistoryCache.delete(key);
+            } else if (newRow && Array.isArray(newRow.events)) {
+                accountHistoryCache.set(key, newRow.events);
+            }
+            guardarHistorialEnDisco();
+        }
+    });
+}
+
 // Almacén en memoria de códigos de seguridad pendientes para vincular Roblox por Nombre/ID
 // key (discordId) -> { code, profile, createdAt, expiresAt, dmDelivered, botInboxMessage }
 const pendingRobloxVerifications = new Map();
@@ -618,9 +649,9 @@ function obtenerHistorialCuenta(discordId) {
     // Si tiene cuentas activas pero aún no tenía eventos grabados, generar el registro de su cuenta activa
     const seeded = [];
     if (tieneRoblox) {
-        const metodoTexto = rblx.auth_method === 'oauth' || rblx.roblox_oauth_verified
-            ? `ID ${rblx.roblox_user_id} • OAuth 2.0 Oficial`
-            : `ID ${rblx.roblox_user_id} • Verificada con código de seguridad`;
+        const metodoTexto = rblx.auth_method === 'roblox_friendship'
+            ? `ID ${rblx.roblox_user_id} • Verificada por amistad con el Bot`
+            : `ID ${rblx.roblox_user_id} • Verificada y sincronizada (Discord ↔ Web)`;
         seeded.push({
             id: `seed_rblx_${rblx.roblox_user_id}`,
             timestamp: rblx.updated_at || new Date().toISOString(),
@@ -635,7 +666,7 @@ function obtenerHistorialCuenta(discordId) {
             timestamp: disc.verified_at || disc.updated_at || new Date().toISOString(),
             category: 'discord',
             title: `Sesión de Discord activa: @${disc.discord_username || 'Usuario'}`,
-            detail: 'Autorización OAuth 2.0 activa'
+            detail: 'Sincronización directa con /config activa'
         });
     }
     if (seeded.length > 0) {
@@ -655,10 +686,13 @@ async function migrarDatosDeSesion(fromDiscordId, toDiscordId) {
     if (!fromKey || !toKey || fromKey === toKey) return;
 
     // 1. Migrar cuenta de Roblox si toKey aún no tiene una
-    const fromRoblox = fastLinkCache.get(fromKey);
-    const toRoblox = fastLinkCache.get(toKey);
+    const fromRoblox = fastLinkCache.get(fromKey) || obtenerCuentaVinculadaSync(fromKey);
+    const toRoblox = fastLinkCache.get(toKey) || obtenerCuentaVinculadaSync(toKey);
     if (fromRoblox && fromRoblox.roblox_user_id && (!toRoblox || !toRoblox.roblox_user_id)) {
         await guardarCuentaVinculada(toKey, fromRoblox);
+    }
+    if (fromKey.startsWith('rblx_')) {
+        await eliminarCuentaVinculada(fromKey, 'roblox').catch(() => {});
     }
 
     // 2. Migrar historial de actividad combinándolo cronológicamente (solo eventos de cuentas activas)
@@ -1094,6 +1128,9 @@ function guardarConfigDiscord(discordId, partialConfig) {
 
     // Persistir de forma robusta en Supabase para que sobreviva actualizaciones del bot
     persistirConfigDiscordEnSupabase(key, updated).catch(() => {});
+    if (typeof supabase.notifyAccountMutation === 'function') {
+        supabase.notifyAccountMutation(key, 'discord_configs', 'UPSERT');
+    }
 
     for (const fn of accountChangeListeners) {
         try { fn(key, updated); } catch {}
@@ -1197,10 +1234,13 @@ async function guardarCuentaVinculada(discordId, profileData, { recordHistory = 
         guardarLinksEnDisco();
 
         if (recordHistory) {
+            const detailLabel = authMethod === 'roblox_friendship'
+                ? `ID ${fullRecord.roblox_user_id} • Verificada por amistad con el Bot`
+                : `ID ${fullRecord.roblox_user_id} • Verificada y sincronizada (Discord ↔ Web)`;
             registrarEventoHistorialCuenta(key, {
                 category: 'roblox',
-                title: `Cuenta de Roblox autorizada: @${fullRecord.roblox_username}`,
-                detail: `ID ${fullRecord.roblox_user_id} • Autorizada con Roblox OAuth 2.0 Oficial`
+                title: `Cuenta de Roblox vinculada: @${fullRecord.roblox_username}`,
+                detail: detailLabel
             });
         }
     }
@@ -1251,6 +1291,9 @@ async function eliminarCuentaVinculada(discordId, provider = 'roblox') {
         guardarConfigsDiscordEnDisco();
         persistirConfigDiscordEnSupabase(key, disconnected).catch(() => {});
         depurarHistorialSegunCuentasActivas(key);
+        if (typeof supabase.notifyAccountMutation === 'function') {
+            supabase.notifyAccountMutation(key, 'discord_configs', 'UPDATE');
+        }
         return true;
     }
 
@@ -1268,6 +1311,9 @@ async function eliminarCuentaVinculada(discordId, provider = 'roblox') {
         // Silencioso
     }
     depurarHistorialSegunCuentasActivas(key);
+    if (typeof supabase.notifyAccountMutation === 'function') {
+        supabase.notifyAccountMutation(key, 'user_links', 'DELETE');
+    }
     return true;
 }
 
@@ -1936,24 +1982,28 @@ function generarCodigoVinculacionDiscord(discordId, userMeta = null, { forceNew 
     if (!/^\d{15,22}$/.test(key)) return null;
 
     const now = Date.now();
+    const TTL_MS = 60 * 60 * 1000; // 60 minutos de vigencia para el enlace Panel Web y clave KTX-XXXXXX
     const existing = !forceNew ? obtenerVerificacionPendienteDiscord(key) : null;
     if (existing && now < existing.expiresAt && existing.code) {
+        if (existing.expiresAt - now < 30 * 60 * 1000) {
+            existing.expiresAt = now + TTL_MS;
+        }
         if (userMeta) {
             existing.userMeta = userMeta;
-            const uname = userMeta.globalName || userMeta.global_name || userMeta.username || null;
-            guardarConfigDiscord(key, {
-                ...(uname ? { discord_username: uname } : {}),
-                pending_web_code: existing.code,
-                pending_web_digits: existing.rawDigits,
-                pending_web_expires_at: existing.expiresAt
-            });
         }
+        const uname = userMeta?.globalName || userMeta?.global_name || userMeta?.username || null;
+        guardarConfigDiscord(key, {
+            ...(uname ? { discord_username: uname } : {}),
+            pending_web_code: existing.code,
+            pending_web_digits: existing.rawDigits,
+            pending_web_expires_at: existing.expiresAt
+        });
         return existing;
     }
 
     const rawDigits = String(Math.floor(100000 + Math.random() * 900000));
     const code = `KTX-${rawDigits}`;
-    const expiresAt = now + 10 * 60 * 1000; // Se actualiza automáticamente cada 10 minutos para máxima seguridad
+    const expiresAt = now + TTL_MS;
     const challenge = {
         discordId: key,
         code,
@@ -1969,7 +2019,7 @@ function generarCodigoVinculacionDiscord(discordId, userMeta = null, { forceNew 
     pendingDiscordVerifications.set(key, challenge);
 
     const uname = userMeta?.globalName || userMeta?.global_name || userMeta?.username || null;
-    // Persistir siempre el código alojado en /config en disco para que funcione al instante en la web sin enviar MDs
+    // Persistir siempre el código alojado en /config en disco y Supabase para sincronización inmediata en la Web
     guardarConfigDiscord(key, {
         ...(uname ? { discord_username: uname } : {}),
         pending_web_code: code,
@@ -1981,6 +2031,116 @@ function generarCodigoVinculacionDiscord(discordId, userMeta = null, { forceNew 
     return challenge;
 }
 
+function buscarDiscordIdPorCodigoWeb(rawCode) {
+    const upper = String(rawCode || '').trim().toUpperCase().replace(/\s+/g, '');
+    const digits = upper.replace(/[^0-9]/g, '');
+    if (!upper) return '';
+    const now = Date.now();
+
+    for (const [key, pending] of pendingDiscordVerifications.entries()) {
+        if (!pending || now > pending.expiresAt) continue;
+        if (String(pending.code || '').toUpperCase() === upper) return String(key);
+        if (digits.length === 6 && String(pending.rawDigits || '') === digits) return String(key);
+    }
+
+    for (const [key, cfg] of discordConfigCache.entries()) {
+        if (!cfg || !/^\d{15,22}$/.test(String(key))) continue;
+        if (cfg.pending_web_expires_at && now > Number(cfg.pending_web_expires_at)) continue;
+        if (cfg.pending_web_code && String(cfg.pending_web_code).toUpperCase() === upper) {
+            return String(key);
+        }
+        if (digits.length === 6 && cfg.pending_web_digits && String(cfg.pending_web_digits) === digits) {
+            return String(key);
+        }
+    }
+
+    const memConfigs = supabase.memoryTables?.discord_configs || [];
+    for (const row of memConfigs) {
+        if (!row || !row.discord_id || !/^\d{15,22}$/.test(String(row.discord_id))) continue;
+        if (row.pending_web_expires_at && now > Number(row.pending_web_expires_at)) continue;
+        if (row.pending_web_code && String(row.pending_web_code).toUpperCase() === upper) {
+            return String(row.discord_id);
+        }
+        if (digits.length === 6 && row.pending_web_digits && String(row.pending_web_digits) === digits) {
+            return String(row.discord_id);
+        }
+    }
+    return '';
+}
+
+async function buscarDiscordIdPorCodigoWebAsync(rawCode) {
+    const fromMem = buscarDiscordIdPorCodigoWeb(rawCode);
+    if (fromMem) return fromMem;
+
+    const upper = String(rawCode || '').trim().toUpperCase().replace(/\s+/g, '');
+    const digits = upper.replace(/[^0-9]/g, '');
+    if (!upper) return '';
+    const now = Date.now();
+    const formattedCode = digits.length === 6 ? `KTX-${digits}` : upper;
+
+    try {
+        const { data } = await supabase
+            .from('discord_configs')
+            .select('*')
+            .eq('pending_web_code', formattedCode)
+            .maybeSingle();
+        if (data && data.discord_id && (!data.pending_web_expires_at || now < Number(data.pending_web_expires_at))) {
+            const key = String(data.discord_id);
+            discordConfigCache.set(key, { ...(discordConfigCache.get(key) || {}), ...data, discord_id: key });
+            guardarConfigsDiscordEnDisco();
+            return key;
+        }
+    } catch {}
+
+    return '';
+}
+
+function buscarDiscordIdPorRobloxUserId(robloxUserId) {
+    const targetId = Number(robloxUserId || 0);
+    if (!targetId) return '';
+
+    for (const [key, link] of fastLinkCache.entries()) {
+        if (link && Number(link.roblox_user_id) === targetId && /^\d{15,22}$/.test(String(key))) {
+            return String(key);
+        }
+    }
+
+    const memLinks = supabase.memoryTables?.user_links || [];
+    for (const row of memLinks) {
+        if (row && Number(row.roblox_user_id) === targetId && /^\d{15,22}$/.test(String(row.discord_id || ''))) {
+            return String(row.discord_id);
+        }
+    }
+
+    return '';
+}
+
+async function buscarDiscordIdPorRobloxUserIdAsync(robloxUserId) {
+    const fromMem = buscarDiscordIdPorRobloxUserId(robloxUserId);
+    if (fromMem) return fromMem;
+
+    const targetId = Number(robloxUserId || 0);
+    if (!targetId) return '';
+
+    try {
+        const { data } = await supabase
+            .from('user_links')
+            .select('*')
+            .eq('roblox_user_id', targetId);
+        if (Array.isArray(data)) {
+            const match = data.find(row => row && /^\d{15,22}$/.test(String(row.discord_id || '')));
+            if (match) {
+                const dId = String(match.discord_id);
+                fastLinkCache.set(dId, { ...(fastLinkCache.get(dId) || {}), ...match, discord_id: dId });
+                guardarLinksEnDisco();
+                return dId;
+            }
+        }
+    } catch {}
+
+    return '';
+}
+
 function obtenerVerificacionPendienteDiscord(discordId) {
     const key = String(discordId || '').trim();
     const now = Date.now();
@@ -1989,7 +2149,6 @@ function obtenerVerificacionPendienteDiscord(discordId) {
         if (now > pending.expiresAt) {
             pendingDiscordVerifications.delete(key);
         } else {
-            // Sincronizar flag de aprobación desde disco por si se aprobó en otro proceso/instancia
             const savedCfg = obtenerConfigDiscord(key);
             if (savedCfg.web_approved_in_discord && savedCfg.web_approved_until && now < savedCfg.web_approved_until) {
                 pending.approvedInDiscord = true;
@@ -2066,20 +2225,48 @@ async function iniciarVerificacionDiscordWeb(discordIdInput, { client = null, re
         discordId: key,
         dmSent: false,
         hostedInConfig: true,
-        expiresInMinutes: 30,
+        expiresInMinutes: 60,
         message: '🔑 Código de verificación: escribí el comando /config en el bot de Discord, abrí "Cuentas y Datos Guardados" y copiá tu código KTX-XXXXXX alojado en el apartado 1. Cuenta de Discord.'
     };
 }
 
 /**
  * Confirma el acceso de Discord en la web usando el código `KTX-XXXXXX` alojado en `/config`:
- * - También mantiene compatibilidad si el usuario ya aprobó desde Discord.
- * - Conserva el código vigente durante su ventana de tiempo para no fallar si vuelve a consultar.
+ * - Permite verificar solo con el código `KTX-XXXXXX` incluso si no se ingresó el Discord ID.
+ * - Si el usuario había vinculado primero su cuenta de Roblox en la web (`rblx_<id>`), fusiona automáticamente
+ *   ese vínculo hacia su Discord ID real para que ambas cuentas queden conectadas y sincronizadas.
  */
-async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client = null, { isPoll = false } = {}) {
-    const key = String(discordIdInput || '').trim();
+async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client = null, { isPoll = false, previousSessionId = '' } = {}) {
+    const rawId = String(discordIdInput || '').trim();
+    const prevRblxSession = String(previousSessionId || (rawId.startsWith('rblx_') ? rawId : '')).trim();
+    const cleanInput = String(codeInput || '').trim().toUpperCase().replace(/\s+/g, '');
+
+    let key = /^\d{15,22}$/.test(rawId) ? rawId : '';
+    if (!key && cleanInput) {
+        key = await buscarDiscordIdPorCodigoWebAsync(cleanInput);
+    }
+
+    if (!key) {
+        return {
+            ok: false,
+            step: 'verify_required',
+            message: '🔑 Código no encontrado o expirado. Ejecutá el comando /config en Discord (apartado 1. Cuenta de Discord), copiá tu clave KTX-XXXXXX vigente y pegala acá.'
+        };
+    }
+
     const now = Date.now();
-    const pending = obtenerVerificacionPendienteDiscord(key);
+    let pending = obtenerVerificacionPendienteDiscord(key);
+    if (!pending) {
+        try {
+            const { data: remoteCfg } = await supabase.from('discord_configs').select('*').eq('discord_id', key).maybeSingle();
+            if (remoteCfg && remoteCfg.discord_id) {
+                discordConfigCache.set(key, { ...(discordConfigCache.get(key) || {}), ...remoteCfg, discord_id: key });
+                guardarConfigsDiscordEnDisco();
+                pending = obtenerVerificacionPendienteDiscord(key);
+            }
+        } catch {}
+    }
+
     const savedCfgDisk = obtenerConfigDiscord(key);
 
     const approvedViaDiscordButton =
@@ -2090,11 +2277,9 @@ async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client
         return {
             ok: false,
             step: 'verify_required',
-            message: '🔑 Para conectar tu ID, ejecutá el comando /config en Discord (apartado 1. Cuenta de Discord), copiá tu código KTX-XXXXXX alojado ahí y pegalo acá.'
+            message: '🔑 Para conectar tu cuenta, ejecutá el comando /config en Discord (apartado 1. Cuenta de Discord), copiá tu código KTX-XXXXXX alojado ahí y pegalo acá.'
         };
     }
-
-    const cleanInput = String(codeInput || '').trim().toUpperCase().replace(/\s+/g, '');
 
     if (isPoll && !approvedViaDiscordButton) {
         return {
@@ -2143,7 +2328,7 @@ async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client
         id: key,
         username: pending?.userMeta?.username || savedCfgDisk.discord_username || `Usuario_${String(key).slice(-4)}`,
         globalName: pending?.userMeta?.globalName || pending?.userMeta?.global_name || savedCfgDisk.discord_username || null,
-        avatar: pending?.userMeta?.avatar || null
+        avatar: pending?.userMeta?.avatar || savedCfgDisk.discord_avatar || null
     };
 
     if (client && typeof client.isReady === 'function' && client.isReady() && !pending?.userMeta?.id) {
@@ -2152,13 +2337,18 @@ async function confirmarVerificacionDiscordWeb(discordIdInput, codeInput, client
     }
 
     const savedCfg = await activarSesionDiscordDirecta(discordUserObj);
+    await persistirConfigDiscordEnSupabase(key, obtenerConfigDiscord(key)).catch(() => {});
+
+    if (prevRblxSession && prevRblxSession !== key) {
+        await migrarDatosDeSesion(prevRblxSession, key);
+    }
 
     return {
         ok: true,
         step: 'verified',
         discordId: key,
         discordConfig: savedCfg,
-        message: `✅ Identidad verificada con tu código de /config: Cuenta de Discord @${savedCfg?.discord_username || key} (ID ${key}) conectada.`
+        message: `✅ Identidad verificada con tu código de /config: Cuenta de Discord @${savedCfg?.discord_username || key} (ID ${key}) conectada y sincronizada.`
     };
 }
 
@@ -2305,7 +2495,7 @@ async function iniciarVerificacionCodigoRoblox(discordId, robloxInput, options =
             ok: false,
             reason: 'target_cooldown',
             step: 'cooldown',
-            message: `⏳ Ya hay una solicitud de verificación reciente en curso para @${resolved.roblox_username}. Por protección anti-spam, esperá unos minutos o iniciá sesión con Roblox OAuth 2.0.`
+            message: `⏳ Ya hay una solicitud de verificación reciente en curso para @${resolved.roblox_username}. Por protección anti-spam, esperá unos minutos o sincronizá desde /config o el Portal Web.`
         };
     }
 
@@ -2580,9 +2770,13 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
     const pendingRoblox = obtenerVerificacionPendienteRoblox(uid);
     const hist = obtenerHistorialCuenta(uid).slice(0, 3);
     const baseAppUrl = obtenerUrlBasePublica();
-    const backendApiUrl = obtenerUrlBackendApi();
-
-    const directRobloxOAuthUrl = `${backendApiUrl}/api/auth/roblox/redirect?discord_id=${encodeURIComponent(uid)}`;
+    const webChallenge = /^\d{15,22}$/.test(uid) ? generarCodigoVinculacionDiscord(uid) : null;
+    if (webChallenge) {
+        await persistirConfigDiscordEnSupabase(uid, obtenerConfigDiscord(uid)).catch(() => {});
+    }
+    const webPortalUrl = webChallenge?.code
+        ? `${baseAppUrl}?discord_id=${encodeURIComponent(uid)}&code=${encodeURIComponent(webChallenge.code)}#cuenta`
+        : `${baseAppUrl}#cuenta`;
 
     const tieneCuenta = Boolean(cuenta && cuenta.roblox_user_id);
 
@@ -2594,12 +2788,12 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
         ? (
             `# 🎮 Mi Cuenta de Roblox\n` +
             `👤 **Jugador:** **${cuenta.display_name || cuenta.roblox_username}** (\`@${cuenta.roblox_username}\` • ID \`${cuenta.roblox_user_id}\`)\n` +
-            `🟢 **Estado:** Cuenta verificada y activa`
+            `🟢 **Estado:** Cuenta verificada y sincronizada (Discord ↔ Web)`
         )
         : (
             `# 🎮 Vincular Cuenta de Roblox\n` +
             `⚪ **Estado:** Sin cuenta vinculada\n` +
-            `-# Conectá tu cuenta de Roblox con verificación de propiedad por **@Usuario / ID** o mediante **OAuth 2.0 Web**.`
+            `-# Conectá tu cuenta de Roblox con verificación de propiedad por **@Usuario / ID** o desde el **Portal Web Sincronizado**.`
         );
 
     const headerDisplay = new TextDisplayBuilder().setContent(
@@ -2664,15 +2858,15 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
     container.addSectionComponents(
         new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                `### 🔐 Opción 2: Permisos de la Aplicación y Portal Web\n` +
-                `En Roblox, donde está alojado el bot y sus permisos es en **Configuración → Permisos de la aplicación** (*Settings → App Permissions*).`
+                `### 🔐 Opción 2: Portal Web Sincronizado (Sin Contraseñas)\n` +
+                `Sincronizá tus cuentas entre \`/config\` y la Web sin ceder contraseñas ni tokens externos en **Permisos de la aplicación**.`
             ))
             .setButtonAccessory(
                 new ButtonBuilder()
                     .setLabel(tieneCuenta ? 'Abrir Panel Web' : 'Conectar en Web')
                     .setEmoji('🌐')
                     .setStyle(ButtonStyle.Link)
-                    .setURL(baseAppUrl)
+                    .setURL(webPortalUrl)
             )
     );
 
@@ -2696,7 +2890,8 @@ async function construirPanelVinculacionCuenta(discordId, feedbackMsg = null) {
                 .setLabel('Ver Perfil en Roblox')
                 .setEmoji('👤')
                 .setStyle(ButtonStyle.Link)
-                .setURL(`https://www.roblox.com/users/${cuenta.roblox_user_id}/profile`)
+                .setURL(`https://www.roblox.com/users/${cuenta.roblox_user_id}/profile`),
+            boton('btn_fastlink_unlink_roblox', 'Desvincular', '🔌', ButtonStyle.Danger)
         );
     }
 
@@ -3131,8 +3326,8 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
             ? (isEn ? '🟠 Active (Owner Only)' : '🟠 Activo (Solo Propietario)')
             : (isEn ? '🟢 Disabled' : '🟢 Desactivado');
         const fmtOAuth = ownerCfg.requireDiscordOAuth
-            ? (isEn ? '🟢 Web OAuth Required' : '🟢 Login Web Requerido')
-            : (isEn ? '🔓 Direct Save (No Web)' : '🔓 Guardado Directo (Sin Web)');
+            ? (isEn ? '🟢 Synced Session Required (/config or Web)' : '🟢 Sesión Sincronizada Requerida (/config o Web)')
+            : (isEn ? '🔓 Direct Save (No Session Check)' : '🔓 Guardado Directo (Sin Sesión)');
         const fmtLoading = ownerCfg.dynamicLoadingEnabled
             ? (isEn ? '🟡 Queue Notice on Heavy Traffic' : '🟡 Aviso solo si hay Cola Real')
             : (isEn ? '⚡ Direct 1-Step Reply (Zero Overhead)' : '⚡ Respuesta Directa en 1 Paso (Sin Sobrecarga)');
@@ -3258,11 +3453,11 @@ async function construirPanelConfigDiscord(discordUser, feedbackMsg = null, cate
                     .setEmoji('🎨'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel(isEn
-                        ? `Discord Web Login (${ownerCfg.requireDiscordOAuth ? 'Switch to Direct Save' : 'Require Web OAuth'})`
-                        : `Login Web Discord (${ownerCfg.requireDiscordOAuth ? 'Permitir Guardado Directo' : 'Exigir Login Web'})`)
+                        ? `Discord Session Requirement (${ownerCfg.requireDiscordOAuth ? 'Switch to Direct Save' : 'Require Session'})`
+                        : `Sesión Sincronizada Discord (${ownerCfg.requireDiscordOAuth ? 'Permitir Guardado Directo' : 'Exigir Sesión /config o Web'})`)
                     .setDescription(isEn
-                        ? 'Allow saving items directly by Discord ID or require web OAuth login'
-                        : 'Permitir guardar en Mi Lista/Parches sin ir a la web o exigir login OAuth')
+                        ? 'Allow saving items directly by Discord ID or require verified /config or Web session'
+                        : 'Permitir guardar en Mi Lista/Parches directamente o exigir sesión verificada en /config o Web')
                     .setValue('owner_toggle_discord_oauth')
                     .setEmoji('🔐'),
                 new StringSelectMenuOptionBuilder()
@@ -3639,6 +3834,10 @@ function construirPanelDesbloqueoRequerido({
 
     const uid = String(userId || '');
     const baseAppUrl = obtenerUrlBasePublica();
+    const unlockChallenge = /^\d{15,22}$/.test(uid) ? generarCodigoVinculacionDiscord(uid) : null;
+    const portalDeepLink = unlockChallenge?.code
+        ? `${baseAppUrl}?discord_id=${encodeURIComponent(uid)}&code=${encodeURIComponent(unlockChallenge.code)}#cuenta`
+        : `${baseAppUrl}#cuenta`;
 
     if (tipo === 'roblox') {
         const container = new ContainerBuilder()
@@ -3652,14 +3851,14 @@ function construirPanelDesbloqueoRequerido({
                 new SectionBuilder()
                     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                         `### 🎮 Vincular Cuenta de Roblox\n` +
-                        `Podés vincularla verificando tu propiedad por **@Usuario / ID** o desde el portal web.`
+                        `Podés vincularla verificando tu propiedad por **@Usuario / ID** o desde el portal web sincronizado.`
                     ))
                     .setButtonAccessory(
                         new ButtonBuilder()
                             .setLabel('Portal Web')
                             .setEmoji('🌐')
                             .setStyle(ButtonStyle.Link)
-                            .setURL(baseAppUrl)
+                            .setURL(portalDeepLink)
                     )
             )
             .addSeparatorComponents(separador(true))
@@ -3693,14 +3892,14 @@ function construirPanelDesbloqueoRequerido({
             new SectionBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                     `### 💬 Conectar Cuenta de Discord\n` +
-                    `Tocá **⚡ Activar Mi Cuenta Aquí (1 Clic)** abajo o conectala desde el portal web.`
+                    `Tocá **⚡ Activar Mi Cuenta Aquí (1 Clic)** abajo o sincronizala desde el portal web.`
                 ))
                 .setButtonAccessory(
                     new ButtonBuilder()
                         .setLabel('Portal Web')
                         .setEmoji('🔗')
                         .setStyle(ButtonStyle.Link)
-                        .setURL(baseAppUrl)
+                        .setURL(portalDeepLink)
                 )
         )
         .addSeparatorComponents(separador(true))
@@ -3843,6 +4042,10 @@ module.exports = {
     usuarioInteractuoConBot,
     verificarMiembroMutuoDiscord,
     generarCodigoVinculacionDiscord,
+    buscarDiscordIdPorCodigoWeb,
+    buscarDiscordIdPorCodigoWebAsync,
+    buscarDiscordIdPorRobloxUserId,
+    buscarDiscordIdPorRobloxUserIdAsync,
     obtenerVerificacionPendienteDiscord,
     iniciarVerificacionDiscordWeb,
     confirmarVerificacionDiscordWeb,

@@ -6,6 +6,7 @@ node_modules/
 .env.*
 !.env.example
 env.
+public/assets/aistudio/*env*
 
 # Logs, caché local y archivos del sistema
 *.log

@@ -1649,7 +1649,7 @@ function traducirTexto(text, lang = 'es') {
         .replace(/Editar Límites por Usuario \(([^)]+)\)/g, 'Edit User Limits ($1)')
         .replace(/Editar Intervalos de Escaneo \(([^)]+)\)/g, 'Edit Scan Intervals ($1)')
         .replace(/Login Web Discord \(Permitir Guardado Directo\)/g, 'Discord Web Login (Switch to Direct Save)')
-        .replace(/Login Web Discord \(Exigir Login Web\)/g, 'Discord Web Login (Require Web OAuth)')
+        .replace(/Login Web Discord \(Exigir Login Web\)/g, 'Discord Web Login (Require Synced Session)')
         .replace(/Pantalla de Carga por Filas \(Desactivar\)/g, 'Step-by-Step Loading Screen (Disable)')
         .replace(/Pantalla de Carga por Filas \(Activar\)/g, 'Step-by-Step Loading Screen (Enable)')
         .replace(/Suscribir Juego \(máx (\d+)\)/g, 'Subscribe Game (max $1)')

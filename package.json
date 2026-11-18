@@ -7,8 +7,10 @@
     "start": "node index.js",
     "deploy": "node index.js --deploy",
     "dev": "node index.js",
-    "build": "node -c index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:web-config": "node scripts/generate-supabase-config.js",
+    "build": "node --check index.js && node --check src/webServer.js && node --check db.js && node --check scripts/generate-supabase-config.js",
+    "lint": "node --check index.js && node --check src/webServer.js && node --check db.js && node --check scripts/generate-supabase-config.js",
+    "test": "node --test tests/tycoon_and_status.test.js"
   },
   "engines": {
     "node": ">=18.17.0"

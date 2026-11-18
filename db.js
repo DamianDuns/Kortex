@@ -7,10 +7,87 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const { EventEmitter } = require('events');
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+function normalizeEnvValue(val) {
+    if (!val) return '';
+    const trimmed = String(val).trim().replace(/^["']+|["']+$/g, '').trim();
+    if (!trimmed || /^(undefined|null|none|tu_.*_aqui|your_.*_here)$/i.test(trimmed)) {
+        return '';
+    }
+    return trimmed;
+}
+
+function decodeJwtPayloadSafe(token) {
+    if (!token || typeof token !== 'string') return null;
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    try {
+        const jsonStr = Buffer.from(parts[1], 'base64url').toString('utf8');
+        return JSON.parse(jsonStr);
+    } catch {
+        return null;
+    }
+}
+
+function isSecretServiceKey(key) {
+    const clean = normalizeEnvValue(key);
+    if (!clean) return false;
+    if (/^sb_secret_/i.test(clean)) return true;
+    const payload = decodeJwtPayloadSafe(clean);
+    if (payload && (payload.role === 'service_role' || payload.role === 'supabase_admin')) {
+        return true;
+    }
+    return false;
+}
+
+function resolveBackendSupabaseCredentials(env = process.env) {
+    const url = normalizeEnvValue(env.SUPABASE_URL);
+    // Priorizar SUPABASE_SERVICE_ROLE_KEY en servidor si existe; de lo contrario usar SUPABASE_KEY
+    const key = normalizeEnvValue(env.SUPABASE_SERVICE_ROLE_KEY)
+        || normalizeEnvValue(env.SUPABASE_KEY)
+        || normalizeEnvValue(env.SUPABASE_ANON_KEY);
+    return { supabaseUrl: url, supabaseKey: key };
+}
+
+function getPublicSupabaseBrowserConfig(env = process.env) {
+    const supabaseUrl = normalizeEnvValue(env.SUPABASE_URL).replace(/\/+$/, '');
+    const candidates = [
+        normalizeEnvValue(env.SUPABASE_ANON_KEY),
+        normalizeEnvValue(env.SUPABASE_PUBLIC_KEY),
+        normalizeEnvValue(env.SUPABASE_KEY)
+    ];
+    let supabaseKey = '';
+    for (const candidate of candidates) {
+        if (candidate && !isSecretServiceKey(candidate)) {
+            supabaseKey = candidate;
+            break;
+        }
+    }
+    const validUrl = /^https?:\/\/[^/\s]+/i.test(supabaseUrl);
+    return {
+        supabaseUrl: validUrl ? supabaseUrl : '',
+        supabaseKey: validUrl ? supabaseKey : '',
+        realtimeEnabled: Boolean(validUrl && supabaseKey)
+    };
+}
+
+const { supabaseUrl, supabaseKey } = resolveBackendSupabaseCredentials(process.env);
+const realtimeEvents = new EventEmitter();
+realtimeEvents.setMaxListeners(100);
+
+const USER_SCOPED_REALTIME_TABLES = new Set([
+    'discord_configs',
+    'user_links',
+    'roblox_wishlist',
+    'pending_robux',
+    'user_redeemed_codes',
+    'game_update_subscriptions',
+    'tycoon_profiles',
+    'account_history',
+    'kortex_realtime_signals'
+]);
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_SNAPSHOT_FILE = path.join(DATA_DIR, 'kortex_db_snapshot.json');
@@ -549,6 +626,7 @@ function createInMemoryQueryBuilder(tableName) {
                         return row;
                     });
                     guardarSnapshotEnDisco();
+                    emitTableMutationEvents(tableName, 'INSERT', inserted);
                     resultData = state.singleMode ? (inserted[0] || null) : inserted;
                     return Promise.resolve({ data: resultData, error: null, count: inserted.length }).then(resolve, reject);
                 }
@@ -594,6 +672,7 @@ function createInMemoryQueryBuilder(tableName) {
                         return row;
                     });
                     guardarSnapshotEnDisco();
+                    emitTableMutationEvents(tableName, 'UPSERT', upserted);
                     resultData = state.singleMode ? (upserted[0] || null) : upserted;
                     return Promise.resolve({ data: resultData, error: null, count: upserted.length }).then(resolve, reject);
                 }
@@ -605,6 +684,7 @@ function createInMemoryQueryBuilder(tableName) {
                         Object.assign(row, state.payload);
                     });
                     guardarSnapshotEnDisco();
+                    emitTableMutationEvents(tableName, 'UPDATE', matched);
                     resultData = state.singleMode ? (matched[0] || null) : matched;
                     return Promise.resolve({ data: resultData, error: null, count: matched.length }).then(resolve, reject);
                 }
@@ -613,6 +693,7 @@ function createInMemoryQueryBuilder(tableName) {
                     const toRemove = new Set(matched);
                     memoryTables[tableName] = table.filter(row => !toRemove.has(row));
                     guardarSnapshotEnDisco();
+                    emitTableMutationEvents(tableName, 'DELETE', matched);
                     return Promise.resolve({ data: matched, error: null, count: matched.length }).then(resolve, reject);
                 }
 
@@ -657,35 +738,31 @@ function createInMemoryQueryBuilder(tableName) {
     return builder;
 }
 
+function getPrimaryKeysForRow(tableName, item) {
+    if (!item || typeof item !== 'object') return null;
+    if (item.discord_id && item.code_id) return ['discord_id', 'code_id'];
+    if (item.item_id && item.buyer_id) return ['item_id', 'buyer_id'];
+    if (item.instance_id) return ['instance_id'];
+    if (item.trade_id) return ['trade_id'];
+    if (item.purchase_id) return ['purchase_id'];
+    if (item.user_id && tableName === 'tycoon_profiles') return ['user_id'];
+    if (item.item_id && tableName !== 'roblox_wishlist') return ['item_id'];
+    if (item.guild_id && tableName === 'guilds') return ['guild_id'];
+    if (item.discord_id && (tableName === 'discord_configs' || tableName === 'user_links' || tableName === 'account_history' || tableName === 'kortex_realtime_signals')) {
+        return ['discord_id'];
+    }
+    if (item.subcategory_key) return ['subcategory_key'];
+    if (item.id !== undefined) return ['id'];
+    return null;
+}
+
 function syncRowIntoMemoryTable(tableName, item) {
     if (!item || typeof item !== 'object') return;
     if (!Array.isArray(memoryTables[tableName])) {
         memoryTables[tableName] = [];
     }
     const table = memoryTables[tableName];
-    const keys = item.discord_id && item.code_id
-        ? ['discord_id', 'code_id']
-        : item.item_id && item.buyer_id
-            ? ['item_id', 'buyer_id']
-            : item.instance_id
-                ? ['instance_id']
-                : item.trade_id
-                    ? ['trade_id']
-                    : item.purchase_id
-                        ? ['purchase_id']
-                        : item.user_id && tableName === 'tycoon_profiles'
-                            ? ['user_id']
-                            : item.item_id
-                                ? ['item_id']
-                                : item.guild_id
-                                    ? ['guild_id']
-                                    : item.discord_id
-                                        ? ['discord_id']
-                                        : item.subcategory_key
-                                            ? ['subcategory_key']
-                                            : item.id !== undefined
-                                                ? ['id']
-                                                : null;
+    const keys = getPrimaryKeysForRow(tableName, item);
     if (keys && keys.length > 0) {
         const idx = table.findIndex(r => keys.every(k => r[k] !== undefined && String(r[k]) === String(item[k])));
         if (idx >= 0) {
@@ -694,6 +771,99 @@ function syncRowIntoMemoryTable(tableName, item) {
         }
     }
     table.push(item);
+}
+
+function deleteRowFromMemoryTable(tableName, oldRow) {
+    if (!oldRow || typeof oldRow !== 'object' || !Array.isArray(memoryTables[tableName])) return;
+    const keys = getPrimaryKeysForRow(tableName, oldRow);
+    if (!keys || keys.length === 0) return;
+    memoryTables[tableName] = memoryTables[tableName].filter(
+        r => !keys.every(k => r[k] !== undefined && oldRow[k] !== undefined && String(r[k]) === String(oldRow[k]))
+    );
+}
+
+let isApplyingRemoteRealtime = false;
+let activeRealtimeChannel = null;
+let realtimeSubscriptionStatus = 'IDLE';
+
+function extractDiscordIdFromRow(row) {
+    if (!row || typeof row !== 'object') return '';
+    const candidate = row.discord_id || row.user_id || '';
+    return String(candidate || '').trim();
+}
+
+function notifyAccountMutation(discordId, tableName = 'manual_sync', eventType = 'UPDATE', source = 'local') {
+    const cleanId = String(discordId || '').trim();
+    if (!cleanId || cleanId === 'default_session') return;
+    const payload = {
+        discordId: cleanId,
+        table: tableName,
+        eventType,
+        source,
+        updatedAt: new Date().toISOString()
+    };
+    realtimeEvents.emit('account_sync', payload);
+
+    if (source === 'local' && activeRealtimeChannel && realtimeSubscriptionStatus === 'SUBSCRIBED') {
+        try {
+            Promise.resolve(
+                activeRealtimeChannel.send({
+                    type: 'broadcast',
+                    event: 'account_sync',
+                    payload
+                })
+            ).catch(() => {});
+        } catch {
+            // Silencioso si el socket está reconectando
+        }
+    }
+}
+
+function emitTableMutationEvents(tableName, eventType, rows) {
+    if (isApplyingRemoteRealtime) return;
+    if (!USER_SCOPED_REALTIME_TABLES.has(tableName)) return;
+    const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+    const notifiedIds = new Set();
+    for (const row of list) {
+        const uid = extractDiscordIdFromRow(row);
+        if (uid && !notifiedIds.has(uid)) {
+            notifiedIds.add(uid);
+            notifyAccountMutation(uid, tableName, eventType, 'local');
+        }
+    }
+}
+
+function applyRemoteRealtimePayload(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    const tableName = String(payload.table || '').trim();
+    const eventType = String(payload.eventType || 'UPDATE').toUpperCase();
+    const newRow = payload.new && typeof payload.new === 'object' ? payload.new : null;
+    const oldRow = payload.old && typeof payload.old === 'object' ? payload.old : null;
+    if (!tableName) return;
+
+    isApplyingRemoteRealtime = true;
+    try {
+        if (eventType === 'DELETE') {
+            deleteRowFromMemoryTable(tableName, oldRow);
+        } else if (newRow && Object.keys(newRow).length > 0) {
+            syncRowIntoMemoryTable(tableName, newRow);
+        }
+        guardarSnapshotEnDisco();
+    } finally {
+        isApplyingRemoteRealtime = false;
+    }
+
+    const discordId = extractDiscordIdFromRow(newRow) || extractDiscordIdFromRow(oldRow);
+    realtimeEvents.emit('remote_table_change', {
+        table: tableName,
+        eventType,
+        discordId,
+        newRow,
+        oldRow
+    });
+    if (discordId) {
+        notifyAccountMutation(discordId, tableName, eventType, 'remote');
+    }
 }
 
 /**
@@ -776,22 +946,107 @@ function createResilientHybridBuilder(tableName, realClient) {
     return proxy;
 }
 
+function createSupabaseClientFromCredentials(url, key) {
+    return createClient(url, key, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false
+        },
+        realtime: {
+            params: {
+                eventsPerSecond: 10
+            }
+        }
+    });
+}
+
 let realSupabase = null;
 if (supabaseUrl && supabaseKey) {
     try {
-        realSupabase = createClient(supabaseUrl, supabaseKey);
+        realSupabase = createSupabaseClientFromCredentials(supabaseUrl, supabaseKey);
     } catch (err) {
         console.warn('[WARN] No se pudo inicializar el cliente de Supabase, activando persistencia local:', err.message);
     }
 } else {
-    console.warn('[WARN] Credenciales de Supabase no detectadas en .env — ejecutando con persistencia local en disco y memoria.');
+    console.warn('[WARN] Credenciales de Supabase (SUPABASE_URL / SUPABASE_KEY) no detectadas en .env — ejecutando con persistencia local en disco y memoria.');
+}
+
+function startRealtimeSync(clientOverride = null) {
+    const client = clientOverride || realSupabase;
+    if (!client || typeof client.channel !== 'function') {
+        return null;
+    }
+    if (activeRealtimeChannel) {
+        return activeRealtimeChannel;
+    }
+
+    const watchedTables = [
+        'discord_configs',
+        'user_links',
+        'roblox_wishlist',
+        'pending_robux',
+        'tycoon_profiles',
+        'account_history',
+        'kortex_realtime_signals'
+    ];
+
+    let channel = client.channel('kortex-realtime-sync');
+    for (const tableName of watchedTables) {
+        channel = channel.on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: tableName },
+            (payload) => applyRemoteRealtimePayload(payload)
+        );
+    }
+
+    channel = channel.on('broadcast', { event: 'account_sync' }, (envelope) => {
+        const p = envelope?.payload || envelope;
+        if (p?.discordId) {
+            notifyAccountMutation(p.discordId, p.table || 'broadcast', p.eventType || 'SYNC', 'remote_broadcast');
+        }
+    });
+
+    channel.subscribe((status) => {
+        realtimeSubscriptionStatus = String(status || 'UNKNOWN');
+        realtimeEvents.emit('realtime_status', realtimeSubscriptionStatus);
+    });
+
+    activeRealtimeChannel = channel;
+    return channel;
+}
+
+async function stopRealtimeSync() {
+    const ch = activeRealtimeChannel;
+    activeRealtimeChannel = null;
+    realtimeSubscriptionStatus = 'CLOSED';
+    if (!ch) return;
+    try {
+        if (realSupabase && typeof realSupabase.removeChannel === 'function') {
+            await realSupabase.removeChannel(ch);
+        } else if (typeof ch.unsubscribe === 'function') {
+            await ch.unsubscribe();
+        }
+    } catch {
+        // Silencioso al cerrar canal
+    }
 }
 
 const supabase = {
     isMemoryFallback: !realSupabase,
     realClient: realSupabase,
+    supabaseUrl,
     memoryTables,
+    events: realtimeEvents,
     guardarSnapshotEnDisco,
+    isSecretServiceKey,
+    resolveBackendSupabaseCredentials,
+    getPublicSupabaseBrowserConfig,
+    createSupabaseClientFromCredentials,
+    notifyAccountMutation,
+    applyRemoteRealtimePayload,
+    startRealtimeSync,
+    stopRealtimeSync,
+    getRealtimeStatus: () => realtimeSubscriptionStatus,
     from(tableName) {
         return createResilientHybridBuilder(tableName, realSupabase);
     },

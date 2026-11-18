@@ -5,7 +5,7 @@
 const { Events } = require('discord.js');
 const supabase = require('../db');
 const { iniciarMonitoreo } = require('../services/priceTracker');
-const { aplicarPresenciaBotDiscord } = require('../src/utils/performanceManager');
+const { aplicarPresenciaBotDiscord, obtenerConfigPropietario } = require('../src/utils/performanceManager');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -37,8 +37,9 @@ module.exports = {
             }
         }
 
-        const intervaloMinutos = Number(process.env.PRICE_CHECK_INTERVAL_MINUTES) > 0
-            ? Number(process.env.PRICE_CHECK_INTERVAL_MINUTES)
+        const ownerCfg = obtenerConfigPropietario();
+        const intervaloMinutos = Number(ownerCfg?.priceCheckIntervalMinutes) > 0
+            ? Number(ownerCfg.priceCheckIntervalMinutes)
             : 5;
 
         logger.imprimirPanelOnline({

@@ -467,7 +467,7 @@ test('OAuth2 URL normalization and direct in-Discord account linking work withou
     assert.equal(cfgJson.includes('btn_config_unlink_roblox'), false);
     assert.ok(cfgJson.includes('btn_config_direct_discord'), '/config section 1 must have interactive Discord button');
     assert.ok(cfgJson.includes('btn_fastlink_open_modal'), '/config section 2 must have interactive Roblox modal button');
-    assert.ok(cfgJson.includes('Permisos de la aplicación'), '/config must specify Configuración -> Permisos de la aplicación');
+    assert.ok(cfgJson.includes('Datos Guardados'), '/config must display saved data summary');
     assert.ok(cfgJson.includes('KTX-'), '/config must host the user KTX-XXXXXX verification code');
     assert.equal(cfgJson.includes('Robux Pendientes'), false);
     assert.equal(cfgJson.includes('dmpwse4jqkfkz4vfkzt6pu'), false);
@@ -561,7 +561,7 @@ test('/config User Comfort Preferences, 4 Regional Pricing Tiers (100/80/60/40%)
     assert.ok(prefJson.includes('Tier 80%'));
     assert.ok(prefJson.includes('Tier 60%'));
     assert.ok(prefJson.includes('Tier 40%'));
-    assert.ok(prefJson.includes('select_pref_comfort'));
+    assert.ok(prefJson.includes('btn_pref_lang:'));
     assert.ok(prefJson.includes('btn_pref_toggle_alerts'));
     assert.ok(prefJson.includes('btn_pref_toggle_ephemeral'));
     assert.ok(prefJson.includes('select_pref_prefix'));
@@ -619,7 +619,7 @@ test('Direct linking by ID/Username requires mandatory 2-step ownership verifica
     } = require('../src/utils/fastLink');
 
     // 1. Unknown Discord ID with zero bot interaction and no mutual guild is rejected without spamming strangers
-    const unknownDiscordId = '888888888888888888';
+    const unknownDiscordId = `98${String(Date.now()).slice(-10)}${Math.floor(100000 + Math.random() * 899999)}`;
     const strangerAttempt = await iniciarVerificacionDiscordWeb(unknownDiscordId, {
         client: null,
         requesterIp: '10.0.0.10'
@@ -933,3 +933,433 @@ test('Kortex Tycoon Economy v2: Key Fragments, Master Keys, Forge Critical Press
     assert.ok(weeklyFullRes.totalCrystalsEarned >= 30);
     assert.equal(weeklyFullRes.state.profile.master_keys, 1);
 });
+
+test('Kortex HTTP Web Server serves official documentation, SVG previews, health check, and local RPC session sync', async () => {
+    const { createKortexHttpServer } = require('../src/webServer');
+    const { generarCodigoVinculacionDiscord } = require('../src/utils/fastLink');
+
+    const server = createKortexHttpServer({ client: null });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const base = `http://127.0.0.1:${port}`;
+
+    try {
+        const homeRes = await fetch(`${base}/`);
+        assert.equal(homeRes.status, 200);
+        const homeHtml = await homeRes.text();
+        assert.ok(homeHtml.includes('Kortex — Documentación Oficial del Bot'));
+
+        const svgRes = await fetch(`${base}/assets/preview-tycoon-studio.svg`);
+        assert.equal(svgRes.status, 200);
+        assert.match(svgRes.headers.get('content-type') || '', /image\/svg\+xml/);
+
+        const healthRes = await fetch(`${base}/api/health`);
+        assert.equal(healthRes.status, 200);
+        const healthJson = await healthRes.json();
+        assert.equal(healthJson.ok, true);
+        assert.equal(healthJson.service, 'kortex');
+
+        const webTestId = '717171717171717171';
+        const challenge = generarCodigoVinculacionDiscord(webTestId, { username: 'web_rpc_tester' }, { forceNew: true });
+
+        const rpcVerifyRes = await fetch(`${base}/api/rpc/kortex_web_verify_discord`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_discord_id: '', p_code: challenge.code })
+        });
+        assert.equal(rpcVerifyRes.status, 200);
+        const rpcVerifyJson = await rpcVerifyRes.json();
+        assert.equal(rpcVerifyJson.ok, true);
+        assert.equal(rpcVerifyJson.discordId, webTestId);
+        assert.equal(rpcVerifyJson.hasActiveAccount, true);
+
+        const blockedEnvRes = await fetch(`${base}/assets/aistudio/env_fe61f596.txt`);
+        assert.equal(blockedEnvRes.status, 404);
+
+        const envExampleRaw = fs.readFileSync(path.join(__dirname, '..', '.env.example'), 'utf8');
+        assert.equal(envExampleRaw.includes('PRICE_CHECK_INTERVAL_MINUTES'), false);
+        assert.equal(envExampleRaw.includes('PUBLIC_URL'), false);
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('Bot <-> Web Synchronization v2 merges rblx_ web sessions into Discord KTX-XXXXXX, handles Roblox unlink in /roblox, and aligns docs + Supabase RPCs without OAuth 2.0', async () => {
+    const { createKortexHttpServer } = require('../src/webServer');
+    const {
+        generarCodigoVinculacionDiscord,
+        construirPanelVinculacionCuenta,
+        obtenerCuentaVinculada
+    } = require('../src/utils/fastLink');
+    const routerInteracciones = require('../interactions/index');
+
+    const server = createKortexHttpServer({ client: null });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const base = `http://127.0.0.1:${port}`;
+
+    try {
+        // 1. User connects Roblox first on the Web (creating temporary rblx_778899 session)
+        const tempRblxSession = 'rblx_778899';
+        const rblxLinkRes = await fetch(`${base}/api/rpc/kortex_web_link_roblox`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                p_discord_id: tempRblxSession,
+                p_roblox_user_id: 778899,
+                p_roblox_username: 'KortexBuilder',
+                p_display_name: 'Kortex Builder',
+                p_avatar_url: 'https://tr.rbxcdn.com/example.png',
+                p_auth_method: 'bio_code'
+            })
+        });
+        assert.equal(rblxLinkRes.status, 200);
+        const rblxLinkJson = await rblxLinkRes.json();
+        assert.equal(rblxLinkJson.ok, true);
+        assert.equal(rblxLinkJson.linkedAccount.roblox_username, 'KortexBuilder');
+
+        // 2. User generates KTX-XXXXXX in /config and verifies on the Web while holding rblx_778899 cookie
+        const realDiscordId = '727272727272727272';
+        const ktx = generarCodigoVinculacionDiscord(realDiscordId, { username: 'fusion_tester' }, { forceNew: true });
+        assert.ok(ktx.expiresAt - Date.now() > 50 * 60 * 1000, 'KTX-XXXXXX TTL should be 60 minutes');
+
+        const verifyFusionRes = await fetch(`${base}/api/rpc/kortex_web_verify_discord`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                p_discord_id: tempRblxSession,
+                p_code: ktx.code
+            })
+        });
+        assert.equal(verifyFusionRes.status, 200);
+        const verifyFusionJson = await verifyFusionRes.json();
+        assert.equal(verifyFusionJson.ok, true);
+        assert.equal(verifyFusionJson.discordId, realDiscordId, 'Must resolve real Discord ID from KTX code even when p_discord_id is rblx_*');
+        assert.equal(verifyFusionJson.discordConfig.oauth_verified, true);
+        assert.ok(verifyFusionJson.linkedAccount, 'Roblox link must automatically merge into the real Discord ID');
+        assert.equal(String(verifyFusionJson.linkedAccount.roblox_user_id), '778899');
+        assert.equal(await obtenerCuentaVinculada(tempRblxSession), null, 'Temporary rblx_* record must be cleaned up after merge');
+
+        // 3. /roblox account panel includes deep-link ?discord_id=...&code=KTX-...#cuenta and btn_fastlink_unlink_roblox (no dead /api/auth/roblox/redirect)
+        const linkedPanel = await construirPanelVinculacionCuenta(realDiscordId);
+        const linkedPanelStr = JSON.stringify(linkedPanel.components[0].toJSON());
+        assert.ok(linkedPanelStr.includes('btn_fastlink_unlink_roblox'), 'Linked /roblox panel must expose btn_fastlink_unlink_roblox');
+        assert.ok(linkedPanelStr.includes(`discord_id=${realDiscordId}`), 'Web link button must carry discord_id parameter');
+        assert.ok(linkedPanelStr.includes('code=KTX-'), 'Web link button must carry KTX code parameter');
+        assert.equal(linkedPanelStr.includes('/api/auth/roblox/redirect'), false, 'Must not contain dead OAuth redirect route');
+        assert.equal(linkedPanelStr.includes('OAuth 2.0'), false, 'Must not contain stale OAuth 2.0 label');
+
+        // 4. Clicking btn_fastlink_unlink_roblox in Discord unlinks Roblox cleanly
+        let unlinkUpdatedPayload = null;
+        await routerInteracciones({
+            customId: 'btn_fastlink_unlink_roblox',
+            user: { id: realDiscordId, username: 'fusion_tester' },
+            isButton: () => true,
+            isStringSelectMenu: () => false,
+            isChannelSelectMenu: () => false,
+            isModalSubmit: () => false,
+            replied: false,
+            deferred: false,
+            deferUpdate: async () => {},
+            editReply: async (payload) => {
+                unlinkUpdatedPayload = payload;
+                return payload;
+            }
+        });
+        assert.ok(unlinkUpdatedPayload, 'btn_fastlink_unlink_roblox must update the /roblox panel');
+        assert.equal(await obtenerCuentaVinculada(realDiscordId), null, 'Roblox account must be unlinked after clicking btn_fastlink_unlink_roblox');
+
+        // 5. Web disconnect RPC for Discord works cleanly
+        const discUnlinkRes = await fetch(`${base}/api/rpc/kortex_web_disconnect_account`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_discord_id: realDiscordId, p_provider: 'discord' })
+        });
+        const discUnlinkJson = await discUnlinkRes.json();
+        assert.equal(discUnlinkJson.ok, true);
+        assert.equal(discUnlinkJson.hasActiveAccount, false);
+
+        // 6. Reverse unification: logging in via Roblox when that Roblox account is ALREADY linked to a Discord ID restores BOTH accounts automatically
+        const reverseDiscordId = '737373737373737373';
+        const oauthSyncRes = await fetch(`${base}/api/rpc/kortex_web_sync_discord_oauth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                p_discord_id: reverseDiscordId,
+                p_username: 'DarcyUnified',
+                p_avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png',
+                p_previous_session_id: ''
+            })
+        });
+        const oauthSyncJson = await oauthSyncRes.json();
+        assert.equal(oauthSyncJson.ok, true);
+        assert.equal(oauthSyncJson.discordConfig.oauth_verified, true);
+        assert.equal(oauthSyncJson.discordConfig.discord_username, 'DarcyUnified');
+
+        await fetch(`${base}/api/rpc/kortex_web_link_roblox`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                p_discord_id: reverseDiscordId,
+                p_roblox_user_id: 889900,
+                p_roblox_username: 'RobloxCompanion',
+                p_display_name: 'Roblox Companion',
+                p_avatar_url: 'https://tr.rbxcdn.com/companion.png',
+                p_auth_method: 'bio_verified'
+            })
+        });
+
+        // Now simulate a fresh browser signing in ONLY with Roblox (p_discord_id = '')
+        const reverseLoginRes = await fetch(`${base}/api/rpc/kortex_web_link_roblox`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                p_discord_id: '',
+                p_roblox_user_id: 889900,
+                p_roblox_username: 'RobloxCompanion',
+                p_display_name: 'Roblox Companion',
+                p_avatar_url: 'https://tr.rbxcdn.com/companion.png',
+                p_auth_method: 'bio_verified'
+            })
+        });
+        const reverseLoginJson = await reverseLoginRes.json();
+        assert.equal(reverseLoginJson.ok, true);
+        assert.equal(reverseLoginJson.discordId, reverseDiscordId, 'Roblox login must automatically resolve its linked Discord ID instead of creating an orphan rblx_* session');
+        assert.equal(reverseLoginJson.discordConfig.discord_username, 'DarcyUnified');
+        assert.equal(String(reverseLoginJson.linkedAccount.roblox_user_id), '889900');
+
+        // Cleanup test accounts from local backup
+        await fetch(`${base}/api/rpc/kortex_web_disconnect_account`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_discord_id: reverseDiscordId, p_provider: 'all' })
+        });
+
+        // 7. Verify docs HTML files and supabase_migration.sql contracts
+        const rootDir = path.join(__dirname, '..');
+        const indexHtml = fs.readFileSync(path.join(rootDir, 'docs', 'index.html'), 'utf8');
+        const privacyHtml = fs.readFileSync(path.join(rootDir, 'docs', 'privacy.html'), 'utf8');
+        const termsHtml = fs.readFileSync(path.join(rootDir, 'docs', 'terms.html'), 'utf8');
+        const migrationSql = fs.readFileSync(path.join(rootDir, 'supabase_migration.sql'), 'utf8');
+
+        assert.ok(indexHtml.includes('id="sincronizacion"'), 'docs/index.html must include #sincronizacion section');
+        assert.ok(indexHtml.includes('id="auth-logged-out-view"'), 'docs/index.html must include clean #auth-logged-out-view');
+        assert.ok(indexHtml.includes('id="auth-unified-profile-view"'), 'docs/index.html must include #auth-unified-profile-view');
+        assert.ok(indexHtml.includes('id="remembered-profile-card"'), 'docs/index.html must include 1-click #remembered-profile-card');
+        assert.ok(indexHtml.includes('id="top-invite-bot-btn"'), 'docs/index.html must include topbar Invite Bot button');
+        assert.ok(indexHtml.includes('id="hero-invite-bot-btn"'), 'docs/index.html must include hero Invite Bot button');
+        assert.ok(indexHtml.includes('https://discord.com/oauth2/authorize?client_id='), 'docs/index.html must include official Discord bot invite URL');
+        assert.equal(/OAuth\s*2\.0/i.test(privacyHtml), false, 'docs/privacy.html must not contain stale OAuth 2.0 references');
+        assert.equal(/OAuth\s*2\.0/i.test(termsHtml), false, 'docs/terms.html must not contain stale OAuth 2.0 references');
+
+        for (const fnName of [
+            'kortex_web_get_account_status',
+            'kortex_web_verify_discord',
+            'kortex_web_link_roblox',
+            'kortex_web_sync_discord_oauth',
+            'kortex_web_disconnect_account'
+        ]) {
+            assert.ok(migrationSql.includes(fnName), `supabase_migration.sql must define ${fnName}`);
+        }
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
+test('Supabase client uses SUPABASE_URL & SUPABASE_KEY, blocks service_role leaks, and synchronizes in real time (Realtime + SSE + GitHub Pages)', async () => {
+    const http = require('node:http');
+    const { createKortexHttpServer } = require('../src/webServer');
+    const {
+        obtenerConfigDiscord,
+        obtenerCuentaVinculadaSync,
+        guardarConfigDiscord,
+        eliminarCuentaVinculada
+    } = require('../src/utils/fastLink');
+
+    // 1. Verify SUPABASE_URL and SUPABASE_KEY resolution & secret key protection
+    const fakeAnonPayload = Buffer.from(JSON.stringify({ role: 'anon', iss: 'supabase' })).toString('base64url');
+    const fakeAnonJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${fakeAnonPayload}.signature`;
+    const fakeServicePayload = Buffer.from(JSON.stringify({ role: 'service_role', iss: 'supabase' })).toString('base64url');
+    const fakeServiceJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${fakeServicePayload}.signature`;
+
+    const backendCreds = supabase.resolveBackendSupabaseCredentials({
+        SUPABASE_URL: 'https://demo-project.supabase.co',
+        SUPABASE_KEY: fakeAnonJwt
+    });
+    assert.equal(backendCreds.supabaseUrl, 'https://demo-project.supabase.co');
+    assert.equal(backendCreds.supabaseKey, fakeAnonJwt);
+
+    const browserCfgValid = supabase.getPublicSupabaseBrowserConfig({
+        SUPABASE_URL: 'https://demo-project.supabase.co/',
+        SUPABASE_KEY: fakeAnonJwt
+    });
+    assert.equal(browserCfgValid.supabaseUrl, 'https://demo-project.supabase.co');
+    assert.equal(browserCfgValid.supabaseKey, fakeAnonJwt);
+    assert.equal(browserCfgValid.realtimeEnabled, true);
+
+    const browserCfgBlockedJwt = supabase.getPublicSupabaseBrowserConfig({
+        SUPABASE_URL: 'https://demo-project.supabase.co',
+        SUPABASE_KEY: fakeServiceJwt
+    });
+    assert.equal(browserCfgBlockedJwt.supabaseKey, '', 'service_role JWT must never be exposed to public browser config');
+    assert.equal(browserCfgBlockedJwt.realtimeEnabled, false);
+
+    const browserCfgBlockedSecret = supabase.getPublicSupabaseBrowserConfig({
+        SUPABASE_URL: 'https://demo-project.supabase.co',
+        SUPABASE_KEY: 'sb_secret_1234567890'
+    });
+    assert.equal(browserCfgBlockedSecret.supabaseKey, '', 'sb_secret_ key must never be exposed to public browser config');
+
+    // 2. Verify startRealtimeSync registers postgres_changes + broadcast and applyRemoteRealtimePayload updates caches instantaneously
+    const registeredTables = [];
+    let broadcastHandler = null;
+    const mockChannel = {
+        on(type, filter, cb) {
+            if (type === 'postgres_changes' && filter?.table) {
+                registeredTables.push(filter.table);
+            }
+            if (type === 'broadcast' && filter?.event === 'account_sync') {
+                broadcastHandler = cb;
+            }
+            return mockChannel;
+        },
+        subscribe(cb) {
+            if (cb) cb('SUBSCRIBED');
+            return mockChannel;
+        },
+        unsubscribe: async () => {}
+    };
+    const mockClient = {
+        channel: () => mockChannel
+    };
+
+    await supabase.stopRealtimeSync();
+    supabase.startRealtimeSync(mockClient);
+    assert.ok(registeredTables.includes('kortex_realtime_signals'));
+    assert.ok(registeredTables.includes('discord_configs'));
+    assert.ok(registeredTables.includes('user_links'));
+    assert.ok(registeredTables.includes('tycoon_profiles'));
+    assert.equal(typeof broadcastHandler, 'function');
+    assert.equal(supabase.getRealtimeStatus(), 'SUBSCRIBED');
+
+    const rtDiscordId = '919191919191919191';
+    supabase.applyRemoteRealtimePayload({
+        table: 'discord_configs',
+        eventType: 'INSERT',
+        new: {
+            discord_id: rtDiscordId,
+            discord_username: 'RealtimeHero',
+            oauth_verified: true,
+            custom_prefix: '?'
+        }
+    });
+    supabase.applyRemoteRealtimePayload({
+        table: 'user_links',
+        eventType: 'INSERT',
+        new: {
+            discord_id: rtDiscordId,
+            roblox_user_id: 777123,
+            roblox_username: 'RealtimeBlox',
+            display_name: 'Realtime Blox',
+            auth_method: 'bio_verified'
+        }
+    });
+
+    const syncedCfg = obtenerConfigDiscord(rtDiscordId);
+    const syncedLink = obtenerCuentaVinculadaSync(rtDiscordId);
+    assert.equal(syncedCfg.discord_username, 'RealtimeHero');
+    assert.equal(syncedCfg.custom_prefix, '?');
+    assert.equal(Number(syncedLink?.roblox_user_id), 777123);
+    assert.equal(syncedLink?.roblox_username, 'RealtimeBlox');
+
+    await supabase.stopRealtimeSync();
+
+    // 3. Verify live SSE /api/realtime/events, /supabase-config.js, and /vendor/supabase.js on HTTP server
+    const prevUrl = process.env.SUPABASE_URL;
+    const prevKey = process.env.SUPABASE_KEY;
+    process.env.SUPABASE_URL = 'https://demo-project.supabase.co';
+    process.env.SUPABASE_KEY = fakeAnonJwt;
+
+    const server = createKortexHttpServer({ client: null });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+    const base = `http://127.0.0.1:${port}`;
+
+    try {
+        const cfgJsRes = await fetch(`${base}/supabase-config.js`);
+        assert.equal(cfgJsRes.status, 200);
+        const cfgJsText = await cfgJsRes.text();
+        assert.ok(cfgJsText.includes('https://demo-project.supabase.co'));
+        assert.ok(cfgJsText.includes(fakeAnonJwt));
+
+        const umdRes = await fetch(`${base}/vendor/supabase.js`);
+        assert.equal(umdRes.status, 200);
+        const umdText = await umdRes.text();
+        assert.ok(umdText.includes('createClient'), '/vendor/supabase.js must serve @supabase/supabase-js UMD bundle');
+
+        // Open real SSE connection and verify server-side account update streams in real time
+        const receivedEvent = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('SSE account_sync timeout')), 4000);
+            const req = http.get(`${base}/api/realtime/events?discord_id=${rtDiscordId}`, (res) => {
+                let buffer = '';
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    buffer += chunk;
+                    if (buffer.includes('event: connected') && !buffer.includes('event: account_sync')) {
+                        // Trigger live backend mutation once SSE stream is connected
+                        guardarConfigDiscord(rtDiscordId, { discord_username: 'LiveStreamUpdated' });
+                    }
+                    const match = buffer.match(/event:\s*account_sync\s*\ndata:\s*(\{[^\n]+\})/);
+                    if (match) {
+                        clearTimeout(timeout);
+                        req.destroy();
+                        resolve(JSON.parse(match[1]));
+                    }
+                });
+            });
+            req.on('error', (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            });
+        });
+
+        assert.equal(receivedEvent.discordId, rtDiscordId);
+        assert.equal(obtenerConfigDiscord(rtDiscordId).discord_username, 'LiveStreamUpdated');
+
+        // Cleanup test user
+        await eliminarCuentaVinculada(rtDiscordId, 'discord');
+        await eliminarCuentaVinculada(rtDiscordId, 'roblox');
+    } finally {
+        if (prevUrl === undefined) delete process.env.SUPABASE_URL;
+        else process.env.SUPABASE_URL = prevUrl;
+        if (prevKey === undefined) delete process.env.SUPABASE_KEY;
+        else process.env.SUPABASE_KEY = prevKey;
+        await new Promise((resolve) => server.close(resolve));
+    }
+
+    // 4. Verify GitHub repository files have zero hardcoded credentials and full Realtime publication SQL
+    const rootDir = path.join(__dirname, '..');
+    const indexHtml = fs.readFileSync(path.join(rootDir, 'docs', 'index.html'), 'utf8');
+    const workflowYml = fs.readFileSync(path.join(rootDir, '.github', 'workflows', 'deploy-pages.yml'), 'utf8');
+    const envExample = fs.readFileSync(path.join(rootDir, '.env.example'), 'utf8');
+    const migrationSql = fs.readFileSync(path.join(rootDir, 'supabase_migration.sql'), 'utf8');
+
+    assert.equal(indexHtml.includes('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'), false, 'docs/index.html must not contain hardcoded Supabase JWT');
+    assert.equal(indexHtml.includes('gpgxlasblqxyyynapwow.supabase.co'), false, 'docs/index.html must not hardcode a specific Supabase URL');
+    assert.ok(indexHtml.includes('./supabase-config.js'), 'docs/index.html must load ./supabase-config.js');
+    assert.ok(indexHtml.includes('kortex_realtime_signals'), 'docs/index.html must subscribe to kortex_realtime_signals');
+
+    assert.ok(workflowYml.includes('SUPABASE_URL'), 'GitHub Pages workflow must inject SUPABASE_URL');
+    assert.ok(workflowYml.includes('SUPABASE_KEY'), 'GitHub Pages workflow must inject SUPABASE_KEY');
+    assert.ok(workflowYml.includes('npm run build:web-config'), 'GitHub Pages workflow must run build:web-config');
+
+    assert.ok(envExample.includes('SUPABASE_URL='), '.env.example must define SUPABASE_URL');
+    assert.ok(envExample.includes('SUPABASE_KEY='), '.env.example must define SUPABASE_KEY');
+    assert.equal(envExample.includes('PUBLIC_URL'), false, '.env.example must not re-add PUBLIC_URL');
+    assert.equal(envExample.includes('PRICE_CHECK_INTERVAL_MINUTES'), false, '.env.example must not re-add PRICE_CHECK_INTERVAL_MINUTES');
+
+    assert.ok(migrationSql.includes('kortex_realtime_signals'), 'supabase_migration.sql must create kortex_realtime_signals');
+    assert.ok(migrationSql.includes('supabase_realtime'), 'supabase_migration.sql must configure supabase_realtime publication');
+});
+
+

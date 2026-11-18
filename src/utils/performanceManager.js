@@ -63,7 +63,7 @@ const DEFAULT_OWNER_CONFIG = {
     maxWishlistItems: 5,
     maxSandboxItems: 5,
     maxGameSubs: 3,
-    priceCheckIntervalMinutes: Math.max(1, parseInt(process.env.PRICE_CHECK_INTERVAL_MINUTES || '5', 10) || 5),
+    priceCheckIntervalMinutes: 5,
     workersIntervalMinutes: 15,
     vipUserIds: [],
     vipRoleIds: []

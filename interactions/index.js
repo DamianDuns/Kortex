@@ -1077,15 +1077,27 @@ async function procesarInteraccionInterna(interaction) {
     if (cid === 'btn_fastlink_refresh' && interaction.isButton()) {
         await interaction.deferUpdate();
         const isEn = obtenerIdiomaUsuario(interaction.user.id) === 'en';
-        const cuenta = await verificarAutorizacionRobloxOAuth(interaction.user.id).catch(() => null);
+        const cuenta = await verificarAutorizacionRobloxOAuth(interaction.user.id, { forceRemote: true }).catch(() => null);
         const msg = cuenta && cuenta.roblox_user_id
             ? (isEn
-                ? `✅ Status verified: your active authorized Roblox account is **@${cuenta.roblox_username}** (ID \`${cuenta.roblox_user_id}\`).`
-                : `✅ Estado comprobado: tu cuenta de Roblox autorizada activa es **@${cuenta.roblox_username}** (ID \`${cuenta.roblox_user_id}\`).`)
+                ? `✅ Status verified: your active synced Roblox account is **@${cuenta.roblox_username}** (ID \`${cuenta.roblox_user_id}\`).`
+                : `✅ Estado comprobado: tu cuenta de Roblox sincronizada activa es **@${cuenta.roblox_username}** (ID \`${cuenta.roblox_user_id}\`).`)
             : (isEn
-                ? `ℹ️ No active authorized Roblox account detected. Click **Link by @Username / ID** or **Web OAuth 2.0** above.`
-                : `ℹ️ No se detectó una cuenta de Roblox activa. Tocá **Vincular por @Usuario / ID** o **OAuth 2.0 Web** arriba.`);
+                ? `ℹ️ No active Roblox account detected. Click **Link @Username / ID** or **Connect on Web** above.`
+                : `ℹ️ No se detectó una cuenta de Roblox activa. Tocá **Vincular @Usuario / ID** o **Conectar en Web** arriba.`);
         const panel = await construirPanelVinculacionCuenta(interaction.user.id, msg);
+        return await interaction.editReply(panel);
+    }
+
+    if (cid === 'btn_fastlink_unlink_roblox' && interaction.isButton()) {
+        await interaction.deferUpdate();
+        const uid = interaction.user.id;
+        const isEn = obtenerIdiomaUsuario(uid) === 'en';
+        await eliminarCuentaVinculada(uid, 'roblox');
+        const msg = isEn
+            ? '🔌 **Roblox account unlinked:** You can link another account anytime by @Username / ID or from the Web Portal.'
+            : '🔌 **Cuenta de Roblox desvinculada:** Podés vincular otra cuenta cuando quieras por @Usuario / ID o desde el Portal Web.';
+        const panel = await construirPanelVinculacionCuenta(uid, msg);
         return await interaction.editReply(panel);
     }
 
@@ -1094,11 +1106,13 @@ async function procesarInteraccionInterna(interaction) {
         await interaction.deferUpdate();
         const uid = interaction.user.id;
         const isEn = obtenerIdiomaUsuario(uid) === 'en';
-        const savedCfg = await activarSesionDiscordDirecta(interaction.user);
+        await activarSesionDiscordDirecta(interaction.user);
         const newChallenge = generarCodigoVinculacionDiscord(uid, interaction.user, { forceNew: true });
+        const { persistirConfigDiscordEnSupabase } = require('../src/utils/fastLink');
+        await persistirConfigDiscordEnSupabase(uid, obtenerConfigDiscord(uid)).catch(() => {});
         const msg = isEn
-            ? `🔑 **Web login code updated:** ||\`${newChallenge?.code}\`||`
-            : `🔑 **Código para iniciar sesión en la Web renovado:** ||\`${newChallenge?.code}\`||`;
+            ? `✅ **Discord account connected & Web code updated:** ||\`${newChallenge?.code}\`||`
+            : `✅ **Cuenta de Discord conectada y código Web renovado:** ||\`${newChallenge?.code}\`||`;
         const panel = await construirPanelConfigDiscord(interaction.user, msg, 'cat_accounts', interaction.client);
         return await interaction.editReply(panel);
     }
@@ -1109,7 +1123,7 @@ async function procesarInteraccionInterna(interaction) {
         const isEn = obtenerIdiomaUsuario(uid) === 'en';
         await eliminarCuentaVinculada(uid, 'roblox');
         const msg = isEn
-            ? '🔌 **Roblox account unlinked:** You can link another Roblox account anytime by @Username / ID or Web OAuth.'
+            ? '🔌 **Roblox account unlinked:** You can link another Roblox account anytime by @Username / ID or from the Web Portal.'
             : '🔌 **Cuenta de Roblox desvinculada:** Podés vincular otra cuenta cuando quieras por @Usuario / ID o desde el Portal Web.';
         const panel = await construirPanelConfigDiscord(interaction.user, msg, 'cat_accounts', interaction.client);
         return await interaction.editReply(panel);
