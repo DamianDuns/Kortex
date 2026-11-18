@@ -1344,14 +1344,29 @@ test('Supabase client uses SUPABASE_URL & SUPABASE_KEY, blocks service_role leak
     const envExample = fs.readFileSync(path.join(rootDir, '.env.example'), 'utf8');
     const migrationSql = fs.readFileSync(path.join(rootDir, 'supabase_migration.sql'), 'utf8');
 
+    const gitignore = fs.readFileSync(path.join(rootDir, '.gitignore'), 'utf8');
+    const supabaseWebCfg = fs.readFileSync(path.join(rootDir, 'docs', 'supabase-config.js'), 'utf8');
+
     assert.equal(indexHtml.includes('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'), false, 'docs/index.html must not contain hardcoded Supabase JWT');
     assert.equal(indexHtml.includes('gpgxlasblqxyyynapwow.supabase.co'), false, 'docs/index.html must not hardcode a specific Supabase URL');
     assert.ok(indexHtml.includes('./supabase-config.js'), 'docs/index.html must load ./supabase-config.js');
     assert.ok(indexHtml.includes('kortex_realtime_signals'), 'docs/index.html must subscribe to kortex_realtime_signals');
+    assert.ok(indexHtml.includes('identify email'), 'Discord OAuth2 must request both identify and email scopes for Supabase Auth');
+    assert.ok(indexHtml.includes('exchangeCodeForSession'), 'docs/index.html must support Supabase PKCE OAuth ?code= exchange');
+    assert.ok(indexHtml.includes('isKtxBotCode'), 'docs/index.html must separate /config KTX bot codes from OAuth PKCE codes');
+    assert.ok(indexHtml.includes('getCanonicalOAuthRedirectUrl'), 'docs/index.html must normalize canonical redirectTo URL for GitHub Pages');
+
+    assert.ok(supabaseWebCfg.includes('"supabaseUrl": ""'), 'Committed docs/supabase-config.js must have empty supabaseUrl');
+    assert.ok(supabaseWebCfg.includes('"supabaseKey": ""'), 'Committed docs/supabase-config.js must have empty supabaseKey');
 
     assert.ok(workflowYml.includes('SUPABASE_URL'), 'GitHub Pages workflow must inject SUPABASE_URL');
     assert.ok(workflowYml.includes('SUPABASE_KEY'), 'GitHub Pages workflow must inject SUPABASE_KEY');
     assert.ok(workflowYml.includes('npm run build:web-config'), 'GitHub Pages workflow must run build:web-config');
+    assert.ok(workflowYml.includes('enablement: true'), 'GitHub Pages workflow must auto-enable GitHub Actions source');
+
+    assert.ok(gitignore.includes('.data/'), '.gitignore must exclude .data/ local session backups');
+    assert.ok(gitignore.includes('.aistudio/'), '.gitignore must exclude .aistudio/');
+    assert.ok(gitignore.includes('.playwright-cli/'), '.gitignore must exclude .playwright-cli/');
 
     assert.ok(envExample.includes('SUPABASE_URL='), '.env.example must define SUPABASE_URL');
     assert.ok(envExample.includes('SUPABASE_KEY='), '.env.example must define SUPABASE_KEY');

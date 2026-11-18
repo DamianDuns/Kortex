@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -38,10 +39,20 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || vars.SUPABASE_KEY }}
-        run: npm run build:web-config
+        run: |
+          npm run build:web-config
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "### ⚠️ Variables de Supabase pendientes" >> $GITHUB_STEP_SUMMARY
+            echo "Agregá **SUPABASE_URL** y **SUPABASE_KEY** (clave pública \`anon\` / \`publishable\`) en **Settings → Secrets and variables → Actions** para activar OAuth2 de Discord y Realtime en GitHub Pages." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Cliente de Supabase inyectado para GitHub Pages" >> $GITHUB_STEP_SUMMARY
+            echo "Configuración generada correctamente con **SUPABASE_URL** y **SUPABASE_KEY**." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload docs artifact
         uses: actions/upload-pages-artifact@v3

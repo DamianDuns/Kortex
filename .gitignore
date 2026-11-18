@@ -6,12 +6,17 @@ node_modules/
 .env.*
 !.env.example
 env.
-public/assets/aistudio/*env*
+public/assets/aistudio/
 
-# Logs, caché local y archivos del sistema
+# Datos locales de ejecución, respaldos y herramientas de prueba
+data/
+.data/
+.aistudio/
+.playwright-cli/
+
+# Logs y archivos del sistema
 *.log
 npm-debug.log*
 logs/
-data/
 .DS_Store
 Thumbs.db

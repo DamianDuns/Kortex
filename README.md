@@ -53,13 +53,24 @@ cp .env.example .env   # y completá tus valores reales
 
 > ⚠️ **Nunca subas el archivo `.env` a GitHub.** Ya está incluido en `.gitignore`.
 
-## Sincronización en Tiempo Real en GitHub Pages
+## Configuración de OAuth2 ("Continuar con Discord") y GitHub Pages
 
-1. Ejecutá `supabase_migration.sql` en el **SQL Editor** de tu proyecto de Supabase para habilitar las funciones RPC y la publicación `supabase_realtime` (`kortex_realtime_signals`, `discord_configs`, `user_links`, `roblox_wishlist`, `pending_robux`, `tycoon_profiles` y `account_history`).
-2. En tu repositorio de GitHub, entrá a **Settings → Secrets and variables → Actions** y agregá:
-   - `SUPABASE_URL`: la URL de tu proyecto de Supabase.
-   - `SUPABASE_KEY`: tu clave pública (`anon` / `publishable`) de Supabase.
-3. En **Settings → Pages**, elegí **Source: GitHub Actions**. El flujo `.github/workflows/deploy-pages.yml` genera automáticamente `docs/supabase-config.js` en cada despliegue y conecta el portal web en tiempo real con el bot.
+Para que el botón **"Continuar con Discord"** y la sincronización en tiempo real funcionen en el repositorio original (`https://damianduns.github.io/Kortex/`):
+
+1. **Base de datos y Realtime en Supabase**:
+   - Ejecutá `supabase_migration.sql` en el **SQL Editor** de tu proyecto de Supabase para habilitar las funciones RPC (`kortex_web_sync_discord_oauth`, `kortex_web_get_account_status`, etc.) y la publicación `supabase_realtime`.
+2. **Discord Developer Portal → OAuth2 → Redirects**:
+   - Agregá el callback de Supabase Auth de tu proyecto:
+     `https://<tu-proyecto>.supabase.co/auth/v1/callback`
+   - En **Supabase → Authentication → Providers → Discord**, activá el proveedor y cargá tu **Client ID** y **Client Secret** de Discord.
+3. **Supabase → Authentication → URL Configuration**:
+   - **Site URL**: `https://damianduns.github.io/Kortex/`
+   - **Redirect URLs**: agregá `https://damianduns.github.io/Kortex/` y `https://damianduns.github.io/Kortex/**`
+4. **GitHub → Settings → Secrets and variables → Actions** y **Pages**:
+   - Creá dos **Repository secrets**:
+     - `SUPABASE_URL`: `https://<tu-proyecto>.supabase.co`
+     - `SUPABASE_KEY`: tu clave pública (`anon` / `publishable`) de Supabase.
+   - En **Settings → Pages**, verificá que **Build and deployment → Source** esté en **GitHub Actions** (el workflow `.github/workflows/deploy-pages.yml` también lo habilita automáticamente e inyecta `docs/supabase-config.js` en cada push a `main` sin exponer claves en el código fuente).
 
 ## Estructura
 

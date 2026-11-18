@@ -4019,6 +4019,7 @@
         let selectedLoginMethod = 'discord';
         let kortexSupabaseClient = null;
         let kortexSupabaseClientKeySig = '';
+        let supabaseClientInitPromise = null;
         let supabaseSdkLoadPromise = null;
         let activeRealtimeSessionId = '';
         let activeSupabaseSignalChannel = null;
@@ -4111,25 +4112,35 @@
             if (kortexSupabaseClient && kortexSupabaseClientKeySig === sig) {
                 return kortexSupabaseClient;
             }
+            if (supabaseClientInitPromise) {
+                return supabaseClientInitPromise;
+            }
 
-            const sdk = await loadSupabaseUmdSdk();
-            if (!sdk || typeof sdk.createClient !== 'function') return null;
+            supabaseClientInitPromise = (async () => {
+                try {
+                    const sdk = await loadSupabaseUmdSdk();
+                    if (!sdk || typeof sdk.createClient !== 'function') return null;
 
-            kortexSupabaseClient = sdk.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
-                auth: {
-                    persistSession: true,
-                    autoRefreshToken: true,
-                    detectSessionInUrl: false
-                },
-                realtime: {
-                    params: {
-                        eventsPerSecond: 10
-                    }
+                    kortexSupabaseClient = sdk.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+                        auth: {
+                            persistSession: true,
+                            autoRefreshToken: true,
+                            detectSessionInUrl: true
+                        },
+                        realtime: {
+                            params: {
+                                eventsPerSecond: 10
+                            }
+                        }
+                    });
+                    kortexSupabaseClientKeySig = sig;
+                    window.kortexSupabase = kortexSupabaseClient;
+                    return kortexSupabaseClient;
+                } finally {
+                    supabaseClientInitPromise = null;
                 }
-            });
-            kortexSupabaseClientKeySig = sig;
-            window.kortexSupabase = kortexSupabaseClient;
-            return kortexSupabaseClient;
+            })();
+            return supabaseClientInitPromise;
         }
 
         function teardownRealtimeSubscriptions() {
@@ -4304,11 +4315,24 @@
             return clean;
         }
 
+        function getCanonicalOAuthRedirectUrl() {
+            let cleanPath = String(window.location.pathname || '/').replace(/\/index\.html$/i, '/');
+            if (!cleanPath.endsWith('/')) {
+                cleanPath += '/';
+            }
+            return `${window.location.origin}${cleanPath}`;
+        }
+
+        function isKtxBotCode(raw) {
+            const val = String(raw || '').trim();
+            return /^(?:KTX-[A-Z0-9]{4,10}|\d{6})$/i.test(val);
+        }
+
         function buildSupabaseDiscordOAuthUrl() {
             const { supabaseUrl } = resolveSupabaseRuntimeConfig();
             if (!supabaseUrl) return '#cuenta';
-            const redirectTarget = `${window.location.origin}${window.location.pathname}`;
-            return `${supabaseUrl}/auth/v1/authorize?provider=discord&redirect_to=${encodeURIComponent(redirectTarget)}&scopes=${encodeURIComponent('identify')}`;
+            const redirectTarget = getCanonicalOAuthRedirectUrl();
+            return `${supabaseUrl}/auth/v1/authorize?provider=discord&redirect_to=${encodeURIComponent(redirectTarget)}&scopes=${encodeURIComponent('identify email')}`;
         }
 
         function syncDiscordOAuthLinks() {
@@ -4331,36 +4355,71 @@
             }
         }
 
-        function handleDiscordDirectOAuthClick(e) {
+        async function handleDiscordDirectOAuthClick(e) {
+            const isComp = e?.currentTarget?.id === 'btn-companion-discord-oauth';
+            const fb = document.getElementById(isComp ? 'companion-feedback' : 'discord-feedback');
+            const codeInp = document.getElementById(isComp ? 'companion-discord-code' : 'quick-discord-code');
+
+            await hydrateRuntimeSupabaseConfigFromServer();
             const { isConfigured } = resolveSupabaseRuntimeConfig();
             if (!isConfigured) {
                 if (e) e.preventDefault();
-                const isComp = e?.currentTarget?.id === 'btn-companion-discord-oauth';
-                const fb = document.getElementById(isComp ? 'companion-feedback' : 'discord-feedback');
-                const codeInp = document.getElementById(isComp ? 'companion-discord-code' : 'quick-discord-code');
+                const isStaticGhPages = /github\.io$/i.test(window.location.hostname || '');
                 if (fb) {
                     fb.style.color = '#38BDF8';
-                    fb.innerHTML = 'Usá tu clave instantánea <code>KTX-XXXXXX</code> generada con <code>/config</code> en Discord para vincular tu sesión.';
+                    fb.innerHTML = isStaticGhPages
+                        ? 'Para habilitar OAuth directo en GitHub Pages, configurá <code>SUPABASE_URL</code> y <code>SUPABASE_KEY</code> en <strong>GitHub Actions Secrets</strong> (con Source: GitHub Actions), o entrá con tu clave <code>KTX-XXXXXX</code> de <code>/config</code>.'
+                        : 'Usá tu clave instantánea <code>KTX-XXXXXX</code> generada con <code>/config</code> en Discord para vincular tu sesión.';
                 }
                 if (codeInp) codeInp.focus();
                 return false;
             }
 
-            setPrimaryProvider(readLocalAccountBackup()?.linkedAccount?.roblox_user_id && !readLocalAccountBackup()?.discordConfig?.oauth_verified ? getPrimaryProvider() : 'discord');
+            setPrimaryProvider(
+                readLocalAccountBackup()?.linkedAccount?.roblox_user_id && !readLocalAccountBackup()?.discordConfig?.oauth_verified
+                    ? getPrimaryProvider()
+                    : 'discord'
+            );
             syncDiscordOAuthLinks();
+
             const inIframe = (function() {
                 try { return window.self !== window.top; } catch { return true; }
             })();
             if (inIframe) {
-                const fb = document.getElementById('discord-feedback');
                 if (fb) {
                     fb.style.color = '#38BDF8';
                     fb.innerHTML = 'Se abrió la autorización de Discord en una pestaña nueva. También podés pegar acá tu clave <code>KTX-XXXXXX</code> de <code>/config</code> al instante.';
                 }
                 return true;
             }
+
             if (e) e.preventDefault();
-            window.location.href = buildSupabaseDiscordOAuthUrl();
+            if (fb) {
+                fb.style.color = '#38BDF8';
+                fb.textContent = 'Redirigiendo a Discord para autorizar tu sesión de Kortex...';
+            }
+
+            const redirectTarget = getCanonicalOAuthRedirectUrl();
+            try {
+                const sdkClient = await getOrInitSupabaseClient();
+                if (sdkClient && sdkClient.auth && typeof sdkClient.auth.signInWithOAuth === 'function') {
+                    const { data, error } = await sdkClient.auth.signInWithOAuth({
+                        provider: 'discord',
+                        options: {
+                            redirectTo: redirectTarget,
+                            scopes: 'identify email',
+                            skipBrowserRedirect: true
+                        }
+                    });
+                    if (error) throw error;
+                    if (data?.url) {
+                        window.location.assign(data.url);
+                        return false;
+                    }
+                }
+            } catch {}
+
+            window.location.assign(buildSupabaseDiscordOAuthUrl());
             return false;
         }
 
@@ -5009,6 +5068,9 @@
             if (current) {
                 saveRememberedProfileFromBackup(current);
             }
+            if (kortexSupabaseClient && kortexSupabaseClient.auth && typeof kortexSupabaseClient.auth.signOut === 'function') {
+                kortexSupabaseClient.auth.signOut({ scope: 'local' }).catch(() => {});
+            }
             clearStoredSessionOnly();
             clearPendingRobloxVerify();
             currentDiscordName = null;
@@ -5614,32 +5676,99 @@
 
         async function consumeSupabaseOAuthCallbackIfPresent() {
             const rawHash = String(window.location.hash || '');
-            if (!rawHash.includes('access_token=')) return false;
-
+            const rawSearch = String(window.location.search || '');
             const hashParams = new URLSearchParams(rawHash.replace(/^#/, ''));
-            const accessToken = hashParams.get('access_token');
-            if (!accessToken) return false;
+            const searchParams = new URLSearchParams(rawSearch);
+
+            // 1. Si Discord o Supabase devolvió un error de redirección / configuración OAuth, mostrarlo con claridad
+            const oauthError = searchParams.get('error_description')
+                || hashParams.get('error_description')
+                || searchParams.get('error')
+                || hashParams.get('error');
+            if (oauthError) {
+                try {
+                    window.history.replaceState({}, document.title, `${window.location.pathname}#cuenta`);
+                } catch {}
+                openAccountPopover('accounts');
+                selectPrimaryLoginMethod('discord');
+                const fb = document.getElementById('discord-feedback');
+                if (fb) {
+                    fb.style.color = '#F0B232';
+                    fb.textContent = `No se completó la autorización con Discord (${decodeURIComponent(oauthError.replace(/\+/g, ' '))}). Verificá las Redirect URLs en Supabase o ingresá con tu clave KTX-XXXXXX.`;
+                }
+                return true;
+            }
+
+            const accessToken = hashParams.get('access_token') || '';
+            const queryCode = (searchParams.get('code') || '').trim();
+            const isPkceOAuthCode = Boolean(queryCode && !isKtxBotCode(queryCode));
+
+            if (!accessToken && !isPkceOAuthCode) return false;
 
             await hydrateRuntimeSupabaseConfigFromServer();
             const { supabaseUrl, supabaseKey, isConfigured } = resolveSupabaseRuntimeConfig();
-            if (!isConfigured) return false;
+            if (!isConfigured) {
+                try {
+                    window.history.replaceState({}, document.title, `${window.location.pathname}#cuenta`);
+                } catch {}
+                openAccountPopover('accounts');
+                selectPrimaryLoginMethod('discord');
+                const fb = document.getElementById('discord-feedback');
+                if (fb) {
+                    fb.style.color = '#F0B232';
+                    fb.innerHTML = 'Recibimos la redirección de Discord, pero falta configurar <code>SUPABASE_URL</code> y <code>SUPABASE_KEY</code> en <strong>GitHub Actions Secrets</strong> (con Pages Source: GitHub Actions) para completar la sesión OAuth2.';
+                }
+                return true;
+            }
 
             try {
                 let authUser = null;
                 const sdkClient = await getOrInitSupabaseClient();
-                if (sdkClient && sdkClient.auth && typeof sdkClient.auth.getUser === 'function') {
-                    const { data } = await sdkClient.auth.getUser(accessToken);
-                    if (data && data.user) authUser = data.user;
-                }
-                if (!authUser) {
-                    const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${accessToken}`
+
+                if (isPkceOAuthCode && sdkClient && sdkClient.auth) {
+                    // detectSessionInUrl puede haber intercambiado el code automáticamente; comprobamos getSession primero
+                    const existingSess = await sdkClient.auth.getSession().catch(() => null);
+                    if (existingSess?.data?.session?.user) {
+                        authUser = existingSess.data.session.user;
+                    } else if (typeof sdkClient.auth.exchangeCodeForSession === 'function') {
+                        const exchanged = await sdkClient.auth.exchangeCodeForSession(queryCode).catch(() => null);
+                        if (exchanged?.data?.user) {
+                            authUser = exchanged.data.user;
+                        } else if (exchanged?.data?.session?.user) {
+                            authUser = exchanged.data.session.user;
                         }
-                    });
-                    authUser = await userResp.json().catch(() => null);
-                    if (!userResp.ok || !authUser) return false;
+                    }
+                }
+
+                if (!authUser && accessToken) {
+                    if (sdkClient && sdkClient.auth && typeof sdkClient.auth.getUser === 'function') {
+                        const { data } = await sdkClient.auth.getUser(accessToken);
+                        if (data && data.user) authUser = data.user;
+                    }
+                    if (!authUser) {
+                        const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+                            headers: {
+                                'apikey': supabaseKey,
+                                'Authorization': `Bearer ${accessToken}`
+                            }
+                        });
+                        authUser = await userResp.json().catch(() => null);
+                        if (!userResp.ok || !authUser) return false;
+                    }
+                }
+
+                if (!authUser) {
+                    try {
+                        window.history.replaceState({}, document.title, `${window.location.pathname}#cuenta`);
+                    } catch {}
+                    openAccountPopover('accounts');
+                    selectPrimaryLoginMethod('discord');
+                    const fb = document.getElementById('discord-feedback');
+                    if (fb) {
+                        fb.style.color = '#F0B232';
+                        fb.textContent = 'El enlace temporal de autorización venció o ya fue usado. Pulsá "Continuar con Discord" nuevamente o ingresá con tu clave KTX-XXXXXX.';
+                    }
+                    return true;
                 }
 
                 const discordIdentity = Array.isArray(authUser.identities)
@@ -5647,7 +5776,13 @@
                     : null;
                 const meta = discordIdentity?.identity_data || authUser.user_metadata || {};
                 const discordId = String(meta.provider_id || meta.sub || discordIdentity?.id || '').trim();
-                const username = String(meta.full_name || meta.custom_claims?.global_name || meta.name || 'UsuarioDiscord').trim();
+                const username = String(
+                    meta.custom_claims?.global_name ||
+                    meta.full_name ||
+                    meta.preferred_username ||
+                    meta.name ||
+                    'UsuarioDiscord'
+                ).trim();
                 const avatarUrl = String(meta.avatar_url || meta.picture || '').trim();
 
                 if (!isDiscordSnowflake(discordId)) return false;
@@ -5770,12 +5905,13 @@
                 getOrInitSupabaseClient().catch(() => {});
             }
 
-            const handledOAuthHash = await consumeSupabaseOAuthCallbackIfPresent();
-            if (handledOAuthHash) return;
+            const handledOAuthCallback = await consumeSupabaseOAuthCallbackIfPresent();
+            if (handledOAuthCallback) return;
 
             const params = new URLSearchParams(window.location.search);
             const qDiscordId = params.get('discord_id') || '';
-            const qCode = params.get('code') || '';
+            const rawQueryCode = (params.get('code') || '').trim();
+            const qCode = isKtxBotCode(rawQueryCode) ? rawQueryCode : '';
             const notice = params.get('sync_notice') || params.get('oauth_notice');
 
             if (qDiscordId || qCode || window.location.hash === '#cuenta') {
@@ -5788,8 +5924,8 @@
 
             if (qCode) {
                 const codeInp = document.getElementById('quick-discord-code');
-                if (codeInp) codeInp.value = qCode.trim();
-                await quickVerifyDiscordWeb('verify', qDiscordId.trim(), qCode.trim(), 'login');
+                if (codeInp) codeInp.value = qCode;
+                await quickVerifyDiscordWeb('verify', qDiscordId.trim(), qCode, 'login');
                 try {
                     const cleanUrl = window.location.pathname + '#cuenta';
                     window.history.replaceState({}, document.title, cleanUrl);
